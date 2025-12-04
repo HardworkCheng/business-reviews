@@ -76,6 +76,13 @@
 				"navigationBarTitleText": "修改密码",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/change-phone/change-phone",
+			"style": {
+				"navigationBarTitleText": "修改手机号",
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"tabBar": {

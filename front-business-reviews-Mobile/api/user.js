@@ -83,6 +83,24 @@ export const changePassword = (data) => {
   return put('/user/password', data)
 }
 
+/**
+ * 获取用户当前绑定的手机号
+ */
+export const getUserPhone = () => {
+  return get('/user/phone')
+}
+
+/**
+ * 修改手机号
+ * @param {Object} data - 修改手机号数据
+ * @param {String} data.oldPhoneCode - 原手机号验证码
+ * @param {String} data.newPhone - 新手机号
+ * @param {String} data.newPhoneCode - 新手机号验证码
+ */
+export const changePhone = (data) => {
+  return put('/user/phone', data)
+}
+
 export default {
   getUserInfo,
   updateUserInfo,
@@ -91,5 +109,7 @@ export default {
   getBrowseHistory,
   followUser,
   unfollowUser,
-  changePassword
+  changePassword,
+  getUserPhone,
+  changePhone
 }
