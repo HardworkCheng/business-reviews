@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN">
+ <head> 
+  <meta charset="utf-8"> 
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"> 
+  <title>粘土乐园风格地图页面</title> 
+  <script src="../javascript/reload.js"></script> 
+  <script src="./1996099946884890624/resource_8639610000.js"></script> 
+  <link href="./1996099946884890624/all.min.css" rel="stylesheet"> 
+  <script>tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        primary: '#FF9E64',
+        secondary: '#FFD166',
+        accent: '#06D6A0',
+        pink: '#EF476F',
+        light: '#F7F9FC'
+      },
+      fontFamily: {
+        rounded: ['Comic Sans MS', 'Marker Felt', 'Arial Rounded MT Bold', 'sans-serif']
+      },
+      boxShadow: {
+        'clay': '5px 5px 0px rgba(0, 0, 0, 0.1)',
+        'clay-hover': '8px 8px 0px rgba(0, 0, 0, 0.15)'
+      }
+    }
+  }
+};</script> 
+  <style type="text/tailwindcss">
+        @layer utilities {
+            .text-shadow {
+                text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.1);
+            }
+            .clay-border {
+                border: 3px solid #000;
+                border-radius: 20px;
+            }
+            .clay-icon {
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 3px 3px 0px rgba(0, 0, 0, 0.1);
+            }
+            .nav-item-active {
+                background-color: theme('colors.primary');
+                color: white;
+            }
+            .map-control-btn {
+                @apply clay-icon w-10 h-10 bg-white text-black mb-3 shadow-clay hover:shadow-clay-hover transition-all duration-300;
+            }
+        }
+    </style>
+  <style>
+    ::-webkit-scrollbar {
+        width: 0px;
+    }
+</style> 
+ </head> 
+ <body class="bg-light font-rounded text-black min-h-screen"> 
+  <!-- [MODULE] a1b_主内容区域 --> 
+  <div class="min-h-screen flex flex-col"> 
+   <!-- [MODULE] c2d_顶部区域 --> 
+   <header class="sticky top-0 z-50 bg-white shadow-md"> 
+    <!-- [MODULE] e3f_定位栏 --> 
+    <div class="flex items-center justify-between p-4"> 
+     <div class="flex items-center text-sm text-gray-700"> 
+      <i class="fas fa-map-marker-alt mr-2 text-primary"> </i> 杭州 
+     </div> 
+     <!-- [MODULE] g4h_搜索栏 --> 
+     <div class="relative flex-1 mx-3"> 
+      <input class="w-full py-2 px-4 pl-10 clay-border bg-white focus:outline-none focus:ring-4 focus:ring-secondary/50 transition-all duration-300 text-sm" placeholder="搜索商户名或地点" type="text"> 
+      <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"> </i> 
+     </div> 
+     <!-- [/MODULE] g4h_搜索栏 -- 提供搜索功能，可输入商户名或地点进行搜索 --> 
+     <div class="clay-icon bg-primary w-8 h-8 text-white"> 
+      <i class="fas fa-user text-sm"> </i> 
+     </div> 
+    </div> 
+    <!-- [/MODULE] e3f_定位栏 -- 显示当前定位城市为杭州，包含搜索框和个人信息入口 --> 
+   </header> 
+   <!-- [/MODULE] c2d_顶部区域 -- 包含定位栏和搜索栏 --> 
+   <!-- [MODULE] k6l_地图内容区 --> 
+   <main class="flex-1 relative"> 
+    <!-- [MODULE] m7n_地图显示区域 --> 
+    <div class="absolute inset-0 bg-gray-200"> 
+     <!-- 地图占位图 --> 
+     <img alt="杭州地图" class="w-full h-full object-cover opacity-90" src="./1996099946884890624/8e7f34b05e68e0f6287a77e9d0028d05.png"> 
+     <!-- 地图标记点 --> 
+     <div class="absolute top-1/4 left-1/3 transform -translate-x-1/2 -translate-y-1/2 animate-pulse"> 
+      <div class="clay-icon bg-primary w-10 h-10 text-white"> 
+       <i class="fas fa-utensils"> </i> 
+      </div> 
+     </div> 
+     <div class="absolute top-1/2 left-2/3 transform -translate-x-1/2 -translate-y-1/2 animate-pulse"> 
+      <div class="clay-icon bg-pink w-10 h-10 text-white"> 
+       <i class="fas fa-music"> </i> 
+      </div> 
+     </div> 
+     <div class="absolute bottom-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-pulse"> 
+      <div class="clay-icon bg-secondary w-10 h-10 text-black"> 
+       <i class="fas fa-coffee"> </i> 
+      </div> 
+     </div> 
+     <!-- 地图控制按钮 --> 
+     <div class="absolute right-4 top-1/4 flex flex-col items-center"> 
+      <button class="map-control-btn"> <i class="fas fa-plus"> </i> </button> 
+      <button class="map-control-btn"> <i class="fas fa-minus"> </i> </button> 
+      <button class="map-control-btn"> <i class="fas fa-location-arrow"> </i> </button> 
+      <button class="map-control-btn"> <i class="fas fa-map-marked-alt"> </i> </button> 
+     </div> 
+     <!-- 地图底部信息栏 --> 
+     <div class="absolute bottom-0 left-0 right-0 bg-white/95 p-3 shadow-lg"> 
+      <div class="flex items-center justify-between"> 
+       <div class="flex items-center"> 
+        <div class="clay-icon bg-primary w-12 h-12 text-white mr-3"> 
+         <i class="fas fa-utensils text-lg"> </i> 
+        </div> 
+        <div> 
+         <h3 class="font-medium"> 小顽里 神秘浪漫花园餐厅 </h3> 
+         <p class="text-xs text-gray-500"> 距离 800m · 人均 ¥128 </p> 
+        </div> 
+       </div> 
+       <button class="bg-primary text-white px-4 py-2 rounded-full text-sm shadow-clay hover:shadow-clay-hover transition-all duration-300"> 导航 </button> 
+      </div> 
+     </div> 
+    </div> 
+    <!-- [/MODULE] m7n_地图显示区域 -- 显示杭州地图，包含缩放控制、定位、图层切换按钮，地图上标记了餐厅、KTV等兴趣点 --> 
+   </main> 
+   <!-- [/MODULE] k6l_地图内容区 -- 展示交互式地图界面，包含地图显示、标记点和控制按钮 --> 
+   <!-- [MODULE] x2y_底部导航栏 --> 
+   <footer class="sticky bottom-0 bg-white shadow-lg border-t-2 border-black"> 
+    <div class="flex justify-around items-center"> 
+     <a class="flex flex-col items-center py-2 text-gray-500 hover:text-primary transition-colors" href="javascript:void(0);"> <i class="fas fa-home text-xl"> </i> <span class="text-xs mt-1"> 首页 </span> </a> 
+     <a class="flex flex-col items-center py-2 nav-item-active" href="javascript:void(0);"> <i class="fas fa-map text-xl"> </i> <span class="text-xs mt-1"> 地图 </span> </a> 
+     <a class="flex items-center justify-center w-14 h-14 -mt-6 bg-primary rounded-full text-white shadow-lg border-4 border-white" href="javascript:void(0);"> <i class="fas fa-plus text-xl"> </i> </a> 
+     <a class="flex flex-col items-center py-2 text-gray-500 hover:text-primary transition-colors" href="javascript:void(0);"> <i class="fas fa-comment text-xl"> </i> <span class="text-xs mt-1"> 消息 </span> </a> 
+     <a class="flex flex-col items-center py-2 text-gray-500 hover:text-primary transition-colors" href="javascript:void(0);"> <i class="fas fa-user text-xl"> </i> <span class="text-xs mt-1"> 我 </span> </a> 
+    </div> 
+   </footer> 
+   <!-- [/MODULE] x2y_底部导航栏 -- 包含首页、地图、消息和我的四个导航按钮，中间有圆形加号按钮 --> 
+  </div> 
+  <!-- [/MODULE] a1b_主内容区域 -- 包含整个应用的所有内容模块 --> 
+  <!-- [JSMOD] w2x_页面交互逻辑 --> 
+  <script id="page-interactions">document.addEventListener('DOMContentLoaded', function () {
+  // 导航栏切换效果
+  var navItems = document.querySelectorAll('footer a');
+  navItems.forEach(function (item) {
+    item.addEventListener('click', function () {
+      // 移除所有active状态
+      navItems.forEach(function (nav) {
+        nav.classList.remove('nav-item-active');
+      });
+      // 给当前点击项添加active状态
+      this.classList.add('nav-item-active');
+    });
+  });
+
+  // 搜索框交互效果
+  var searchInput = document.querySelector('input[placeholder="搜索商户名或地点"]');
+  if (searchInput) {
+    searchInput.addEventListener('focus', function () {
+      this.parentElement.classList.add('scale-[1.02]');
+    });
+    searchInput.addEventListener('blur', function () {
+      this.parentElement.classList.remove('scale-[1.02]');
+    });
+  }
+
+  // 地图控制按钮交互
+  var mapControls = document.querySelectorAll('.map-control-btn');
+  mapControls.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var _this = this;
+      this.classList.add('scale-110');
+      setTimeout(function () {
+        _this.classList.remove('scale-110');
+      }, 300);
+    });
+  });
+
+  // 地图标记点点击效果
+  var mapMarkers = document.querySelectorAll('.clay-icon.bg-primary, .clay-icon.bg-pink, .clay-icon.bg-secondary');
+  mapMarkers.forEach(function (marker) {
+    marker.addEventListener('click', function () {
+      var _this2 = this;
+      this.classList.add('scale-125');
+      setTimeout(function () {
+        _this2.classList.remove('scale-125');
+      }, 300);
+    });
+  });
+});</script> 
+  <!-- [/JSMOD] w2x_页面交互逻辑 -- 实现导航栏切换、搜索框交互、地图控制按钮和标记点点击效果 -->  
+ </body>
+</html>

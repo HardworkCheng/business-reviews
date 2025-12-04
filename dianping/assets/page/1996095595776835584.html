@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="zh-CN">
+ <head> 
+  <meta charset="utf-8"> 
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"> 
+  <title>
+   个人主页
+  </title> 
+  <script src="../javascript/reload.js">
+  </script> 
+  <script src="./1996095595776835584/resource_2710310000.js">
+  </script> 
+  <link href="./1996095595776835584/all.min.css" rel="stylesheet"> 
+  <script>
+   tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        primary: '#FF9E64',
+        secondary: '#FFD166',
+        accent: '#06D6A0',
+        pink: '#EF476F',
+        light: '#F7F9FC'
+      },
+      fontFamily: {
+        rounded: ['Comic Sans MS', 'Marker Felt', 'Arial Rounded MT Bold', 'sans-serif']
+      },
+      boxShadow: {
+        'clay': '5px 5px 0px rgba(0, 0, 0, 0.1)',
+        'clay-hover': '8px 8px 0px rgba(0, 0, 0, 0.15)'
+      }
+    }
+  }
+};
+  </script> 
+  <style type="text/tailwindcss">
+   @layer utilities {
+            .text-shadow {
+                text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.1);
+            }
+            .clay-border {
+                border: 3px solid #000;
+                border-radius: 20px;
+            }
+            .clay-icon {
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 3px 3px 0px rgba(0, 0, 0, 0.1);
+            }
+            .nav-item-active {
+                background-color: theme('colors.primary');
+                color: white;
+            }
+            .tab-active {
+                color: theme('colors.primary');
+                border-bottom: 3px solid theme('colors.primary');
+            }
+        }
+  </style>
+  <style>
+    ::-webkit-scrollbar {
+        width: 0px;
+    }
+</style> 
+ </head> 
+ <body class="bg-light font-rounded text-black min-h-screen"> 
+  <!-- [MODULE] a1b_主内容区域 --> 
+  <div class="min-h-screen flex flex-col"> 
+   <!-- [MODULE] c2d_顶部区域 --> 
+   <header class="sticky top-0 z-50 bg-white shadow-md"> 
+    <!-- [MODULE] e3f_个人主页标题栏 --> 
+    <div class="flex items-center justify-between p-4"> 
+     <div class="clay-icon bg-white w-8 h-8 text-black border border-gray-300"> 
+      <i class="fas fa-arrow-left text-sm"> </i> 
+     </div> 
+     <h1 class="text-lg font-bold"> 个人主页 </h1> 
+     <button class="text-xs bg-pink text-white py-1 px-3 rounded-full shadow-clay"> 退出登录 </button> 
+    </div> 
+    <!-- [/MODULE] e3f_个人主页标题栏 -- 包含返回箭头、标题"个人主页"和"退出登录"按钮 --> 
+   </header> 
+   <!-- [/MODULE] c2d_顶部区域 -- 包含个人主页标题栏 --> 
+   <!-- [MODULE] k6l_个人主页内容区 --> 
+   <main class="flex-1 p-4"> 
+    <!-- [MODULE] m7n_用户信息区域 --> 
+    <div class="bg-white p-6 mb-6 shadow-clay rounded-2xl"> 
+     <!-- [MODULE] o8p_用户头像和基本信息 --> 
+     <div class="flex flex-col items-center"> 
+      <div class="clay-icon bg-primary w-24 h-24 mb-4 text-white text-3xl border-4 border-white shadow-lg"> 
+       <i class="fas fa-user"> </i> 
+      </div> 
+      <h2 class="text-xl font-bold mb-1"> user_vmjkoomjbk </h2> 
+      <div class="flex items-center text-gray-500 text-sm mb-4"> 
+       <i class="fas fa-map-marker-alt mr-1 text-primary"> </i> 杭州 
+      </div> 
+     </div> 
+     <!-- [/MODULE] o8p_用户头像和基本信息 -- 展示用户头像、用户名和所在地信息 --> 
+     <!-- [MODULE] q9r_个人简介区域 --> 
+     <div class="clay-border bg-light p-4 text-center text-sm text-gray-500">
+       添加个人简介，让大家更好的认识你~ 
+     </div> 
+     <!-- [/MODULE] q9r_个人简介区域 -- 显示个人简介提示文字，用户可添加个人简介 --> 
+    </div> 
+    <!-- [/MODULE] m7n_用户信息区域 -- 包含用户头像、基本信息和个人简介 --> 
+    <!-- [MODULE] u1v_内容导航标签 --> 
+    <div class="flex bg-white mb-6 shadow-clay rounded-t-2xl"> 
+     <button class="flex-1 py-3 text-center text-sm font-medium tab-active"> 笔记 </button> 
+     <button class="flex-1 py-3 text-center text-sm font-medium text-gray-500"> 评价 </button> 
+     <button class="flex-1 py-3 text-center text-sm font-medium text-gray-500"> 粉丝(0) </button> 
+     <button class="flex-1 py-3 text-center text-sm font-medium text-gray-500"> 关注(0) </button> 
+    </div> 
+    <!-- [/MODULE] u1v_内容导航标签 -- 包含笔记、评价、粉丝(0)、关注(0)四个选项卡，当前选中"笔记" --> 
+    <!-- [MODULE] v2w_笔记内容区域 --> 
+    <div class="bg-white p-8 text-center shadow-clay rounded-2xl"> 
+     <div class="clay-icon bg-gray-200 w-16 h-16 mx-auto mb-4 text-gray-400"> 
+      <i class="fas fa-file-alt text-xl"> </i> 
+     </div> 
+     <p class="text-gray-500"> 暂无笔记内容 </p> 
+     <button class="mt-4 bg-primary text-white text-sm py-2 px-4 rounded-full shadow-clay"> 创建笔记 </button> 
+    </div> 
+    <!-- [/MODULE] v2w_笔记内容区域 -- 显示"暂无笔记内容"提示和"创建笔记"按钮 --> 
+   </main> 
+   <!-- [/MODULE] k6l_个人主页内容区 -- 包含用户信息区域、内容导航标签和笔记内容区域 --> 
+   <!-- [MODULE] x2y_底部导航栏 --> 
+   <footer class="sticky bottom-0 bg-white shadow-lg border-t-2 border-black"> 
+    <div class="flex justify-around items-center"> 
+     <a class="flex flex-col items-center py-2 text-gray-500 hover:text-primary transition-colors" href="javascript:void(0);"> <i class="fas fa-home text-xl"> </i> <span class="text-xs mt-1"> 首页 </span> </a> 
+     <a class="flex flex-col items-center py-2 text-gray-500 hover:text-primary transition-colors" href="javascript:void(0);"> <i class="fas fa-map text-xl"> </i> <span class="text-xs mt-1"> 地图 </span> </a> 
+     <a class="flex items-center justify-center w-14 h-14 -mt-6 bg-primary rounded-full text-white shadow-lg border-4 border-white" href="javascript:void(0);"> <i class="fas fa-plus text-xl"> </i> </a> 
+     <a class="flex flex-col items-center py-2 text-gray-500 hover:text-primary transition-colors" href="javascript:void(0);"> <i class="fas fa-comment text-xl"> </i> <span class="text-xs mt-1"> 消息 </span> </a> 
+     <a class="flex flex-col items-center py-2 nav-item-active" href="javascript:void(0);"> <i class="fas fa-user text-xl"> </i> <span class="text-xs mt-1"> 我的 </span> </a> 
+    </div> 
+   </footer> 
+   <!-- [/MODULE] x2y_底部导航栏 -- 包含首页、地图、消息和我的四个导航按钮，中间有圆形加号按钮，"我的"图标为当前选中状态 --> 
+  </div> 
+  <!-- [/MODULE] a1b_主内容区域 -- 包含整个应用的所有内容模块 --> 
+  <!-- [JSMOD] w2x_页面交互逻辑 --> 
+  <script id="page-interactions">
+   document.addEventListener('DOMContentLoaded', function () {
+  // 导航栏切换效果
+  var navItems = document.querySelectorAll('footer a');
+  navItems.forEach(function (item) {
+    item.addEventListener('click', function () {
+      // 移除所有active状态
+      navItems.forEach(function (nav) {
+        nav.classList.remove('nav-item-active');
+      });
+      // 给当前点击项添加active状态
+      this.classList.add('nav-item-active');
+    });
+  });
+  // 标签页切换效果
+  var tabItems = document.querySelectorAll('.flex-1.py-3.text-center.text-sm.font-medium');
+  tabItems.forEach(function (item) {
+    item.addEventListener('click', function () {
+      // 移除所有tab-active状态
+      tabItems.forEach(function (tab) {
+        tab.classList.remove('tab-active');
+        tab.classList.add('text-gray-500');
+      });
+      // 给当前点击项添加tab-active状态
+      this.classList.add('tab-active');
+      this.classList.remove('text-gray-500');
+    });
+  });
+  // 返回按钮点击事件
+  var backButton = document.querySelector('.fa-arrow-left').parentElement;
+  if (backButton) {
+    backButton.addEventListener('click', function () {
+      window.history.back();
+    });
+  }
+  // 退出登录按钮点击事件
+  var logoutButton = document.querySelector('button:contains("退出登录")');
+  if (logoutButton) {
+    logoutButton.addEventListener('click', function () {
+      if (confirm('确定要退出登录吗？')) {
+        // 这里添加退出登录逻辑
+        alert('退出登录成功');
+      }
+    });
+  }
+  // 创建笔记按钮点击事件
+  var createNoteButton = document.querySelector('button:contains("创建笔记")');
+  if (createNoteButton) {
+    createNoteButton.addEventListener('click', function () {
+      alert('跳转到创建笔记页面');
+    });
+  }
+});
+  </script> 
+  <!-- [/JSMOD] w2x_页面交互逻辑 -- 实现导航栏切换、标签页切换、返回按钮、退出登录和创建笔记按钮的交互效果 -->   
+ </body>
+</html>
