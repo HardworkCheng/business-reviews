@@ -166,10 +166,9 @@ const handleLogin = async () => {
     const token = res.token
     const userInfo = res.userInfo
 
-    // 清除旧的缓存数据
-    uni.removeStorageSync('token')
-    uni.removeStorageSync('userInfo')
-    console.log('已清除旧的缓存数据')
+    // 清除所有缓存数据，确保新用户登录时不会显示旧数据
+    uni.clearStorageSync()
+    console.log('已清除所有缓存数据')
 
     if (token) {
       // 存"裸 token"，不要带 Bearer

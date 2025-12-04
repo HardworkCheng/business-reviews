@@ -15,7 +15,15 @@
 
 		<!-- 笔记图片 -->
 		<view class="image-section">
-			<image :src="noteData.image" class="note-image" mode="aspectFill"></image>
+			<!-- 多图展示 -->
+			<swiper v-if="noteData.images && noteData.images.length > 1" class="image-swiper" indicator-dots>
+				<swiper-item v-for="(img, index) in noteData.images" :key="index">
+					<image :src="img" class="note-image" mode="aspectFill"></image>
+				</swiper-item>
+			</swiper>
+			<!-- 单图展示 -->
+			<image v-else :src="noteData.image" class="note-image" mode="aspectFill"></image>
+			
 			<view class="action-btns">
 				<view class="action-btn clay-icon" :class="{ liked: isLiked }" @click="toggleLike">
 					<text>❤️</text>
@@ -115,25 +123,89 @@
 <script setup>
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { getNoteDetail, likeNote, unlikeNote, bookmarkNote, unbookmarkNote } from '../../api/note'
+
+const noteId = ref('')
 
 // 笔记数据（从后端获取）
-const noteData = ref({})
+const noteData = ref({
+	image: '',
+	title: '',
+	content: '',
+	author: '',
+	authorAvatar: '',
+	publishTime: '',
+	tags: [],
+	comments: 0,
+	views: 0
+})
 
 const isLiked = ref(false)
 const isBookmarked = ref(false)
 const likeCount = ref(0)
 const commentText = ref('')
+const loading = ref(false)
 
 // 评论列表（从后端获取）
 const comments = ref([])
 
-onLoad((options) => {
+onLoad(async (options) => {
 	console.log('Note detail loaded, id:', options.id)
-	// TODO: 根据noteId从后端API获取笔记详情
-	// fetchNoteDetail(options.id)
-	// TODO: 获取评论列表
-	// fetchComments(options.id)
+	noteId.value = options.id
+	if (options.id) {
+		await fetchNoteDetail(options.id)
+		// TODO: 获取评论列表
+		// await fetchComments(options.id)
+	}
 })
+
+const fetchNoteDetail = async (id) => {
+	if (loading.value) return
+	
+	loading.value = true
+	uni.showLoading({ title: '加载中...' })
+	
+	try {
+		const result = await getNoteDetail(id)
+		console.log('笔记详情:', result)
+		
+		if (result) {
+			// 转换数据格式
+			noteData.value = {
+				image: result.images && result.images.length > 0 ? result.images[0] : result.image,
+				images: result.images || [],
+				title: result.title || '',
+				content: result.content || '',
+				author: result.author || '匿名用户',
+				authorAvatar: result.authorAvatar || 'https://via.placeholder.com/100',
+				authorId: result.authorId,
+				publishTime: result.publishTime || '',
+				tags: result.tags || [],
+				comments: result.commentCount || 0,
+				views: result.viewCount || 0,
+				shopId: result.shopId,
+				shopName: result.shopName,
+				location: result.location
+			}
+			
+			// 设置点赞和收藏状态
+			isLiked.value = result.isLiked || false
+			isBookmarked.value = result.isBookmarked || false
+			likeCount.value = result.likeCount || 0
+			
+			console.log('笔记数据已更新:', noteData.value)
+		}
+	} catch (e) {
+		console.error('获取笔记详情失败:', e)
+		uni.showToast({
+			title: '加载失败，请重试',
+			icon: 'none'
+		})
+	} finally {
+		uni.hideLoading()
+		loading.value = false
+	}
+}
 
 const goBack = () => {
 	uni.navigateBack()
@@ -143,13 +215,48 @@ const shareNote = () => {
 	uni.showToast({ title: '分享功能', icon: 'none' })
 }
 
-const toggleLike = () => {
-	isLiked.value = !isLiked.value
-	likeCount.value += isLiked.value ? 1 : -1
+const toggleLike = async () => {
+	try {
+		if (isLiked.value) {
+			// 取消点赞
+			const result = await unlikeNote(noteId.value)
+			isLiked.value = false
+			likeCount.value = result.likeCount || Math.max(0, likeCount.value - 1)
+		} else {
+			// 点赞
+			const result = await likeNote(noteId.value)
+			isLiked.value = true
+			likeCount.value = result.likeCount || likeCount.value + 1
+		}
+	} catch (e) {
+		console.error('点赞操作失败:', e)
+		uni.showToast({
+			title: e.message || '操作失败',
+			icon: 'none'
+		})
+	}
 }
 
-const toggleBookmark = () => {
-	isBookmarked.value = !isBookmarked.value
+const toggleBookmark = async () => {
+	try {
+		if (isBookmarked.value) {
+			// 取消收藏
+			await unbookmarkNote(noteId.value)
+			isBookmarked.value = false
+			uni.showToast({ title: '已取消收藏', icon: 'success' })
+		} else {
+			// 收藏
+			await bookmarkNote(noteId.value)
+			isBookmarked.value = true
+			uni.showToast({ title: '收藏成功', icon: 'success' })
+		}
+	} catch (e) {
+		console.error('收藏操作失败:', e)
+		uni.showToast({
+			title: e.message || '操作失败',
+			icon: 'none'
+		})
+	}
 }
 
 const followAuthor = () => {
@@ -209,6 +316,11 @@ const likeComment = (index) => {
 	position: relative;
 	width: 100%;
 	height: 750rpx;
+}
+
+.image-swiper {
+	width: 100%;
+	height: 100%;
 }
 
 .note-image {

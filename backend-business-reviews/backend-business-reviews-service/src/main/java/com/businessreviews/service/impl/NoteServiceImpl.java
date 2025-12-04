@@ -67,6 +67,23 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     }
 
     @Override
+    public PageResult<NoteItemResponse> getUserNotes(Long userId, Integer pageNum, Integer pageSize) {
+        Page<Note> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Note::getUserId, userId)
+               .eq(Note::getStatus, 1)
+               .orderByDesc(Note::getCreatedAt);
+        
+        Page<Note> notePage = noteMapper.selectPage(page, wrapper);
+        
+        List<NoteItemResponse> list = notePage.getRecords().stream()
+                .map(this::convertToNoteItem)
+                .collect(Collectors.toList());
+        
+        return PageResult.of(list, notePage.getTotal(), pageNum, pageSize);
+    }
+
+    @Override
     public PageResult<NoteItemResponse> getExploreNotes(Long categoryId, String sortBy, Integer pageNum, Integer pageSize) {
         Page<Note> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
@@ -201,7 +218,15 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     public Long publishNote(Long userId, PublishNoteRequest request) {
         Note note = new Note();
         note.setUserId(userId);
-        note.setTitle(request.getTitle());
+        
+        // 如果没有标题，使用内容前20个字作为标题
+        if (request.getTitle() == null || request.getTitle().trim().isEmpty()) {
+            String content = request.getContent();
+            note.setTitle(content.length() > 20 ? content.substring(0, 20) + "..." : content);
+        } else {
+            note.setTitle(request.getTitle().trim());
+        }
+        
         note.setContent(request.getContent());
         note.setCoverImage(request.getImages() != null && !request.getImages().isEmpty() 
                 ? request.getImages().get(0) : null);
@@ -210,7 +235,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         note.setLocation(request.getLocation());
         note.setLatitude(request.getLatitude());
         note.setLongitude(request.getLongitude());
-        note.setStatus(1);
+        note.setStatus(request.getStatus() != null ? request.getStatus() : 1); // 1=公开，2=仅自己可见
         note.setLikeCount(0);
         note.setCommentCount(0);
         note.setViewCount(0);
@@ -230,6 +255,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         
         // 更新用户笔记数
         userStatsMapper.incrementNoteCount(userId);
+        
+        log.info("用户{}发布笔记成功，笔记ID={}", userId, note.getId());
         
         return note.getId();
     }

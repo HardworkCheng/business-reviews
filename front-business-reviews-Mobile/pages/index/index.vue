@@ -67,7 +67,8 @@
 
 <script setup>
 import { ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
+import { getRecommendedNotes } from '../../api/note'
 
 // 分类数据
 const categories = ref([
@@ -83,12 +84,54 @@ const categories = ref([
 
 // 笔记列表（从后端获取）
 const noteList = ref([])
+const loading = ref(false)
 
 onLoad(() => {
 	console.log('Index page loaded')
-	// TODO: 从后端API获取推荐笔记列表
-	// fetchNoteList()
+	// 清空旧数据
+	noteList.value = []
+	fetchNoteList()
 })
+
+onShow(() => {
+	console.log('Index page show')
+	// 清空旧数据，重新获取
+	noteList.value = []
+	fetchNoteList()
+})
+
+// 获取推荐笔记列表
+const fetchNoteList = async () => {
+	if (loading.value) return
+	
+	loading.value = true
+	try {
+		const result = await getRecommendedNotes(1, 20)
+		console.log('获取笔记列表:', result)
+		
+		if (result && result.list) {
+			// 转换数据格式
+			noteList.value = result.list.map(note => ({
+				id: note.id,
+				title: note.title,
+				image: note.image || '',
+				author: note.author || '匿名用户',
+				likes: note.likes || 0,
+				tag: note.tag || null,
+				tagClass: note.tagClass || ''
+			}))
+			console.log('笔记列表已更新:', noteList.value.length, noteList.value)
+		}
+	} catch (e) {
+		console.error('获取笔记列表失败:', e)
+		uni.showToast({
+			title: '加载失败，请重试',
+			icon: 'none'
+		})
+	} finally {
+		loading.value = false
+	}
+}
 
 // 跳转搜索
 const goToSearch = () => {

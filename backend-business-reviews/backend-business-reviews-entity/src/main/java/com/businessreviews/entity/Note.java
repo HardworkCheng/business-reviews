@@ -37,6 +37,7 @@ public class Note implements Serializable {
     /**
      * 笔记内容
      */
+    @TableField(typeHandler = org.apache.ibatis.type.StringTypeHandler.class)
     private String content;
     
     /**
@@ -47,6 +48,7 @@ public class Note implements Serializable {
     /**
      * 图片集合（JSON）
      */
+    @TableField(typeHandler = org.apache.ibatis.type.StringTypeHandler.class)
     private String images;
     
     /**

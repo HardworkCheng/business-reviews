@@ -257,7 +257,23 @@ CREATE TABLE `user_note_likes` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户点赞笔记表';
 
 -- ========================================
--- 13. 用户收藏笔记表
+-- 13. 用户收藏表（通用）
+-- ========================================
+DROP TABLE IF EXISTS `user_favorites`;
+CREATE TABLE `user_favorites` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `user_id` BIGINT NOT NULL COMMENT '用户ID',
+  `type` TINYINT NOT NULL COMMENT '收藏类型（1=笔记，2=商家）',
+  `target_id` BIGINT NOT NULL COMMENT '目标ID',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '收藏时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_type_target` (`user_id`, `type`, `target_id`),
+  KEY `idx_target_id` (`target_id`),
+  KEY `idx_type` (`type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户收藏表';
+
+-- ========================================
+-- 14. 用户收藏笔记表
 -- ========================================
 DROP TABLE IF EXISTS `user_note_bookmarks`;
 CREATE TABLE `user_note_bookmarks` (
@@ -271,7 +287,7 @@ CREATE TABLE `user_note_bookmarks` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户收藏笔记表';
 
 -- ========================================
--- 14. 用户点赞评论表
+-- 15. 用户点赞评论表
 -- ========================================
 DROP TABLE IF EXISTS `user_comment_likes`;
 CREATE TABLE `user_comment_likes` (
@@ -285,7 +301,7 @@ CREATE TABLE `user_comment_likes` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户点赞评论表';
 
 -- ========================================
--- 15. 消息会话表
+-- 16. 消息会话表
 -- ========================================
 DROP TABLE IF EXISTS `chat_sessions`;
 CREATE TABLE `chat_sessions` (
@@ -304,7 +320,7 @@ CREATE TABLE `chat_sessions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='消息会话表';
 
 -- ========================================
--- 16. 聊天消息表
+-- 17. 聊天消息表
 -- ========================================
 DROP TABLE IF EXISTS `chat_messages`;
 CREATE TABLE `chat_messages` (
@@ -323,7 +339,7 @@ CREATE TABLE `chat_messages` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='聊天消息表';
 
 -- ========================================
--- 17. 系统通知表
+-- 18. 系统通知表
 -- ========================================
 DROP TABLE IF EXISTS `system_notices`;
 CREATE TABLE `system_notices` (
@@ -342,7 +358,7 @@ CREATE TABLE `system_notices` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统通知表';
 
 -- ========================================
--- 18. 用户浏览历史表
+-- 19. 用户浏览历史表
 -- ========================================
 DROP TABLE IF EXISTS `user_browse_history`;
 CREATE TABLE `user_browse_history` (
@@ -357,7 +373,7 @@ CREATE TABLE `user_browse_history` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户浏览历史表';
 
 -- ========================================
--- 19. 验证码表
+-- 20. 验证码表
 -- ========================================
 DROP TABLE IF EXISTS `verification_codes`;
 CREATE TABLE `verification_codes` (
@@ -374,7 +390,7 @@ CREATE TABLE `verification_codes` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='验证码表';
 
 -- ========================================
--- 20. 话题表
+-- 21. 话题表
 -- ========================================
 DROP TABLE IF EXISTS `topics`;
 CREATE TABLE `topics` (
@@ -395,7 +411,7 @@ CREATE TABLE `topics` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='话题表';
 
 -- ========================================
--- 21. 笔记话题关联表
+-- 22. 笔记话题关联表
 -- ========================================
 DROP TABLE IF EXISTS `note_topics`;
 CREATE TABLE `note_topics` (

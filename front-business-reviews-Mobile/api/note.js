@@ -14,6 +14,25 @@ export const getRecommendedNotes = (pageNum = 1, pageSize = 10) => {
 }
 
 /**
+ * 获取用户笔记列表
+ * @param {Number} userId - 用户ID
+ * @param {Number} pageNum - 页码
+ * @param {Number} pageSize - 每页数量
+ */
+export const getUserNotes = (userId, pageNum = 1, pageSize = 10) => {
+  return get(`/notes/user/${userId}`, { pageNum, pageSize }, { noAuth: true })
+}
+
+/**
+ * 获取我的笔记列表
+ * @param {Number} pageNum - 页码
+ * @param {Number} pageSize - 每页数量
+ */
+export const getMyNotes = (pageNum = 1, pageSize = 10) => {
+  return get('/notes/my', { pageNum, pageSize })
+}
+
+/**
  * 获取笔记详情
  * @param {String} id - 笔记ID
  */
@@ -80,6 +99,8 @@ export const deleteNote = (id) => {
 
 export default {
   getRecommendedNotes,
+  getUserNotes,
+  getMyNotes,
   getNoteDetail,
   publishNote,
   likeNote,

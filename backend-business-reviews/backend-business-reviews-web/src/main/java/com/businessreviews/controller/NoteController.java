@@ -33,6 +33,30 @@ public class NoteController {
     }
 
     /**
+     * 获取我的笔记列表
+     */
+    @GetMapping("/my")
+    public Result<PageResult<NoteItemResponse>> getMyNotes(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        Long userId = UserContext.requireUserId();
+        PageResult<NoteItemResponse> result = noteService.getUserNotes(userId, pageNum, pageSize);
+        return Result.success(result);
+    }
+
+    /**
+     * 获取指定用户的笔记列表
+     */
+    @GetMapping("/user/{userId}")
+    public Result<PageResult<NoteItemResponse>> getUserNotes(
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        PageResult<NoteItemResponse> result = noteService.getUserNotes(userId, pageNum, pageSize);
+        return Result.success(result);
+    }
+
+    /**
      * 获取探索页笔记列表
      */
     @GetMapping("/explore")

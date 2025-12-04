@@ -95,6 +95,7 @@
 import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getUserInfo } from '../../api/user'
+import { getMyNotes } from '../../api/note'
 
 const currentTab = ref(0)
 
@@ -110,6 +111,8 @@ const favoriteList = ref([])
 // 足迹列表（从后端获取）
 const historyList = ref([])
 
+const loading = ref(false)
+
 // 计算属性 - 确保头像响应式更新
 const avatarUrl = computed(() => {
 	return getAvatarUrl(userInfo.value.avatar)
@@ -121,7 +124,11 @@ onLoad(async () => {
 	const token = uni.getStorageSync('token')
 	console.log('Profile onLoad - token:', token)
 	if (token) {
+		// 清空旧数据，避免显示缓存
+		userInfo.value = {}
+		myNotes.value = []
 		await fetchUserInfo()
+		await fetchMyNotes()
 	} else {
 		console.warn('Profile onLoad - 未找到 token，跳转登录页')
 		uni.reLaunch({ url: '/pages/login/login' })
@@ -132,7 +139,11 @@ onShow(async () => {
 	const token = uni.getStorageSync('token')
 	console.log('Profile onShow - token:', token)
 	if (token) {
+		// 清空旧数据，重新获取
+		userInfo.value = {}
+		myNotes.value = []
 		await fetchUserInfo()
+		await fetchMyNotes()
 	}
 })
 
@@ -166,6 +177,32 @@ const fetchUserInfo = async () => {
 			userInfo.value = {}
 			uni.showToast({ title: '获取用户信息失败，请稍后重试', icon: 'none' })
 		}
+	}
+}
+
+const fetchMyNotes = async () => {
+	if (loading.value) return
+	
+	loading.value = true
+	try {
+		const result = await getMyNotes(1, 20)
+		console.log('获取我的笔记:', result)
+		
+		if (result && result.list) {
+			// 转换数据格式
+			myNotes.value = result.list.map(note => ({
+				id: note.id,
+				title: note.title,
+				image: note.image || '',
+				likes: note.likes || 0
+			}))
+			console.log('我的笔记已更新:', myNotes.value.length, myNotes.value)
+		}
+	} catch (e) {
+		console.error('获取我的笔记失败:', e)
+		// 静默失败，不显示错误
+	} finally {
+		loading.value = false
 	}
 }
 

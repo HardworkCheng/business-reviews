@@ -14,8 +14,7 @@ import java.util.List;
 @Data
 public class PublishNoteRequest {
     
-    @NotBlank(message = "笔记标题不能为空")
-    @Size(min = 2, max = 100, message = "标题长度应在2-100之间")
+    @Size(max = 100, message = "标题长度不能超过100字")
     private String title;
     
     @NotBlank(message = "笔记内容不能为空")
@@ -37,4 +36,6 @@ public class PublishNoteRequest {
     private List<String> tags;
     
     private List<Long> topics;
+    
+    private Integer status; // 1=公开，2=仅自己可见
 }
