@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.businessreviews.common.Constants;
 import com.businessreviews.common.PageResult;
 import com.businessreviews.dto.request.UpdateUserInfoRequest;
+import com.businessreviews.dto.request.ChangePasswordRequest;
 import com.businessreviews.dto.response.*;
 import com.businessreviews.entity.*;
 import com.businessreviews.exception.BusinessException;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -37,6 +39,24 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     private final ShopMapper shopMapper;
     private final RedisUtil redisUtil;
     private final MessageService messageService;
+    
+    /**
+     * 默认头像列表 - 从阿里云OSS上随机选取
+     */
+    private static final String[] DEFAULT_AVATARS = {
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head1.png",
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head2.png",
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head3.png",
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head4.png",
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head5.png",
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head6.png",
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head7.png",
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head8.png",
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head9.png",
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head10.png"
+    };
+    
+    private static final Random RANDOM = new Random();
 
     @Override
     public User getByPhone(String phone) {
@@ -49,7 +69,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         User user = new User();
         user.setPhone(phone);
         user.setUsername("用户" + phone.substring(7));
-        user.setAvatar("https://example.com/default-avatar.png");
+        
+        // 随机选择一个默认头像
+        user.setAvatar(getRandomAvatar());
+        
         user.setStatus(1);
         userMapper.insert(user);
         
@@ -67,16 +90,19 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Override
     public UserInfoResponse getUserInfo(Long userId) {
-        // 尝试从缓存获取
-        String cacheKey = Constants.RedisKey.USER_INFO + userId;
-        UserInfoResponse cached = redisUtil.getObject(cacheKey, UserInfoResponse.class);
-        if (cached != null) {
-            return cached;
-        }
+        // 为了避免返回旧缓存数据,暂时禁用缓存读取,每次都从数据库读取
+        // String cacheKey = Constants.RedisKey.USER_INFO + userId;
+        // UserInfoResponse cached = redisUtil.getObject(cacheKey, UserInfoResponse.class);
+        // if (cached != null) {
+        //     return cached;
+        // }
         
         User user = userMapper.selectById(userId);
         if (user == null) {
-            throw new BusinessException(40401, "用户不存在");
+            log.warn("用户不存在: userId={}, 可能是Token已失效或用户已被删除", userId);
+            // 清除可能的脏缓存
+            redisUtil.delete(Constants.RedisKey.USER_INFO + userId);
+            throw new BusinessException(40401, "用户信息已失效,请重新登录");
         }
         
         UserStats stats = userStatsMapper.selectByUserId(userId);
@@ -86,9 +112,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         response.setUsername(user.getUsername());
         response.setAvatar(user.getAvatar());
         response.setBio(user.getBio());
-        response.setPhone(maskPhone(user.getPhone()));
+        response.setPhone(maskPhone(user.getPhone())); // 脱敏后的手机号
+        response.setFullPhone(user.getPhone()); // 完整手机号
         response.setGender(user.getGender());
         response.setBirthday(user.getBirthday());
+        response.setWechatOpenid(user.getWechatOpenid());
+        response.setQqOpenid(user.getQqOpenid());
+        response.setWeiboUid(user.getWeiboUid());
         
         if (stats != null) {
             response.setFollowingCount(stats.getFollowingCount());
@@ -98,8 +128,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             response.setNoteCount(stats.getNoteCount());
         }
         
+        // 为了确保数据实时性,暂时不缓存
         // 缓存30分钟
-        redisUtil.setObject(cacheKey, response, 1800);
+        // redisUtil.setObject(cacheKey, response, 1800);
         
         return response;
     }
@@ -126,6 +157,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         if (request.getBirthday() != null) {
             user.setBirthday(request.getBirthday());
+        }
+        if (request.getWechatOpenid() != null) {
+            user.setWechatOpenid(request.getWechatOpenid());
+        }
+        if (request.getQqOpenid() != null) {
+            user.setQqOpenid(request.getQqOpenid());
+        }
+        if (request.getWeiboUid() != null) {
+            user.setWeiboUid(request.getWeiboUid());
         }
         
         userMapper.updateById(user);
@@ -390,5 +430,65 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             return phone;
         }
         return phone.substring(0, 3) + "****" + phone.substring(7);
+    }
+    
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(40401, "用户不存在");
+        }
+        
+        // 验证手机号
+        if (user.getPhone() == null || user.getPhone().isEmpty()) {
+            throw new BusinessException(40001, "请先绑定手机号");
+        }
+        
+        // 验证验证码
+        String codeKey = Constants.RedisKey.SMS_CODE + user.getPhone();
+        String cachedCode = redisUtil.get(codeKey);
+        if (cachedCode == null || !cachedCode.equals(request.getCode())) {
+            throw new BusinessException(40002, "验证码错误或已过期");
+        }
+        
+        // 验证旧密码
+        if (!request.getOldPassword().equals(user.getPassword())) {
+            throw new BusinessException(40003, "旧密码错误");
+        }
+        
+        // 验证新密码和确认密码是否一致
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new BusinessException(40001, "两次密码输入不一致");
+        }
+        
+        // 验证密码长度
+        if (request.getNewPassword().length() < 6 || request.getNewPassword().length() > 20) {
+            throw new BusinessException(40001, "密码长度必须在6-20位之间");
+        }
+        
+        // 更新密码
+        user.setPassword(request.getNewPassword());
+        userMapper.updateById(user);
+        
+        // 删除验证码
+        redisUtil.delete(codeKey);
+        
+        // 清除缓存
+        redisUtil.delete(Constants.RedisKey.USER_INFO + userId);
+        
+        log.info("用户{}:密码修改成功", userId);
+    }
+    
+    /**
+     * 随机获取一个默认头像 URL
+     *
+     * @return 头像 URL
+     */
+    private String getRandomAvatar() {
+        int index = RANDOM.nextInt(DEFAULT_AVATARS.length);
+        String avatar = DEFAULT_AVATARS[index];
+        log.info("为新用户随机分配头像: {}", avatar);
+        return avatar;
     }
 }

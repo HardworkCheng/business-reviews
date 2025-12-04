@@ -2,7 +2,7 @@
 	<view class="container">
 		<view class="profile-header">
 			<view class="user-info">
-				<image class="avatar" :src="userInfo.avatar || 'https://via.placeholder.com/200/FFD166/FFFFFF?text=User'"></image>
+				<image class="avatar" :src="avatarUrl"></image>
 				<view class="info">
 					<text class="username">{{ userInfo.username || '未登录' }}</text>
 					<text class="user-id">{{ userInfo.userId ? 'ID: ' + userInfo.userId : '' }}</text>
@@ -92,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getUserInfo } from '../../api/user'
 
@@ -109,6 +109,11 @@ const favoriteList = ref([])
 
 // 足迹列表（从后端获取）
 const historyList = ref([])
+
+// 计算属性 - 确保头像响应式更新
+const avatarUrl = computed(() => {
+	return getAvatarUrl(userInfo.value.avatar)
+})
 
 onLoad(async () => {
 	console.log('Profile page loaded')
@@ -136,17 +141,30 @@ const fetchUserInfo = async () => {
 		console.log('开始请求用户信息...')
 		const info = await getUserInfo()
 		console.log('用户信息响应:', info)
-		userInfo.value = info || {}
+		
 		if (info) {
+			// 更新显示数据
+			userInfo.value = info
+			// 更新缓存
 			uni.setStorageSync('userInfo', info)
+			console.log('用户信息已更新')
+		} else {
+			console.warn('未获取到用户信息')
+			userInfo.value = {}
 		}
 	} catch (e) {
 		console.error('获取用户信息失败:', e)
-		// 401 会在统一请求里弹出并跳转登录；若失败则回退本地缓存
-		const cached = uni.getStorageSync('userInfo')
-		if (cached) {
-			console.log('使用缓存的用户信息:', cached)
-			userInfo.value = cached
+		
+		// 如果是401或用户不存在,不使用缓存,直接跳转登录
+		if (e.code === 401 || e.code === 40401) {
+			console.warn('认证失败,清除缓存并跳转登录')
+			uni.clearStorageSync()
+			uni.reLaunch({ url: '/pages/login/login' })
+		} else {
+			// 其他错误(如网络错误)，不使用缓存以避免展示旧账号信息
+			uni.removeStorageSync('userInfo')
+			userInfo.value = {}
+			uni.showToast({ title: '获取用户信息失败，请稍后重试', icon: 'none' })
 		}
 	}
 }
@@ -156,13 +174,25 @@ const switchTab = (index) => {
 }
 
 const openSettings = () => {
-	uni.showToast({ title: '设置', icon: 'none' })
+	uni.navigateTo({
+		url: '/pages/settings/settings'
+	})
 }
 
 const goToNoteDetail = (id) => {
 	uni.navigateTo({
 		url: `/pages/note-detail/note-detail?id=${id}`
 	})
+}
+
+// 获取头像完整URL
+const getAvatarUrl = (avatar) => {
+	if (!avatar) {
+		return 'https://via.placeholder.com/200/FFD166/FFFFFF?text=User'
+	}
+	
+	// 直接返回阿里云OSS URL
+	return avatar
 }
 </script>
 

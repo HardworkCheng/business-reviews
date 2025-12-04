@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.businessreviews.common.PageResult;
 import com.businessreviews.dto.request.FollowRequest;
 import com.businessreviews.dto.request.UpdateUserInfoRequest;
+import com.businessreviews.dto.request.ChangePasswordRequest;
 import com.businessreviews.dto.response.*;
 import com.businessreviews.entity.User;
 
@@ -73,4 +74,9 @@ public interface UserService extends IService<User> {
      * 检查是否已关注
      */
     boolean isFollowing(Long userId, Long targetUserId);
+    
+    /**
+     * 修改密码
+     */
+    void changePassword(Long userId, ChangePasswordRequest request);
 }

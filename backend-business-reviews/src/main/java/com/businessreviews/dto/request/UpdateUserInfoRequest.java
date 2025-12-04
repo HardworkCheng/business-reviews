@@ -24,4 +24,10 @@ public class UpdateUserInfoRequest {
     private Integer gender;
     
     private LocalDate birthday;
+    
+    private String wechatOpenid;
+    
+    private String qqOpenid;
+    
+    private String weiboUid;
 }

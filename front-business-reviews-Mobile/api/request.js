@@ -29,7 +29,7 @@ export const request = (options) => {
   return new Promise((resolve, reject) => {
     // 获取token
     const token = uni.getStorageSync('token') || ''
-    console.log('Request - URL:', options.url, ', Token:', token ? token.substring(0, 20) + '...' : '无')
+    console.log('Request - Method:', options.method, 'URL:', options.url, ', Token:', token ? token.substring(0, 20) + '...' : '无')
     
     // 设置请求头
     const header = {
@@ -40,8 +40,11 @@ export const request = (options) => {
     // 需要token的接口自动添加Authorization
     if (token && !options.noAuth) {
       header['Authorization'] = `Bearer ${token}`
-      console.log('Request - Authorization header added')
+      console.log('Request - Authorization header added:', header['Authorization'].substring(0, 30) + '...')
     }
+    
+    console.log('Request - Full URL:', getBaseUrl() + options.url)
+    console.log('Request - Headers:', JSON.stringify(header))
     
     // 发起请求
     uni.request({
@@ -52,20 +55,23 @@ export const request = (options) => {
       success: (res) => {
         const data = res.data
         console.log('Response - URL:', options.url, ', Code:', data.code, ', Message:', data.message)
+        console.log('Response - Data:', JSON.stringify(data.data))
         
         // 请求成功
         if (data.code === 200) {
           resolve(data.data)
         } 
-        // Token过期或未登录
-        else if (data.code === 401) {
+        // Token过期或未登录或用户不存在
+        else if (data.code === 401 || data.code === 40401) {
+          console.warn('认证失败或用户信息失效:', data)
+          
           uni.showToast({
-            title: '登录已过期，请重新登录',
+            title: data.message || '登录已过期,请重新登录',
             icon: 'none',
-            duration: 1500
+            duration: 2000
           })
           
-          // 清除token
+          // 清除token和用户信息
           uni.removeStorageSync('token')
           uni.removeStorageSync('userInfo')
           
@@ -74,20 +80,18 @@ export const request = (options) => {
             uni.reLaunch({
               url: '/pages/login/login'
             })
-          }, 1500)
+          }, 2000)
           
           reject(data)
         }
         // 其他错误
         else {
-          uni.showToast({
-            title: data.message || '请求失败',
-            icon: 'none'
-          })
+          console.error('Request failed:', data)
           reject(data)
         }
       },
       fail: (err) => {
+        console.error('Network error:', err)
         uni.showToast({
           title: '网络请求失败',
           icon: 'none'

@@ -62,6 +62,20 @@
 				"navigationBarTitleText": "地图",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/settings/settings",
+			"style": {
+				"navigationBarTitleText": "设置",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/change-password/change-password",
+			"style": {
+				"navigationBarTitleText": "修改密码",
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"tabBar": {

@@ -17,8 +17,11 @@ export const getUserInfo = () => {
  * @param {String} data.username - 用户名
  * @param {String} data.avatar - 头像URL
  * @param {String} data.bio - 个人简介
- * @param {Number} data.gender - 性别
- * @param {String} data.birthday - 生日
+ * @param {Number} data.gender - 性别 (0保密, 1男, 2女)
+ * @param {String} data.birthday - 生日 (YYYY-MM-DD)
+ * @param {String} data.wechatOpenid - 微信OpenID
+ * @param {String} data.qqOpenid - QQ OpenID
+ * @param {String} data.weiboUid - 微博UID
  */
 export const updateUserInfo = (data) => {
   return put('/user/info', data)
@@ -68,6 +71,18 @@ export const unfollowUser = (userId) => {
   return del(`/user/follow/${userId}`)
 }
 
+/**
+ * 修改密码
+ * @param {Object} data - 修改密码数据
+ * @param {String} data.code - 验证码
+ * @param {String} data.oldPassword - 旧密码
+ * @param {String} data.newPassword - 新密码
+ * @param {String} data.confirmPassword - 确认新密码
+ */
+export const changePassword = (data) => {
+  return put('/user/password', data)
+}
+
 export default {
   getUserInfo,
   updateUserInfo,
@@ -75,5 +90,6 @@ export default {
   getMyFavorites,
   getBrowseHistory,
   followUser,
-  unfollowUser
+  unfollowUser,
+  changePassword
 }

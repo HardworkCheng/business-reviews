@@ -39,6 +39,24 @@ public class AuthServiceImpl implements AuthService {
     private final SmsUtil smsUtil;
 
     private static final Pattern PHONE_PATTERN = Pattern.compile("^1[3-9]\\d{9}$");
+    
+    /**
+     * 默认头像列表 - 从阿里云OSS上随机选取
+     */
+    private static final String[] DEFAULT_AVATARS = {
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head1.png",
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head2.png",
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head3.png",
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head4.png",
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head5.png",
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head6.png",
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head7.png",
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head8.png",
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head9.png",
+        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head10.png"
+    };
+    
+    private static final Random RANDOM = new Random();
 
     @Override
     public void sendCode(SendCodeRequest request) {
@@ -111,6 +129,10 @@ public class AuthServiceImpl implements AuthService {
         int updateResult = userMapper.updateById(user);
         log.info("更新最后登录时间结果: {}", updateResult);
         
+        // 清除用户信息缓存，确保获取最新数据
+        redisUtil.delete(Constants.RedisKey.USER_INFO + user.getId());
+        log.info("已清除用户{}的缓存", user.getId());
+        
         // 生成Token
         String token = jwtUtil.generateToken(user.getId());
         log.info("生成Token成功，用户ID: {}", user.getId());
@@ -158,7 +180,11 @@ public class AuthServiceImpl implements AuthService {
         User user = new User();
         user.setPhone(phone);
         user.setUsername("用户" + phone.substring(7));
-        user.setAvatar("https://example.com/default-avatar.png");
+        
+        // 随机选择一个默认头像
+        user.setAvatar(getRandomAvatar());
+        
+        user.setPassword(phone); // 新用户默认密码为手机号
         user.setStatus(1);
         
         int insertResult = userMapper.insert(user);
@@ -187,7 +213,14 @@ public class AuthServiceImpl implements AuthService {
         userInfo.setUserId(user.getId().toString());
         userInfo.setUsername(user.getUsername());
         userInfo.setAvatar(user.getAvatar());
-        userInfo.setPhone(maskPhone(user.getPhone()));
+        userInfo.setBio(user.getBio());
+        userInfo.setPhone(maskPhone(user.getPhone())); // 脱敏后的手机号
+        userInfo.setFullPhone(user.getPhone()); // 完整手机号
+        userInfo.setGender(user.getGender());
+        userInfo.setBirthday(user.getBirthday());
+        userInfo.setWechatOpenid(user.getWechatOpenid());
+        userInfo.setQqOpenid(user.getQqOpenid());
+        userInfo.setWeiboUid(user.getWeiboUid());
         
         response.setUserInfo(userInfo);
         return response;
@@ -207,5 +240,17 @@ public class AuthServiceImpl implements AuthService {
             return phone;
         }
         return phone.substring(0, 3) + "****" + phone.substring(7);
+    }
+    
+    /**
+     * 随机获取一个默认头像 URL
+     *
+     * @return 头像 URL
+     */
+    private String getRandomAvatar() {
+        int index = RANDOM.nextInt(DEFAULT_AVATARS.length);
+        String avatar = DEFAULT_AVATARS[index];
+        log.info("为新用户随机分配头像: {}", avatar);
+        return avatar;
     }
 }

@@ -22,11 +22,19 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        String requestURI = request.getRequestURI();
+        String method = request.getMethod();
+        System.out.println("=== AuthInterceptor ===");
+        System.out.println("Request URI: " + requestURI);
+        System.out.println("Method: " + method);
+        
         // 获取请求头中的token
         String authorization = request.getHeader("Authorization");
+        System.out.println("Authorization Header: " + (authorization != null ? authorization.substring(0, Math.min(30, authorization.length())) + "..." : "null"));
         
         // 检查token是否存在
         if (!StringUtils.hasText(authorization) || !authorization.startsWith("Bearer ")) {
+            System.out.println("Token 格式错误或不存在");
             response.setStatus(401);
             response.setContentType("application/json;charset=UTF-8");
             response.getWriter().write("{\"code\":401,\"message\":\"未登录\",\"data\":null}");
@@ -34,10 +42,12 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
         
         String token = authorization.substring(7);
+        System.out.println("Token: " + token.substring(0, Math.min(20, token.length())) + "...");
         
         // 检查token是否在黑名单中
         String blacklistKey = Constants.RedisKey.TOKEN_BLACKLIST + token;
         if (redisUtil.hasKey(blacklistKey)) {
+            System.out.println("Token 在黑名单中");
             response.setStatus(401);
             response.setContentType("application/json;charset=UTF-8");
             response.getWriter().write("{\"code\":401,\"message\":\"Token已失效，请重新登录\",\"data\":null}");
@@ -46,6 +56,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         
         // 验证token
         if (!jwtUtil.validateToken(token)) {
+            System.out.println("Token 验证失败");
             response.setStatus(401);
             response.setContentType("application/json;charset=UTF-8");
             response.getWriter().write("{\"code\":401,\"message\":\"Token已过期，请重新登录\",\"data\":null}");
@@ -54,7 +65,9 @@ public class AuthInterceptor implements HandlerInterceptor {
         
         // 解析用户ID并存入上下文
         Long userId = jwtUtil.getUserIdFromToken(token);
+        System.out.println("User ID: " + userId);
         UserContext.setUserId(userId);
+        System.out.println("UserContext 设置成功");
         
         return true;
     }

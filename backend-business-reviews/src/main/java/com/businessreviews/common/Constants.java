@@ -125,8 +125,8 @@ public class Constants {
     public static class SmsCode {
         /** 验证码有效期（秒）：5分钟 */
         public static final long EXPIRE_TIME = 300;
-        /** 发送频率限制（秒）：60秒 */
-        public static final long LIMIT_TIME = 60;
+        /** 发送频率限制（秒）：10秒 (开发环境临时调低) */
+        public static final long LIMIT_TIME = 10;
     }
     
     /**
@@ -165,8 +165,8 @@ public class Constants {
     public static class CacheExpire {
         /** 短信验证码有效期：5分钟 */
         public static final long SMS_CODE = 300;
-        /** 短信发送频率限制：60秒 */
-        public static final long SMS_LIMIT = 60;
+        /** 短信发送频率限制：10秒 (开发环境临时调低) */
+        public static final long SMS_LIMIT = 10;
         /** 用户信息缓存：30分钟 */
         public static final long USER_INFO = 1800;
         /** 商家信息缓存：1小时 */
