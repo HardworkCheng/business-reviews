@@ -1,0 +1,112 @@
+package com.businessreviews.entity;
+
+import com.baomidou.mybatisplus.annotation.*;
+import lombok.Data;
+
+import java.io.Serializable;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+/**
+ * 笔记实体类
+ */
+@Data
+@TableName("notes")
+public class Note implements Serializable {
+    
+    private static final long serialVersionUID = 1L;
+    
+    @TableId(type = IdType.AUTO)
+    private Long id;
+    
+    /**
+     * 作者用户ID
+     */
+    private Long userId;
+    
+    /**
+     * 关联商家ID
+     */
+    private Long shopId;
+    
+    /**
+     * 笔记标题
+     */
+    private String title;
+    
+    /**
+     * 笔记内容
+     */
+    private String content;
+    
+    /**
+     * 封面图
+     */
+    private String coverImage;
+    
+    /**
+     * 图片集合（JSON）
+     */
+    private String images;
+    
+    /**
+     * 位置信息
+     */
+    private String location;
+    
+    /**
+     * 纬度
+     */
+    private BigDecimal latitude;
+    
+    /**
+     * 经度
+     */
+    private BigDecimal longitude;
+    
+    /**
+     * 点赞数
+     */
+    private Integer likeCount;
+    
+    /**
+     * 评论数
+     */
+    private Integer commentCount;
+    
+    /**
+     * 浏览数
+     */
+    private Integer viewCount;
+    
+    /**
+     * 收藏数
+     */
+    private Integer favoriteCount;
+    
+    /**
+     * 分享数
+     */
+    private Integer shareCount;
+    
+    /**
+     * 标签类型（hot/discount/new）
+     */
+    private String tagType;
+    
+    /**
+     * 状态（1正常，2隐藏，3审核中）
+     */
+    private Integer status;
+    
+    /**
+     * 是否推荐（0否，1是）
+     */
+    private Integer isRecommend;
+    
+    @TableField(fill = FieldFill.INSERT)
+    private LocalDateTime createdAt;
+    
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private LocalDateTime updatedAt;
+}
