@@ -171,15 +171,21 @@ const handleLogin = async () => {
     console.log('已清除所有缓存数据')
 
     if (token) {
-      // 存"裸 token"，不要带 Bearer
+      // 存“裸 token”，不要带 Bearer
       uni.setStorageSync('token', token)
-      console.log('Token 已存储:', token)
+      console.log('Token 已存储:', token.substring(0, 20) + '...')
     } else {
       console.error('登录响应中没有 token')
+      throw new Error('登录响应中没有 token')
     }
     if (userInfo) {
       uni.setStorageSync('userInfo', userInfo)
       console.log('UserInfo 已存储:', userInfo)
+      console.log('- 用户ID:', userInfo.id)
+      console.log('- 手机号:', userInfo.phone)
+      console.log('- 用户名:', userInfo.username)
+    } else {
+      console.error('登录响应中没有用户信息')
     }
 
     uni.showToast({

@@ -45,6 +45,18 @@ public class NoteController {
     }
 
     /**
+     * 获取我点赞的笔记列表
+     */
+    @GetMapping("/liked")
+    public Result<PageResult<NoteItemResponse>> getLikedNotes(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        Long userId = UserContext.requireUserId();
+        PageResult<NoteItemResponse> result = noteService.getLikedNotes(userId, pageNum, pageSize);
+        return Result.success(result);
+    }
+
+    /**
      * 获取指定用户的笔记列表
      */
     @GetMapping("/user/{userId}")

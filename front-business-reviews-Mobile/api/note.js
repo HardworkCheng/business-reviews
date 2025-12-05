@@ -33,11 +33,26 @@ export const getMyNotes = (pageNum = 1, pageSize = 10) => {
 }
 
 /**
+ * 获取我点赞的笔记列表
+ * @param {Number} pageNum - 页码
+ * @param {Number} pageSize - 每页数量
+ */
+export const getMyLikedNotes = (pageNum = 1, pageSize = 10) => {
+  return get('/notes/liked', { pageNum, pageSize })
+}
+
+/**
  * 获取笔记详情
  * @param {String} id - 笔记ID
  */
 export const getNoteDetail = (id) => {
-  return get(`/notes/${id}`, {}, { noAuth: true })
+  // 如果有token就带上，没有也可以访问
+  const token = uni.getStorageSync('token')
+  if (token) {
+    return get(`/notes/${id}`)
+  } else {
+    return get(`/notes/${id}`, {}, { noAuth: true })
+  }
 }
 
 /**
@@ -101,6 +116,7 @@ export default {
   getRecommendedNotes,
   getUserNotes,
   getMyNotes,
+  getMyLikedNotes,
   getNoteDetail,
   publishNote,
   likeNote,

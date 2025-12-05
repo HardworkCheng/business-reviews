@@ -8,4 +8,5 @@ public class UserItemResponse {
     private String username;
     private String avatar;
     private String bio;
+    private Boolean isFollowing;  // 是否已关注
 }

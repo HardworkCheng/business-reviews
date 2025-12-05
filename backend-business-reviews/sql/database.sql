@@ -339,7 +339,25 @@ CREATE TABLE `chat_messages` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='聊天消息表';
 
 -- ========================================
--- 18. 系统通知表
+-- 18. 通知表
+-- ========================================
+DROP TABLE IF EXISTS `notifications`;
+CREATE TABLE `notifications` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '通知ID',
+  `user_id` BIGINT NOT NULL COMMENT '接收通知的用户ID',
+  `title` VARCHAR(100) DEFAULT NULL COMMENT '通知标题',
+  `content` VARCHAR(500) DEFAULT NULL COMMENT '通知内容',
+  `type` TINYINT NOT NULL COMMENT '通知类型（1点赞，2评论，3关注，4系统）',
+  `related_id` BIGINT DEFAULT NULL COMMENT '关联ID（笔记ID、评论ID等）',
+  `is_read` TINYINT NOT NULL DEFAULT 0 COMMENT '是否已读（0未读，1已读）',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_user_is_read` (`user_id`, `is_read`),
+  KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='通知表';
+
+-- ========================================
+-- 19. 系统通知表
 -- ========================================
 DROP TABLE IF EXISTS `system_notices`;
 CREATE TABLE `system_notices` (
@@ -373,7 +391,7 @@ CREATE TABLE `user_browse_history` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户浏览历史表';
 
 -- ========================================
--- 20. 验证码表
+-- 21. 验证码表
 -- ========================================
 DROP TABLE IF EXISTS `verification_codes`;
 CREATE TABLE `verification_codes` (
@@ -390,7 +408,7 @@ CREATE TABLE `verification_codes` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='验证码表';
 
 -- ========================================
--- 21. 话题表
+-- 22. 话题表
 -- ========================================
 DROP TABLE IF EXISTS `topics`;
 CREATE TABLE `topics` (
@@ -411,7 +429,7 @@ CREATE TABLE `topics` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='话题表';
 
 -- ========================================
--- 22. 笔记话题关联表
+-- 23. 笔记话题关联表
 -- ========================================
 DROP TABLE IF EXISTS `note_topics`;
 CREATE TABLE `note_topics` (

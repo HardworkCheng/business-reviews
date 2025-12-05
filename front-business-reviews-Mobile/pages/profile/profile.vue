@@ -15,22 +15,22 @@
 			<text class="bio">{{ userInfo.bio || '还没有个人简介' }}</text>
 
 			<view class="stats-card clay-shadow">
-				<view class="stat">
+				<view class="stat" @click="goToList('following')">
 					<text class="stat-value text-primary">{{ userInfo.followingCount || 0 }}</text>
 					<text class="stat-label">关注</text>
 				</view>
 				<view class="divider"></view>
-				<view class="stat">
+				<view class="stat" @click="goToList('follower')">
 					<text class="stat-value text-primary">{{ userInfo.followerCount || 0 }}</text>
 					<text class="stat-label">粉丝</text>
 				</view>
 				<view class="divider"></view>
-				<view class="stat">
+				<view class="stat" @click="goToLikeNotifications">
 					<text class="stat-value text-primary">{{ userInfo.likeCount || 0 }}</text>
 					<text class="stat-label">获赞</text>
 				</view>
 				<view class="divider"></view>
-				<view class="stat">
+				<view class="stat" @click="switchTab(2)">
 					<text class="stat-value text-primary">{{ userInfo.favoriteCount || 0 }}</text>
 					<text class="stat-label">收藏</text>
 				</view>
@@ -50,12 +50,19 @@
 				:class="{ active: currentTab === 1 }"
 				@click="switchTab(1)"
 			>
-				<text>收藏</text>
+				<text>点赞</text>
 			</view>
 			<view 
 				class="tab-item" 
 				:class="{ active: currentTab === 2 }"
 				@click="switchTab(2)"
+			>
+				<text>收藏</text>
+			</view>
+			<view 
+				class="tab-item" 
+				:class="{ active: currentTab === 3 }"
+				@click="switchTab(3)"
 			>
 				<text>足迹</text>
 			</view>
@@ -78,14 +85,73 @@
 						</view>
 					</view>
 				</view>
+				
+				<view v-if="myNotes.length === 0" class="empty">
+					<text>还没有发布笔记</text>
+				</view>
 			</view>
 
-			<view v-if="currentTab === 1" class="empty">
-				<text>暂无收藏内容</text>
+			<view v-if="currentTab === 1" class="notes-grid">
+				<view 
+					class="note-card clay-shadow" 
+					v-for="(item, index) in likedList" 
+					:key="index"
+					@click="goToNoteDetail(item.id)"
+				>
+					<image :src="item.image" class="note-image" mode="aspectFill"></image>
+					<view class="note-info">
+						<text class="note-title line-clamp-2">{{ item.title }}</text>
+						<view class="like-count">
+							<text class="like-icon">❤️</text>
+							<text>{{ item.likes }}</text>
+						</view>
+					</view>
+				</view>
+				
+				<view v-if="likedList.length === 0" class="empty">
+					<text>还没有点赞过笔记</text>
+				</view>
 			</view>
 
-			<view v-if="currentTab === 2" class="empty">
-				<text>暂无足迹记录</text>
+			<view v-if="currentTab === 2" class="notes-grid">
+				<view 
+					class="note-card clay-shadow" 
+					v-for="(item, index) in favoriteList" 
+					:key="index"
+					@click="goToNoteDetail(item.id)"
+				>
+					<image :src="item.image" class="note-image" mode="aspectFill"></image>
+					<view class="note-info">
+						<text class="note-title line-clamp-2">{{ item.title }}</text>
+						<view class="like-count">
+							<text class="like-icon">❤️</text>
+							<text>{{ item.likes }}</text>
+						</view>
+					</view>
+				</view>
+				
+				<view v-if="favoriteList.length === 0" class="empty">
+					<text>暂无收藏内容</text>
+				</view>
+			</view>
+
+			<view v-if="currentTab === 3" class="history-list">
+				<view 
+					class="history-item clay-shadow" 
+					v-for="(item, index) in historyList" 
+					:key="index"
+					@click="goToNoteDetail(item.id)"
+				>
+					<image :src="item.image" class="history-image" mode="aspectFill"></image>
+					<view class="history-info">
+						<text class="history-title line-clamp-2">{{ item.title }}</text>
+						<text class="history-time">{{ item.time }}</text>
+					</view>
+				</view>
+				
+				<view v-if="historyList.length === 0" class="empty">
+					<text>暂无足迹记录</text>
+				</view>
 			</view>
 		</view>
 	</view>
@@ -94,7 +160,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import { getUserInfo } from '../../api/user'
+import { getUserInfo, getMyFavorites, getBrowseHistory } from '../../api/user'
 import { getMyNotes } from '../../api/note'
 
 const currentTab = ref(0)
@@ -104,6 +170,9 @@ const userInfo = ref({})
 
 // 我的笔记（从后端获取）
 const myNotes = ref([])
+
+// 点赞列表（从后端获取）
+const likedList = ref([])
 
 // 收藏列表（从后端获取）
 const favoriteList = ref([])
@@ -120,32 +189,46 @@ const avatarUrl = computed(() => {
 
 onLoad(async () => {
 	console.log('Profile page loaded')
-	// 如果已登录，拉取用户信息
-	const token = uni.getStorageSync('token')
-	console.log('Profile onLoad - token:', token)
-	if (token) {
-		// 清空旧数据，避免显示缓存
-		userInfo.value = {}
-		myNotes.value = []
-		await fetchUserInfo()
-		await fetchMyNotes()
-	} else {
-		console.warn('Profile onLoad - 未找到 token，跳转登录页')
-		uni.reLaunch({ url: '/pages/login/login' })
-	}
+	// 强制从服务器获取最新数据
+	await loadData()
 })
 
 onShow(async () => {
-	const token = uni.getStorageSync('token')
-	console.log('Profile onShow - token:', token)
-	if (token) {
-		// 清空旧数据，重新获取
-		userInfo.value = {}
-		myNotes.value = []
-		await fetchUserInfo()
-		await fetchMyNotes()
-	}
+	console.log('Profile page show')
+	// 每次显示时都强制刷新数据
+	await loadData()
 })
+
+// 统一的数据加载函数
+const loadData = async () => {
+	const token = uni.getStorageSync('token')
+	console.log('=== loadData ===', 'token:', token ? token.substring(0, 20) + '...' : '无')
+	
+	if (!token) {
+		console.warn('未找到 token，跳转登录页')
+		uni.reLaunch({ url: '/pages/login/login' })
+		return
+	}
+	
+	// 清空旧数据，避免显示缓存
+	userInfo.value = {}
+	myNotes.value = []
+	
+	try {
+		// 并发获取用户信息和笔记列表
+		await Promise.all([
+			fetchUserInfo(),
+			fetchMyNotes()
+		])
+	} catch (e) {
+		console.error('加载数据失败:', e)
+		// 如果是认证错误，跳转登录页
+		if (e && (e.code === 401 || e.code === 40401)) {
+			uni.clearStorageSync()
+			uni.reLaunch({ url: '/pages/login/login' })
+		}
+	}
+}
 
 const fetchUserInfo = async () => {
 	try {
@@ -206,8 +289,67 @@ const fetchMyNotes = async () => {
 	}
 }
 
+const fetchFavorites = async () => {
+	if (loading.value) return
+	
+	loading.value = true
+	try {
+		const result = await getMyFavorites(1, 1, 20) // type=1 表示笔记
+		console.log('获取收藏列表:', result)
+		
+		if (result && result.list) {
+			favoriteList.value = result.list.map(item => ({
+				id: item.targetId || item.id,
+				title: item.title || '未命名笔记',
+				image: item.image || '',
+				likes: item.likes || 0
+			}))
+			console.log('收藏列表已更新:', favoriteList.value.length)
+		}
+	} catch (e) {
+		console.error('获取收藏列表失败:', e)
+		favoriteList.value = []
+	} finally {
+		loading.value = false
+	}
+}
+
+const fetchHistory = async () => {
+	if (loading.value) return
+	
+	loading.value = true
+	try {
+		const result = await getBrowseHistory(1, 20)
+		console.log('获取足迹列表:', result)
+		
+		if (result && result.list) {
+			historyList.value = result.list.map(item => ({
+				id: item.noteId || item.id,
+				title: item.title || '未命名笔记',
+				image: item.image || '',
+				time: item.viewTime || item.createdAt || ''
+			}))
+			console.log('足迹列表已更新:', historyList.value.length)
+		}
+	} catch (e) {
+		console.error('获取足迹列表失败:', e)
+		historyList.value = []
+	} finally {
+		loading.value = false
+	}
+}
+
 const switchTab = (index) => {
 	currentTab.value = index
+	
+	// 根据标签加载对应数据
+	if (index === 1) {
+		// 收藏标签
+		fetchFavorites()
+	} else if (index === 2) {
+		// 足迹标签
+		fetchHistory()
+	}
 }
 
 const openSettings = () => {
@@ -219,6 +361,18 @@ const openSettings = () => {
 const goToNoteDetail = (id) => {
 	uni.navigateTo({
 		url: `/pages/note-detail/note-detail?id=${id}`
+	})
+}
+
+const goToList = (type) => {
+	uni.navigateTo({
+		url: `/pages/user-list/user-list?type=${type}`
+	})
+}
+
+const goToLikeNotifications = () => {
+	uni.navigateTo({
+		url: '/pages/like-notifications/like-notifications'
 	})
 }
 
@@ -404,5 +558,45 @@ const getAvatarUrl = (avatar) => {
 	padding: 100rpx 0;
 	color: #999;
 	font-size: 28rpx;
+}
+
+.history-list {
+	display: flex;
+	flex-direction: column;
+	gap: 20rpx;
+}
+
+.history-item {
+	background: white;
+	border-radius: 20rpx;
+	padding: 20rpx;
+	display: flex;
+	gap: 20rpx;
+}
+
+.history-image {
+	width: 160rpx;
+	height: 160rpx;
+	border-radius: 15rpx;
+	flex-shrink: 0;
+}
+
+.history-info {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
+.history-title {
+	font-size: 28rpx;
+	font-weight: 500;
+	color: #333;
+	line-height: 1.4;
+}
+
+.history-time {
+	font-size: 24rpx;
+	color: #999;
 }
 </style>

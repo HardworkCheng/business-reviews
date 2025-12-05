@@ -22,6 +22,11 @@ public interface NoteService extends IService<Note> {
     PageResult<NoteItemResponse> getUserNotes(Long userId, Integer pageNum, Integer pageSize);
     
     /**
+     * 获取用户点赞的笔记列表
+     */
+    PageResult<NoteItemResponse> getLikedNotes(Long userId, Integer pageNum, Integer pageSize);
+    
+    /**
      * 获取探索页笔记列表
      */
     PageResult<NoteItemResponse> getExploreNotes(Long categoryId, String sortBy, Integer pageNum, Integer pageSize);

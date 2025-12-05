@@ -6,7 +6,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("comments")
+@TableName("note_comments")
 public class Comment {
     
     @TableId(type = IdType.AUTO)
@@ -19,8 +19,6 @@ public class Comment {
     private String content;
     
     private Long parentId;
-    
-    private Long replyToUserId;
     
     private Integer likeCount;
     

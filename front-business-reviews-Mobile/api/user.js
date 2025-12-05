@@ -72,6 +72,24 @@ export const unfollowUser = (userId) => {
 }
 
 /**
+ * 获取关注列表
+ * @param {Number} pageNum - 页码
+ * @param {Number} pageSize - 每页数量
+ */
+export const getFollowingList = (pageNum = 1, pageSize = 20) => {
+  return get('/user/following', { pageNum, pageSize })
+}
+
+/**
+ * 获取粉丝列表
+ * @param {Number} pageNum - 页码
+ * @param {Number} pageSize - 每页数量
+ */
+export const getFollowerList = (pageNum = 1, pageSize = 20) => {
+  return get('/user/followers', { pageNum, pageSize })
+}
+
+/**
  * 修改密码
  * @param {Object} data - 修改密码数据
  * @param {String} data.code - 验证码
@@ -109,6 +127,8 @@ export default {
   getBrowseHistory,
   followUser,
   unfollowUser,
+  getFollowingList,
+  getFollowerList,
   changePassword,
   getUserPhone,
   changePhone

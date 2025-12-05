@@ -43,15 +43,31 @@ export const request = (options) => {
       console.log('Request - Authorization header added:', header['Authorization'].substring(0, 30) + '...')
     }
     
-    console.log('Request - Full URL:', getBaseUrl() + options.url)
+    // GET请求使用查询参数，其他请求使用请求体
+    let finalUrl = getBaseUrl() + options.url
+    let requestData = {}
+    
+    if (options.method === 'GET' && options.data && Object.keys(options.data).length > 0) {
+      // GET请求，将参数拼接到URL
+      const params = new URLSearchParams(options.data).toString()
+      finalUrl = finalUrl + (finalUrl.includes('?') ? '&' : '?') + params
+      console.log('Request - GET URL with params:', finalUrl)
+    } else {
+      // 其他请求，使用data字段
+      requestData = options.data || {}
+    }
+    
+    console.log('Request - Full URL:', finalUrl)
     console.log('Request - Headers:', JSON.stringify(header))
+    console.log('Request - Data:', JSON.stringify(requestData))
     
     // 发起请求
     uni.request({
-      url: getBaseUrl() + options.url,
+      url: finalUrl,
       method: options.method || 'GET',
-      data: options.data || {},
+      data: requestData,
       header: header,
+      timeout: 10000, // 10秒超时
       success: (res) => {
         const data = res.data
         console.log('Response - URL:', options.url, ', Code:', data.code, ', Message:', data.message)
@@ -92,6 +108,7 @@ export const request = (options) => {
       },
       fail: (err) => {
         console.error('Network error:', err)
+        console.error('Error details:', JSON.stringify(err))
         uni.showToast({
           title: '网络请求失败',
           icon: 'none'

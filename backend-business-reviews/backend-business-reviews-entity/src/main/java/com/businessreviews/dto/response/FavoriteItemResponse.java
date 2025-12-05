@@ -9,5 +9,6 @@ public class FavoriteItemResponse {
     private String targetId;
     private String image;
     private String title;
+    private Integer likes;  // 点赞数
     private String createdAt;
 }

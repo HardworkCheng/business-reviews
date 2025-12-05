@@ -28,6 +28,17 @@ public class AuthInterceptor implements HandlerInterceptor {
         System.out.println("Request URI: " + requestURI);
         System.out.println("Method: " + method);
         
+        // 笔记详情的 GET 请求不需要登录
+        if ("GET".equals(method) && requestURI.matches(".*/notes/\\d+$")) {
+            System.out.println("笔记详情 GET 请求，跳过认证");
+            return true;
+        }
+        
+        // 文件上传接口需要单独处理 Token，因为 multipart 请求不会自动带 Authorization header
+        if (requestURI.contains("/upload/")) {
+            System.out.println("文件上传接口，需要 Token 认证");
+        }
+        
         // 获取请求头中的token
         String authorization = request.getHeader("Authorization");
         System.out.println("Authorization Header: " + (authorization != null ? authorization.substring(0, Math.min(30, authorization.length())) + "..." : "null"));

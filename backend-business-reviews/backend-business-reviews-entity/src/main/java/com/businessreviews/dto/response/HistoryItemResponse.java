@@ -9,5 +9,6 @@ public class HistoryItemResponse {
     private String targetId;
     private String image;
     private String title;
+    private String viewTime;  // 浏览时间
     private String createdAt;
 }

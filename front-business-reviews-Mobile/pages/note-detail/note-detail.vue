@@ -43,8 +43,8 @@
 					<text class="author-name">{{ noteData.author }}</text>
 					<text class="publish-time">{{ noteData.publishTime }}</text>
 				</view>
-				<view class="follow-btn clay-icon bg-primary" @click="followAuthor">
-					<text>➕</text>
+				<view v-if="!noteData.isAuthor" class="follow-btn clay-icon" :class="{ following: isFollowing }" @click="followAuthor">
+					<text>{{ isFollowing ? '✓' : '➕' }}</text>
 				</view>
 			</view>
 
@@ -124,6 +124,8 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getNoteDetail, likeNote, unlikeNote, bookmarkNote, unbookmarkNote } from '../../api/note'
+import { followUser, unfollowUser } from '../../api/user'
+import { getNoteComments, postComment as postCommentAPI, likeComment as likeCommentAPI, unlikeComment as unlikeCommentAPI } from '../../api/comment'
 
 const noteId = ref('')
 
@@ -134,6 +136,7 @@ const noteData = ref({
 	content: '',
 	author: '',
 	authorAvatar: '',
+	authorId: null,
 	publishTime: '',
 	tags: [],
 	comments: 0,
@@ -142,6 +145,7 @@ const noteData = ref({
 
 const isLiked = ref(false)
 const isBookmarked = ref(false)
+const isFollowing = ref(false)
 const likeCount = ref(0)
 const commentText = ref('')
 const loading = ref(false)
@@ -153,9 +157,10 @@ onLoad(async (options) => {
 	console.log('Note detail loaded, id:', options.id)
 	noteId.value = options.id
 	if (options.id) {
-		await fetchNoteDetail(options.id)
-		// TODO: 获取评论列表
-		// await fetchComments(options.id)
+		await Promise.all([
+			fetchNoteDetail(options.id),
+			fetchComments(options.id)
+		])
 	}
 })
 
@@ -179,6 +184,7 @@ const fetchNoteDetail = async (id) => {
 				author: result.author || '匿名用户',
 				authorAvatar: result.authorAvatar || 'https://via.placeholder.com/100',
 				authorId: result.authorId,
+				isAuthor: result.isAuthor || false,
 				publishTime: result.publishTime || '',
 				tags: result.tags || [],
 				comments: result.commentCount || 0,
@@ -188,12 +194,15 @@ const fetchNoteDetail = async (id) => {
 				location: result.location
 			}
 			
-			// 设置点赞和收藏状态
+			// 设置点赞、收藏和关注状态
 			isLiked.value = result.isLiked || false
 			isBookmarked.value = result.isBookmarked || false
+			isFollowing.value = result.isFollowing || false
 			likeCount.value = result.likeCount || 0
 			
 			console.log('笔记数据已更新:', noteData.value)
+			console.log('作者ID:', noteData.value.authorId)
+			console.log('关注状态:', isFollowing.value)
 		}
 	} catch (e) {
 		console.error('获取笔记详情失败:', e)
@@ -259,22 +268,103 @@ const toggleBookmark = async () => {
 	}
 }
 
-const followAuthor = () => {
-	uni.showToast({ title: '已关注', icon: 'success' })
+const followAuthor = async () => {
+	if (!noteData.value.authorId) {
+		uni.showToast({ title: '无法获取作者信息', icon: 'none' })
+		return
+	}
+	
+	try {
+		if (isFollowing.value) {
+			// 取消关注
+			await unfollowUser(noteData.value.authorId.toString())
+			isFollowing.value = false
+			uni.showToast({ title: '已取消关注', icon: 'success' })
+		} else {
+			// 关注
+			await followUser(noteData.value.authorId.toString())
+			isFollowing.value = true
+			uni.showToast({ title: '关注成功', icon: 'success' })
+		}
+	} catch (e) {
+		console.error('关注操作失败:', e)
+		uni.showToast({ 
+			title: e.message || '操作失败', 
+			icon: 'none' 
+		})
+	}
 }
 
-const postComment = () => {
+const postComment = async () => {
 	if (!commentText.value) {
 		uni.showToast({ title: '请输入评论内容', icon: 'none' })
 		return
 	}
-	uni.showToast({ title: '评论成功', icon: 'success' })
-	commentText.value = ''
+	
+	try {
+		await postCommentAPI(noteId.value, {
+			content: commentText.value
+		})
+		
+		uni.showToast({ title: '评论成功', icon: 'success' })
+		commentText.value = ''
+		
+		// 重新加载评论列表
+		await fetchComments(noteId.value)
+	} catch (e) {
+		console.error('评论失败:', e)
+		uni.showToast({ 
+			title: e.message || '评论失败', 
+			icon: 'none' 
+		})
+	}
 }
 
-const likeComment = (index) => {
-	comments.value[index].liked = !comments.value[index].liked
-	comments.value[index].likes += comments.value[index].liked ? 1 : -1
+const fetchComments = async (id) => {
+	try {
+		const result = await getNoteComments(id, 1, 50)
+		console.log('评论数据:', result)
+		
+		if (result && result.list) {
+			comments.value = result.list.map(item => ({
+				id: item.id,
+				author: item.username || '匿名用户',
+				avatar: item.avatar || 'https://via.placeholder.com/100',
+				time: item.createdAt || '',
+				content: item.content || '',
+				likes: item.likeCount || 0,
+				liked: item.isLiked || false
+			}))
+		}
+	} catch (e) {
+		console.error('获取评论失败:', e)
+		comments.value = []
+	}
+}
+
+const likeComment = async (index) => {
+	const comment = comments.value[index]
+	if (!comment || !comment.id) return
+	
+	try {
+		if (comment.liked) {
+			// 取消点赞
+			await unlikeCommentAPI(comment.id)
+			comment.liked = false
+			comment.likes = Math.max(0, comment.likes - 1)
+		} else {
+			// 点赞
+			await likeCommentAPI(comment.id)
+			comment.liked = true
+			comment.likes += 1
+		}
+	} catch (e) {
+		console.error('评论点赞失败:', e)
+		uni.showToast({ 
+			title: e.message || '操作失败', 
+			icon: 'none' 
+		})
+	}
 }
 </script>
 
@@ -390,8 +480,14 @@ const likeComment = (index) => {
 .follow-btn {
 	width: 70rpx;
 	height: 70rpx;
+	background: linear-gradient(135deg, #FF9E64 0%, #FF7A45 100%);
 	color: white;
 	font-size: 28rpx;
+}
+
+.follow-btn.following {
+	background: #E8E8E8;
+	color: #666;
 }
 
 .note-content {

@@ -11,7 +11,13 @@ import { get, post, del } from './request'
  * @param {Number} pageSize - 每页数量
  */
 export const getNoteComments = (noteId, pageNum = 1, pageSize = 20) => {
-  return get(`/notes/${noteId}/comments`, { pageNum, pageSize }, { noAuth: true })
+  // 如果有token就带上，没有也可以访问
+  const token = uni.getStorageSync('token')
+  if (token) {
+    return get(`/notes/${noteId}/comments`, { pageNum, pageSize })
+  } else {
+    return get(`/notes/${noteId}/comments`, { pageNum, pageSize }, { noAuth: true })
+  }
 }
 
 /**
@@ -22,7 +28,11 @@ export const getNoteComments = (noteId, pageNum = 1, pageSize = 20) => {
  * @param {String} data.parentId - 父评论ID（回复评论时填写）
  */
 export const postComment = (noteId, data) => {
-  return post(`/notes/${noteId}/comments`, data)
+  // 将noteId添加到请求数据中
+  return post('/comments', {
+    noteId: noteId,
+    ...data
+  })
 }
 
 /**

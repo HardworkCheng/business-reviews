@@ -59,7 +59,7 @@
 		{
 			"path": "pages/map/map",
 			"style": {
-				"navigationBarTitleText": "地图",
+				"navigationBarTitleText": "优惠券",
 				"navigationStyle": "custom"
 			}
 		},
@@ -83,6 +83,20 @@
 				"navigationBarTitleText": "修改手机号",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/user-list/user-list",
+			"style": {
+				"navigationBarTitleText": "用户列表",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/like-notifications/like-notifications",
+			"style": {
+				"navigationBarTitleText": "获赞通知",
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"tabBar": {
@@ -101,7 +115,7 @@
 				"pagePath": "pages/map/map",
 				"iconPath": "static/tabbar/map.svg",
 				"selectedIconPath": "static/tabbar/map-active.svg",
-				"text": "地图"
+				"text": "优惠"
 			},
 			{
 				"pagePath": "pages/publish/publish",

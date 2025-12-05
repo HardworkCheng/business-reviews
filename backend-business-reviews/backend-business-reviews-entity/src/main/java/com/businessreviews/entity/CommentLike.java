@@ -6,7 +6,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("comment_likes")
+@TableName("user_comment_likes")
 public class CommentLike {
     
     @TableId(type = IdType.AUTO)

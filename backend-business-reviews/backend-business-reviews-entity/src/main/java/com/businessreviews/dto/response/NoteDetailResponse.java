@@ -43,6 +43,10 @@ public class NoteDetailResponse {
     
     private Boolean isBookmarked;
     
+    private Boolean isFollowing; // 是否关注作者
+    
+    private Boolean isAuthor; // 是否是作者本人
+    
     private String location;
     
     private Long shopId;

@@ -88,17 +88,27 @@ const loading = ref(false)
 
 onLoad(() => {
 	console.log('Index page loaded')
-	// 清空旧数据
-	noteList.value = []
-	fetchNoteList()
+	// 强制从服务器获取最新数据
+	loadData()
 })
 
 onShow(() => {
 	console.log('Index page show')
-	// 清空旧数据，重新获取
-	noteList.value = []
-	fetchNoteList()
+	// 每次显示时都强制刷新数据
+	loadData()
 })
+
+// 统一的数据加载函数
+const loadData = () => {
+	const token = uni.getStorageSync('token')
+	console.log('=== loadData ===', 'token:', token ? token.substring(0, 20) + '...' : '无')
+	
+	// 清空旧数据
+	noteList.value = []
+	
+	// 获取最新笔记列表
+	fetchNoteList()
+}
 
 // 获取推荐笔记列表
 const fetchNoteList = async () => {

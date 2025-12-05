@@ -15,6 +15,7 @@ import com.businessreviews.mapper.*;
 import com.businessreviews.service.MessageService;
 import com.businessreviews.service.UserService;
 import com.businessreviews.util.RedisUtil;
+import com.businessreviews.util.TimeUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -248,6 +249,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                 if (note != null) {
                     item.setImage(note.getCoverImage());
                     item.setTitle(note.getTitle());
+                    item.setLikes(note.getLikeCount());
                 }
             } else if (fav.getType() == 2) {
                 // 商家
@@ -255,6 +257,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                 if (shop != null) {
                     item.setImage(shop.getHeaderImage());
                     item.setTitle(shop.getName());
+                    item.setLikes(0); // 商家没有点赞数
                 }
             }
             list.add(item);
@@ -278,6 +281,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             item.setId(history.getId().toString());
             item.setType(history.getType());
             item.setTargetId(history.getTargetId().toString());
+            item.setViewTime(TimeUtil.formatRelativeTime(history.getCreatedAt()));
             item.setCreatedAt(history.getCreatedAt().toString());
             
             if (history.getType() == 1) {
@@ -366,7 +370,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         List<UserItemResponse> list = followPage.getRecords().stream()
                 .map(f -> {
                     User user = userMapper.selectById(f.getFollowUserId());
-                    return convertToUserItem(user);
+                    UserItemResponse item = convertToUserItem(user);
+                    // 关注列表中的所有用户都是已关注的
+                    if (item != null) {
+                        item.setIsFollowing(true);
+                    }
+                    return item;
                 })
                 .collect(Collectors.toList());
         
@@ -385,7 +394,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         List<UserItemResponse> list = followPage.getRecords().stream()
                 .map(f -> {
                     User user = userMapper.selectById(f.getUserId());
-                    return convertToUserItem(user);
+                    UserItemResponse item = convertToUserItem(user);
+                    // 设置当前用户是否关注了该粉丝
+                    if (item != null) {
+                        item.setIsFollowing(isFollowing(userId, user.getId()));
+                    }
+                    return item;
                 })
                 .collect(Collectors.toList());
         

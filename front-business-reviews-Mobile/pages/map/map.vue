@@ -1,178 +1,212 @@
 <template>
 	<view class="container">
+		<!-- 头部导航栏 -->
 		<view class="header">
-			<view class="search-box">
-				<input type="text" placeholder="搜索附近的店铺..." class="search-input" />
-				<button class="location-btn clay-icon bg-primary" @click="getLocation">
-					<text>📍</text>
-				</button>
+			<view class="nav-bar">
+				<text class="nav-title">优惠券</text>
 			</view>
-
-			<view class="categories">
+			
+			<!-- 分类标签 -->
+			<view class="tabs">
 				<view 
-					class="category" 
-					:class="{ active: activeCategory === index }"
-					v-for="(cat, index) in categories"
+					class="tab-item" 
+					:class="{ active: currentTab === index }"
+					v-for="(tab, index) in tabs"
 					:key="index"
-					@click="selectCategory(index)"
+					@click="switchTab(index)"
 				>
-					<text>{{ cat }}</text>
+					<text>{{ tab }}</text>
 				</view>
 			</view>
 		</view>
 
-		<view class="map-container">
-			<map 
-				id="map" 
-				:latitude="latitude" 
-				:longitude="longitude"
-				:markers="markers"
-				:scale="scale"
-				@markertap="onMarkerTap"
-				class="map"
-			></map>
-
-			<view class="map-controls">
-				<button class="control-btn clay-icon" @click="zoomIn">
-					<text>+</text>
-				</button>
-				<button class="control-btn clay-icon" @click="zoomOut">
-					<text>-</text>
-				</button>
-			</view>
-		</view>
-
-		<view v-if="selectedShop" class="shop-card clay-shadow" @click="goToShopDetail">
-			<view class="drag-handle"></view>
-			<view class="shop-content">
-				<image :src="selectedShop.image" class="shop-image"></image>
-				<view class="shop-info">
-					<text class="shop-name">{{ selectedShop.name }}</text>
-					<view class="rating">
-						<text class="star">⭐</text>
-						<text class="score">{{ selectedShop.rating }}</text>
-						<text class="reviews">({{ selectedShop.reviews }}条)</text>
+		<!-- 优惠券列表 -->
+		<scroll-view class="coupon-list" scroll-y>
+			<view 
+				class="coupon-card clay-shadow" 
+				v-for="(coupon, index) in filteredCoupons" 
+				:key="index"
+				@click="handleCouponClick(coupon)"
+			>
+				<view class="coupon-left" :class="getCouponClass(coupon.type)">
+					<view class="coupon-amount">
+						<text class="amount-symbol">￥</text>
+						<text class="amount-value">{{ coupon.amount }}</text>
 					</view>
-					<view class="distance">
-						<text class="icon">📍</text>
-						<text>距您 {{ selectedShop.distance }}</text>
-					</view>
-					<view class="actions">
-						<button class="action-btn bg-primary" @click.stop="navigate">
-							<text>🧭</text>
-							<text>导航</text>
-						</button>
-						<button class="action-btn detail-btn">查看详情</button>
-					</view>
+					<text class="coupon-condition">{{ coupon.condition }}</text>
 				</view>
+				
+				<view class="coupon-right">
+					<view class="coupon-info">
+						<text class="coupon-title">{{ coupon.title }}</text>
+						<text class="coupon-desc">{{ coupon.description }}</text>
+						<view class="coupon-time">
+							<text class="time-icon">🕒</text>
+							<text>{{ coupon.validTime }}</text>
+						</view>
+					</view>
+					
+					<button 
+						class="coupon-btn" 
+						:class="getCouponBtnClass(coupon.status)"
+						@click.stop="receiveCoupon(coupon)"
+						v-if="coupon.status !== 'used'"
+					>
+						{{ getCouponBtnText(coupon.status) }}
+					</button>
+					<view v-else class="used-tag">已使用</view>
+				</view>
+				
+				<!-- 装饰圆点 -->
+				<view class="circle circle-left"></view>
+				<view class="circle circle-right"></view>
 			</view>
-		</view>
+			
+			<!-- 空状态 -->
+			<view v-if="filteredCoupons.length === 0" class="empty">
+				<text class="empty-icon">🎟️</text>
+				<text class="empty-text">暂无优惠券</text>
+			</view>
+		</scroll-view>
 	</view>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 
-const activeCategory = ref(0)
-const categories = ref(['全部', '美食', 'KTV', '美容', 'SPA'])
+const currentTab = ref(0)
+const tabs = ref(['全部', '未使用', '已使用', '已过期'])
 
-const latitude = ref(30.2741)
-const longitude = ref(120.1551)
-const scale = ref(15)
-
-const shops = ref([
+// 模拟优惠券数据
+const coupons = ref([
 	{
 		id: 1,
-		name: '蔡馬洪烤肉',
-		rating: 4.6,
-		reviews: 1460,
-		distance: '170m',
-		image: 'https://via.placeholder.com/200/FF9E64/FFFFFF?text=1',
-		latitude: 30.2751,
-		longitude: 120.1561
+		type: 'discount', // 折扣券
+		amount: '8.8',
+		condition: '满100元可用',
+		title: '全场通用8.8折',
+		description: '适用于全部商家',
+		validTime: '有效期至2025.12.31',
+		status: 'available' // available, received, used, expired
 	},
 	{
 		id: 2,
-		name: '羊老三火锅',
-		rating: 4.4,
-		reviews: 1363,
-		distance: '243m',
-		image: 'https://via.placeholder.com/200/FFD166/FFFFFF?text=2',
-		latitude: 30.2731,
-		longitude: 120.1571
+		type: 'cash', // 现金券
+		amount: '20',
+		condition: '满150元可用',
+		title: '美食专享券',
+		description: '仅限美食类商家使用',
+		validTime: '有效期至2025.12.25',
+		status: 'available'
+	},
+	{
+		id: 3,
+		type: 'special', // 特殊券
+		amount: '50',
+		condition: '满200元可用',
+		title: 'KTV专属优惠',
+		description: '仅限KTV类商家使用',
+		validTime: '有效期至2025.12.20',
+		status: 'received'
+	},
+	{
+		id: 4,
+		type: 'cash',
+		amount: '30',
+		condition: '满180元可用',
+		title: 'SPA体验券',
+		description: '适用于美容SPA商家',
+		validTime: '有效期至2025.11.30',
+		status: 'used'
+	},
+	{
+		id: 5,
+		type: 'discount',
+		amount: '9',
+		condition: '满80元可用',
+		title: '新人专享9折',
+		description: '新用户首次下单使用',
+		validTime: '有效期至2025.11.15',
+		status: 'expired'
 	}
 ])
 
-const markers = ref(shops.value.map((shop, index) => ({
-	id: index,
-	latitude: shop.latitude,
-	longitude: shop.longitude,
-	iconPath: '/static/marker.png',
-	width: 30,
-	height: 30,
-	callout: {
-		content: shop.name,
-		color: '#000',
-		fontSize: 12,
-		borderRadius: 5,
-		padding: 5,
-		display: 'ALWAYS'
+// 筛选后的优惠券
+const filteredCoupons = computed(() => {
+	if (currentTab.value === 0) {
+		return coupons.value // 全部
+	} else if (currentTab.value === 1) {
+		return coupons.value.filter(c => c.status === 'available' || c.status === 'received')
+	} else if (currentTab.value === 2) {
+		return coupons.value.filter(c => c.status === 'used')
+	} else if (currentTab.value === 3) {
+		return coupons.value.filter(c => c.status === 'expired')
 	}
-})))
-
-const selectedShop = ref(null)
-
-onLoad(() => {
-	console.log('Map page loaded')
+	return coupons.value
 })
 
-const selectCategory = (index) => {
-	activeCategory.value = index
+onLoad(() => {
+	console.log('Coupon page loaded')
+})
+
+const switchTab = (index) => {
+	currentTab.value = index
 }
 
-const getLocation = () => {
-	uni.getLocation({
-		success: (res) => {
-			latitude.value = res.latitude
-			longitude.value = res.longitude
-			uni.showToast({ title: '定位成功', icon: 'success' })
-		},
-		fail: () => {
-			uni.showToast({ title: '定位失败', icon: 'none' })
-		}
-	})
+const getCouponClass = (type) => {
+	return {
+		'coupon-discount': type === 'discount',
+		'coupon-cash': type === 'cash',
+		'coupon-special': type === 'special'
+	}
 }
 
-const zoomIn = () => {
-	if (scale.value < 18) scale.value++
+const getCouponBtnClass = (status) => {
+	return {
+		'btn-available': status === 'available',
+		'btn-received': status === 'received',
+		'btn-expired': status === 'expired'
+	}
 }
 
-const zoomOut = () => {
-	if (scale.value > 3) scale.value--
+const getCouponBtnText = (status) => {
+	if (status === 'available') return '领取'
+	if (status === 'received') return '去使用'
+	if (status === 'expired') return '已过期'
+	return '领取'
 }
 
-const onMarkerTap = (e) => {
-	const shopId = e.detail.markerId
-	selectedShop.value = shops.value[shopId]
-}
-
-const navigate = () => {
-	uni.showToast({ title: '开始导航', icon: 'none' })
-}
-
-const goToShopDetail = () => {
-	if (selectedShop.value) {
-		uni.navigateTo({
-			url: `/pages/shop-detail/shop-detail?id=${selectedShop.value.id}`
+const receiveCoupon = (coupon) => {
+	if (coupon.status === 'available') {
+		uni.showToast({
+			title: '领取成功',
+			icon: 'success'
+		})
+		coupon.status = 'received'
+	} else if (coupon.status === 'received') {
+		uni.showToast({
+			title: '跳转到使用页面',
+			icon: 'none'
+		})
+	} else if (coupon.status === 'expired') {
+		uni.showToast({
+			title: '优惠券已过期',
+			icon: 'none'
 		})
 	}
+}
+
+const handleCouponClick = (coupon) => {
+	console.log('Coupon clicked:', coupon)
+	// 未来可以跳转到优惠券详情页
 }
 </script>
 
 <style lang="scss" scoped>
 .container {
-	height: 100vh;
+	background: #F7F9FC;
+	min-height: 100vh;
 	display: flex;
 	flex-direction: column;
 }
@@ -180,178 +214,225 @@ const goToShopDetail = () => {
 .header {
 	background: white;
 	box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
-	z-index: 10;
+	position: sticky;
+	top: 0;
+	z-index: 100;
 }
 
-.search-box {
+.nav-bar {
+	padding: 30rpx;
+	text-align: center;
+}
+
+.nav-title {
+	font-size: 36rpx;
+	font-weight: bold;
+	color: #333;
+}
+
+.tabs {
+	display: flex;
+	padding: 20rpx 30rpx;
+	border-top: 1rpx solid #f0f0f0;
+}
+
+.tab-item {
+	flex: 1;
+	text-align: center;
+	padding: 15rpx 0;
+	font-size: 28rpx;
+	color: #666;
+	position: relative;
+}
+
+.tab-item.active {
+	color: #FF9E64;
+	font-weight: 500;
+}
+
+.tab-item.active::after {
+	content: '';
+	position: absolute;
+	bottom: 0;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 40rpx;
+	height: 6rpx;
+	background: #FF9E64;
+	border-radius: 3rpx;
+}
+
+.coupon-list {
+	flex: 1;
+	padding: 30rpx;
+}
+
+.coupon-card {
+	background: white;
+	border-radius: 20rpx;
+	margin-bottom: 30rpx;
+	display: flex;
+	position: relative;
+	overflow: hidden;
+}
+
+.coupon-left {
+	width: 220rpx;
+	padding: 40rpx 20rpx;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	position: relative;
+}
+
+.coupon-discount {
+	background: linear-gradient(135deg, #FF9E64 0%, #FFB787 100%);
+}
+
+.coupon-cash {
+	background: linear-gradient(135deg, #EF476F 0%, #F77694 100%);
+}
+
+.coupon-special {
+	background: linear-gradient(135deg, #06D6A0 0%, #26E7AB 100%);
+}
+
+.coupon-amount {
+	display: flex;
+	align-items: baseline;
+	color: white;
+	margin-bottom: 10rpx;
+}
+
+.amount-symbol {
+	font-size: 32rpx;
+	font-weight: bold;
+}
+
+.amount-value {
+	font-size: 72rpx;
+	font-weight: bold;
+}
+
+.coupon-condition {
+	font-size: 22rpx;
+	color: rgba(255, 255, 255, 0.9);
+}
+
+.coupon-right {
+	flex: 1;
+	padding: 30rpx;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
+.coupon-info {
+	flex: 1;
+}
+
+.coupon-title {
+	display: block;
+	font-size: 32rpx;
+	font-weight: 500;
+	color: #333;
+	margin-bottom: 10rpx;
+}
+
+.coupon-desc {
+	display: block;
+	font-size: 24rpx;
+	color: #999;
+	margin-bottom: 15rpx;
+}
+
+.coupon-time {
 	display: flex;
 	align-items: center;
-	padding: 20rpx 30rpx;
-	gap: 15rpx;
+	font-size: 22rpx;
+	color: #999;
 }
 
-.search-input {
-	flex: 1;
-	padding: 20rpx 30rpx;
-	background: #f5f5f5;
-	border-radius: 50rpx;
-	font-size: 28rpx;
+.time-icon {
+	margin-right: 5rpx;
 }
 
-.location-btn {
-	width: 70rpx;
-	height: 70rpx;
-	font-size: 32rpx;
-	color: white;
-}
-
-.categories {
-	display: flex;
-	padding: 15rpx 30rpx;
-	gap: 15rpx;
-	overflow-x: auto;
-}
-
-.category {
-	padding: 10rpx 30rpx;
-	background: #f5f5f5;
+.coupon-btn {
+	width: 140rpx;
+	height: 60rpx;
 	border-radius: 30rpx;
-	font-size: 26rpx;
-	white-space: nowrap;
+	font-size: 24rpx;
+	border: none;
+	margin-top: 20rpx;
+	align-self: flex-end;
 }
 
-.category.active {
+.btn-available {
 	background: #FF9E64;
 	color: white;
 }
 
-.map-container {
-	flex: 1;
-	position: relative;
+.btn-received {
+	background: #f0f0f0;
+	color: #666;
 }
 
-.map {
-	width: 100%;
-	height: 100%;
+.btn-expired {
+	background: #f0f0f0;
+	color: #999;
 }
 
-.map-controls {
+.used-tag {
+	width: 140rpx;
+	height: 60rpx;
+	line-height: 60rpx;
+	text-align: center;
+	background: #f0f0f0;
+	color: #999;
+	border-radius: 30rpx;
+	font-size: 24rpx;
+	margin-top: 20rpx;
+	align-self: flex-end;
+}
+
+.circle {
 	position: absolute;
-	right: 30rpx;
+	width: 24rpx;
+	height: 24rpx;
+	background: #F7F9FC;
+	border-radius: 50%;
 	top: 50%;
 	transform: translateY(-50%);
-	display: flex;
-	flex-direction: column;
-	gap: 20rpx;
 }
 
-.control-btn {
-	width: 80rpx;
-	height: 80rpx;
-	background: white;
-	box-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.1);
-	font-size: 40rpx;
-	border: none;
-	padding: 0;
+.circle-left {
+	left: 210rpx;
+	margin-left: -12rpx;
 }
 
-.shop-card {
-	position: absolute;
-	bottom: 0;
-	left: 0;
+.circle-right {
 	right: 0;
-	background: white;
-	border-radius: 40rpx 40rpx 0 0;
-	padding: 30rpx;
+	margin-right: -12rpx;
 }
 
-.drag-handle {
-	width: 80rpx;
-	height: 8rpx;
-	background: #ddd;
-	border-radius: 4rpx;
-	margin: 0 auto 30rpx;
+.empty {
+	text-align: center;
+	padding: 150rpx 0;
 }
 
-.shop-content {
-	display: flex;
-	gap: 20rpx;
-}
-
-.shop-image {
-	width: 150rpx;
-	height: 150rpx;
-	border-radius: 20rpx;
-}
-
-.shop-info {
-	flex: 1;
-	display: flex;
-	flex-direction: column;
-}
-
-.shop-name {
-	font-size: 32rpx;
-	font-weight: bold;
-	margin-bottom: 10rpx;
-}
-
-.rating {
-	display: flex;
-	align-items: center;
-	margin-bottom: 10rpx;
-	font-size: 24rpx;
-}
-
-.star {
-	margin-right: 5rpx;
-}
-
-.score {
-	font-weight: 500;
-	margin-right: 5rpx;
-}
-
-.reviews {
-	color: #999;
-}
-
-.distance {
-	display: flex;
-	align-items: center;
-	font-size: 24rpx;
-	color: #999;
+.empty-icon {
+	display: block;
+	font-size: 100rpx;
 	margin-bottom: 20rpx;
 }
 
-.distance .icon {
-	color: #FF9E64;
-	margin-right: 5rpx;
+.empty-text {
+	font-size: 28rpx;
+	color: #999;
 }
 
-.actions {
-	display: flex;
-	gap: 15rpx;
-}
-
-.action-btn {
-	flex: 1;
-	padding: 15rpx;
-	border-radius: 15rpx;
-	font-size: 26rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 5rpx;
-	border: none;
-}
-
-.action-btn.bg-primary {
-	color: white;
-}
-
-.detail-btn {
-	background: #f5f5f5;
-	color: #333;
+.clay-shadow {
+	box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.08);
 }
 </style>

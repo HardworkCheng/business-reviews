@@ -92,7 +92,6 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
                 throw new BusinessException(40402, "评论不存在");
             }
             comment.setParentId(Long.parseLong(request.getParentId()));
-            comment.setReplyToUserId(parentComment.getUserId());
             
             // 更新父评论的回复数
             commentMapper.incrementReplyCount(parentComment.getId());
@@ -213,14 +212,6 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
             response.setAuthorId(user.getId());
             response.setAuthor(user.getUsername());
             response.setAvatar(user.getAvatar());
-        }
-        
-        // 查询回复目标用户信息
-        if (comment.getReplyToUserId() != null) {
-            User replyToUser = userMapper.selectById(comment.getReplyToUserId());
-            if (replyToUser != null) {
-                response.setReplyToUser(replyToUser.getUsername());
-            }
         }
         
         // 检查是否已点赞

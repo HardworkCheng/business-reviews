@@ -25,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -81,6 +82,51 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
                 .collect(Collectors.toList());
         
         return PageResult.of(list, notePage.getTotal(), pageNum, pageSize);
+    }
+
+    @Override
+    public PageResult<NoteItemResponse> getLikedNotes(Long userId, Integer pageNum, Integer pageSize) {
+        // 获取用户点赞的笔记ID列表
+        LambdaQueryWrapper<UserNoteLike> likeWrapper = new LambdaQueryWrapper<>();
+        likeWrapper.eq(UserNoteLike::getUserId, userId)
+                   .orderByDesc(UserNoteLike::getCreatedAt);
+        
+        // 先查询总数
+        Long total = userNoteLikeMapper.selectCount(likeWrapper);
+        if (total == 0) {
+            return PageResult.empty(pageNum, pageSize);
+        }
+        
+        // 分页查询点赞记录
+        Page<UserNoteLike> likePage = new Page<>(pageNum, pageSize);
+        Page<UserNoteLike> resultPage = userNoteLikeMapper.selectPage(likePage, likeWrapper);
+        
+        if (resultPage.getRecords().isEmpty()) {
+            return PageResult.empty(pageNum, pageSize);
+        }
+        
+        // 获取笔记ID列表
+        List<Long> noteIds = resultPage.getRecords().stream()
+                .map(UserNoteLike::getNoteId)
+                .collect(Collectors.toList());
+        
+        // 查询笔记详情
+        LambdaQueryWrapper<Note> noteWrapper = new LambdaQueryWrapper<>();
+        noteWrapper.in(Note::getId, noteIds)
+                   .eq(Note::getStatus, 1);
+        List<Note> notes = noteMapper.selectList(noteWrapper);
+        
+        // 按原有顺序排序笔记（按点赞时间）
+        Map<Long, Note> noteMap = notes.stream()
+                .collect(Collectors.toMap(Note::getId, note -> note));
+        
+        List<NoteItemResponse> list = noteIds.stream()
+                .map(noteMap::get)
+                .filter(note -> note != null)
+                .map(this::convertToNoteItem)
+                .collect(Collectors.toList());
+        
+        return PageResult.of(list, total, pageNum, pageSize);
     }
 
     @Override
@@ -205,9 +251,13 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         if (userId != null) {
             response.setIsLiked(isLiked(userId, noteId));
             response.setIsBookmarked(isBookmarked(userId, noteId));
+            response.setIsFollowing(isFollowing(userId, note.getUserId()));
+            response.setIsAuthor(userId.equals(note.getUserId()));
         } else {
             response.setIsLiked(false);
             response.setIsBookmarked(false);
+            response.setIsFollowing(false);
+            response.setIsAuthor(false);
         }
         
         return response;
@@ -540,5 +590,19 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         LambdaQueryWrapper<NoteTag> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(NoteTag::getNoteId, noteId);
         noteTagMapper.delete(wrapper);
+    }
+    
+    /**
+     * 检查是否关注
+     */
+    private boolean isFollowing(Long userId, Long targetUserId) {
+        if (userId == null || targetUserId == null || userId.equals(targetUserId)) {
+            return false;
+        }
+        
+        LambdaQueryWrapper<UserFollow> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserFollow::getUserId, userId)
+               .eq(UserFollow::getFollowUserId, targetUserId);
+        return userFollowMapper.selectCount(wrapper) > 0;
     }
 }
