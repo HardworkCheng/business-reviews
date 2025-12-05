@@ -249,9 +249,16 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         
         // 查询用户互动状态
         if (userId != null) {
-            response.setIsLiked(isLiked(userId, noteId));
-            response.setIsBookmarked(isBookmarked(userId, noteId));
-            response.setIsFollowing(isFollowing(userId, note.getUserId()));
+            boolean liked = isLiked(userId, noteId);
+            boolean bookmarked = isBookmarked(userId, noteId);
+            boolean following = isFollowing(userId, note.getUserId());
+            
+            log.info("笔记详情查询 - 用户ID: {}, 笔记ID: {}, 点赞: {}, 收藏: {}, 关注: {}", 
+                    userId, noteId, liked, bookmarked, following);
+            
+            response.setIsLiked(liked);
+            response.setIsBookmarked(bookmarked);
+            response.setIsFollowing(following);
             response.setIsAuthor(userId.equals(note.getUserId()));
         } else {
             response.setIsLiked(false);
@@ -487,7 +494,10 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         LambdaQueryWrapper<UserNoteLike> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserNoteLike::getUserId, userId)
                .eq(UserNoteLike::getNoteId, noteId);
-        return userNoteLikeMapper.selectCount(wrapper) > 0;
+        long count = userNoteLikeMapper.selectCount(wrapper);
+        boolean result = count > 0;
+        log.debug("检查点赞状态 - 用户ID: {}, 笔记ID: {}, 记录数: {}, 结果: {}", userId, noteId, count, result);
+        return result;
     }
 
     @Override
@@ -497,7 +507,10 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         wrapper.eq(UserFavorite::getUserId, userId)
                .eq(UserFavorite::getType, 1)
                .eq(UserFavorite::getTargetId, noteId);
-        return userFavoriteMapper.selectCount(wrapper) > 0;
+        long count = userFavoriteMapper.selectCount(wrapper);
+        boolean result = count > 0;
+        log.debug("检查收藏状态 - 用户ID: {}, 笔记ID: {}, 记录数: {}, 结果: {}", userId, noteId, count, result);
+        return result;
     }
 
     @Override
@@ -603,6 +616,9 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         LambdaQueryWrapper<UserFollow> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserFollow::getUserId, userId)
                .eq(UserFollow::getFollowUserId, targetUserId);
-        return userFollowMapper.selectCount(wrapper) > 0;
+        long count = userFollowMapper.selectCount(wrapper);
+        boolean result = count > 0;
+        log.debug("检查关注状态 - 用户ID: {}, 目标用户ID: {}, 记录数: {}, 结果: {}", userId, targetUserId, count, result);
+        return result;
     }
 }

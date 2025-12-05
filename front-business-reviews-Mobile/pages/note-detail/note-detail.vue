@@ -195,14 +195,16 @@ const fetchNoteDetail = async (id) => {
 			}
 			
 			// 设置点赞、收藏和关注状态
-			isLiked.value = result.isLiked || false
-			isBookmarked.value = result.isBookmarked || false
-			isFollowing.value = result.isFollowing || false
+			isLiked.value = result.isLiked === true
+			isBookmarked.value = result.isBookmarked === true
+			isFollowing.value = result.isFollowing === true
 			likeCount.value = result.likeCount || 0
 			
 			console.log('笔记数据已更新:', noteData.value)
 			console.log('作者ID:', noteData.value.authorId)
-			console.log('关注状态:', isFollowing.value)
+			console.log('点赞状态 (isLiked):', isLiked.value, '(原始值:', result.isLiked, ')')
+			console.log('收藏状态 (isBookmarked):', isBookmarked.value, '(原始值:', result.isBookmarked, ')')
+			console.log('关注状态 (isFollowing):', isFollowing.value, '(原始值:', result.isFollowing, ')')
 		}
 	} catch (e) {
 		console.error('获取笔记详情失败:', e)
@@ -432,14 +434,22 @@ const likeComment = async (index) => {
 	background: white;
 	border: 2rpx solid #000;
 	font-size: 36rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all 0.3s ease;
 }
 
 .action-btn.liked {
-	background: #EF476F;
+	background: #EF476F !important;
+	border-color: #EF476F !important;
+	color: white !important;
 }
 
 .action-btn.bookmarked {
-	color: #FF9E64;
+	background: #FF9E64 !important;
+	border-color: #FF9E64 !important;
+	color: white !important;
 }
 
 .content-section {
@@ -483,11 +493,18 @@ const likeComment = async (index) => {
 	background: linear-gradient(135deg, #FF9E64 0%, #FF7A45 100%);
 	color: white;
 	font-size: 28rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	transition: all 0.3s ease;
+	box-shadow: 0 4rpx 10rpx rgba(255, 158, 100, 0.3);
 }
 
 .follow-btn.following {
-	background: #E8E8E8;
-	color: #666;
+	background: #E8E8E8 !important;
+	color: #666 !important;
+	box-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.1) !important;
 }
 
 .note-content {
