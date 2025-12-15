@@ -9,6 +9,7 @@
         <module name="backend-business-reviews-common" />
         <module name="backend-business-reviews-mapper" />
         <module name="backend-business-reviews-service" />
+        <module name="backend-business-reviews-mobile" />
         <module name="backend-business-reviews-web" />
         <module name="backend-business-reviews-entity" />
       </profile>
@@ -21,6 +22,7 @@
       <module name="backend-business-reviews-common" options="-parameters" />
       <module name="backend-business-reviews-entity" options="-parameters" />
       <module name="backend-business-reviews-mapper" options="-parameters" />
+      <module name="backend-business-reviews-mobile" options="-parameters" />
       <module name="backend-business-reviews-service" options="-parameters" />
       <module name="backend-business-reviews-web" options="-parameters" />
     </option>

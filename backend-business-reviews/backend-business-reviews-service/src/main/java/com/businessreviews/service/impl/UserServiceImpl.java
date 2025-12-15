@@ -3,7 +3,8 @@ package com.businessreviews.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.businessreviews.common.Constants;
+import com.businessreviews.constants.RedisKeyConstants;
+import com.businessreviews.constants.SmsCodeConstants;
 import com.businessreviews.common.PageResult;
 import com.businessreviews.dto.request.ChangePhoneRequest;
 import com.businessreviews.dto.request.UpdateUserInfoRequest;
@@ -92,18 +93,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Override
     public UserInfoResponse getUserInfo(Long userId) {
-        // 为了避免返回旧缓存数据,暂时禁用缓存读取,每次都从数据库读取
-        // String cacheKey = Constants.RedisKey.USER_INFO + userId;
-        // UserInfoResponse cached = redisUtil.getObject(cacheKey, UserInfoResponse.class);
-        // if (cached != null) {
-        //     return cached;
-        // }
-        
         User user = userMapper.selectById(userId);
         if (user == null) {
             log.warn("用户不存在: userId={}, 可能是Token已失效或用户已被删除", userId);
             // 清除可能的脏缓存
-            redisUtil.delete(Constants.RedisKey.USER_INFO + userId);
+            redisUtil.delete(RedisKeyConstants.USER_INFO + userId);
             throw new BusinessException(40401, "用户信息已失效,请重新登录");
         }
         
@@ -129,10 +123,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             response.setFavoriteCount(stats.getFavoriteCount());
             response.setNoteCount(stats.getNoteCount());
         }
-        
-        // 为了确保数据实时性,暂时不缓存
-        // 缓存30分钟
-        // redisUtil.setObject(cacheKey, response, 1800);
         
         return response;
     }
@@ -173,7 +163,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         userMapper.updateById(user);
         
         // 清除缓存
-        redisUtil.delete(Constants.RedisKey.USER_INFO + userId);
+        redisUtil.delete(RedisKeyConstants.USER_INFO + userId);
     }
 
     @Override
@@ -333,8 +323,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         
         // 发送关注通知
         User user = userMapper.selectById(userId);
-        messageService.sendNotification(targetUserId, "新粉丝", 
-                user.getUsername() + " 关注了你", 3, userId);
+        // 使用新的系统通知方法，包含发送者信息
+        messageService.sendSystemNotice(targetUserId, userId, 3, userId,
+                user.getUsername() + " 关注了你", user.getAvatar());
     }
 
     @Override
@@ -461,7 +452,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         
         // 验证验证码
-        String codeKey = Constants.RedisKey.SMS_CODE + user.getPhone();
+        String codeKey = RedisKeyConstants.SMS_CODE + user.getPhone();
         String cachedCode = redisUtil.get(codeKey);
         if (cachedCode == null || !cachedCode.equals(request.getCode())) {
             throw new BusinessException(40002, "验证码错误或已过期");
@@ -490,7 +481,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         redisUtil.delete(codeKey);
         
         // 清除缓存
-        redisUtil.delete(Constants.RedisKey.USER_INFO + userId);
+        redisUtil.delete(RedisKeyConstants.USER_INFO + userId);
         
         log.info("用户{}:密码修改成功", userId);
     }
@@ -529,7 +520,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         
         // 检查修改频率限制(24小时内最多修改一次)
-        String limitKey = Constants.RedisKey.CHANGE_PHONE_LIMIT + userId;
+        String limitKey = RedisKeyConstants.CHANGE_PHONE_LIMIT + userId;
         if (redisUtil.hasKey(limitKey)) {
             throw new BusinessException(40005, "24小时内只能修改一次手机号");
         }
@@ -541,14 +532,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         
         // 验证原手机号验证码
-        String oldCodeKey = Constants.RedisKey.SMS_CODE + oldPhone;
+        String oldCodeKey = RedisKeyConstants.SMS_CODE + oldPhone;
         String cachedOldCode = redisUtil.get(oldCodeKey);
         if (cachedOldCode == null || !cachedOldCode.equals(request.getOldPhoneCode())) {
             throw new BusinessException(40002, "原手机号验证码错误或已过期");
         }
         
         // 验证新手机号验证码
-        String newCodeKey = Constants.RedisKey.SMS_CODE + newPhone;
+        String newCodeKey = RedisKeyConstants.SMS_CODE + newPhone;
         String cachedNewCode = redisUtil.get(newCodeKey);
         if (cachedNewCode == null || !cachedNewCode.equals(request.getNewPhoneCode())) {
             throw new BusinessException(40002, "新手机号验证码错误或已过期");
@@ -567,7 +558,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         redisUtil.set(limitKey, "1", 86400);
         
         // 清除用户信息缓存
-        redisUtil.delete(Constants.RedisKey.USER_INFO + userId);
+        redisUtil.delete(RedisKeyConstants.USER_INFO + userId);
         
         log.info("用户{}手机号修改成功: {} -> {}", userId, maskPhone(oldPhone), maskPhone(newPhone));
     }

@@ -17,8 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.List;
+import java.time.LocalDateTime;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -32,15 +32,24 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
     private final UserMapper userMapper;
     private final UserFavoriteMapper userFavoriteMapper;
     private final UserStatsMapper userStatsMapper;
+    private final ShopReviewMapper shopReviewMapper;
 
     @Override
-    public PageResult<ShopItemResponse> getShopList(Long categoryId, String sortBy, Integer pageNum, Integer pageSize) {
+    public PageResult<ShopItemResponse> getShopList(Long categoryId, String keyword, String sortBy, Integer pageNum, Integer pageSize) {
         Page<Shop> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<Shop> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Shop::getStatus, 1);
         
+        // 分类筛选
         if (categoryId != null) {
             wrapper.eq(Shop::getCategoryId, categoryId);
+        }
+        
+        // 关键词搜索
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            wrapper.and(w -> w.like(Shop::getName, keyword.trim())
+                    .or()
+                    .like(Shop::getAddress, keyword.trim()));
         }
         
         // 排序
@@ -121,8 +130,12 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
     @Override
     public ShopDetailResponse getShopDetail(Long shopId, Long userId) {
         Shop shop = shopMapper.selectById(shopId);
-        if (shop == null || shop.getStatus() != 1) {
+        if (shop == null) {
             throw new BusinessException(40402, "商家不存在");
+        }
+        // 允许查看状态为1(营业中)的店铺
+        if (shop.getStatus() != null && shop.getStatus() != 1) {
+            throw new BusinessException(40402, "商家暂停营业");
         }
         
         ShopDetailResponse response = new ShopDetailResponse();
@@ -247,6 +260,129 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
         return userFavoriteMapper.selectCount(wrapper) > 0;
     }
 
+    @Override
+    public PageResult<Object> getShopReviews(Long shopId, Integer pageNum, Integer pageSize, String sortBy) {
+        Page<ShopReview> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<ShopReview> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ShopReview::getShopId, shopId)
+               .eq(ShopReview::getStatus, 1);
+        
+        if ("rating".equals(sortBy)) {
+            wrapper.orderByDesc(ShopReview::getRating);
+        } else {
+            wrapper.orderByDesc(ShopReview::getCreatedAt);
+        }
+        
+        Page<ShopReview> reviewPage = shopReviewMapper.selectPage(page, wrapper);
+        
+        List<Object> list = reviewPage.getRecords().stream()
+                .map(review -> {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("id", review.getId());
+                    item.put("rating", review.getRating());
+                    item.put("tasteScore", review.getTasteScore());
+                    item.put("environmentScore", review.getEnvironmentScore());
+                    item.put("serviceScore", review.getServiceScore());
+                    item.put("content", review.getContent());
+                    item.put("createdAt", review.getCreatedAt() != null ? review.getCreatedAt().toString() : null);
+                    
+                    // 获取用户信息
+                    User user = userMapper.selectById(review.getUserId());
+                    if (user != null) {
+                        item.put("username", user.getUsername());
+                        item.put("userAvatar", user.getAvatar());
+                    }
+                    
+                    return (Object) item;
+                })
+                .collect(Collectors.toList());
+        
+        return PageResult.of(list, reviewPage.getTotal(), pageNum, pageSize);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void postShopReview(Long userId, Long shopId, Map<String, Object> request) {
+        Shop shop = shopMapper.selectById(shopId);
+        if (shop == null || shop.getStatus() != 1) {
+            throw new BusinessException(40402, "商家不存在");
+        }
+        
+        // 创建评价
+        ShopReview review = new ShopReview();
+        review.setShopId(shopId);
+        review.setUserId(userId);
+        
+        if (request.get("rating") != null) {
+            review.setRating(new BigDecimal(request.get("rating").toString()));
+        } else {
+            review.setRating(BigDecimal.valueOf(5.0));
+        }
+        
+        if (request.get("tasteScore") != null) {
+            review.setTasteScore(new BigDecimal(request.get("tasteScore").toString()));
+        }
+        if (request.get("environmentScore") != null) {
+            review.setEnvironmentScore(new BigDecimal(request.get("environmentScore").toString()));
+        }
+        if (request.get("serviceScore") != null) {
+            review.setServiceScore(new BigDecimal(request.get("serviceScore").toString()));
+        }
+        
+        review.setContent((String) request.get("content"));
+        review.setStatus(1);
+        review.setLikeCount(0);
+        review.setCreatedAt(LocalDateTime.now());
+        
+        shopReviewMapper.insert(review);
+        
+        // 更新商家评价数和评分
+        updateShopRating(shopId);
+        
+        log.info("用户{}对商家{}发表评价成功", userId, shopId);
+    }
+    
+    /**
+     * 更新商家评分
+     */
+    private void updateShopRating(Long shopId) {
+        // 计算平均评分
+        LambdaQueryWrapper<ShopReview> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ShopReview::getShopId, shopId)
+               .eq(ShopReview::getStatus, 1);
+        List<ShopReview> reviews = shopReviewMapper.selectList(wrapper);
+        
+        if (!reviews.isEmpty()) {
+            double avgRating = reviews.stream()
+                    .mapToDouble(r -> r.getRating().doubleValue())
+                    .average()
+                    .orElse(5.0);
+            double avgTaste = reviews.stream()
+                    .filter(r -> r.getTasteScore() != null)
+                    .mapToDouble(r -> r.getTasteScore().doubleValue())
+                    .average()
+                    .orElse(5.0);
+            double avgEnvironment = reviews.stream()
+                    .filter(r -> r.getEnvironmentScore() != null)
+                    .mapToDouble(r -> r.getEnvironmentScore().doubleValue())
+                    .average()
+                    .orElse(5.0);
+            double avgService = reviews.stream()
+                    .filter(r -> r.getServiceScore() != null)
+                    .mapToDouble(r -> r.getServiceScore().doubleValue())
+                    .average()
+                    .orElse(5.0);
+            
+            Shop shop = shopMapper.selectById(shopId);
+            shop.setRating(BigDecimal.valueOf(avgRating));
+            shop.setTasteScore(BigDecimal.valueOf(avgTaste));
+            shop.setEnvironmentScore(BigDecimal.valueOf(avgEnvironment));
+            shop.setServiceScore(BigDecimal.valueOf(avgService));
+            shop.setReviewCount(reviews.size());
+            shopMapper.updateById(shop);
+        }
+    }
+
     private ShopItemResponse convertToShopItem(Shop shop) {
         ShopItemResponse item = new ShopItemResponse();
         item.setId(shop.getId().toString());
@@ -285,5 +421,33 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c;
+    }
+
+    @Override
+    public PageResult<ShopItemResponse> getRegisteredShops(String keyword, Integer pageNum, Integer pageSize) {
+        Page<Shop> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<Shop> wrapper = new LambdaQueryWrapper<>();
+        
+        // 查询条件：merchantId不为空且状态正常的商户
+        wrapper.eq(Shop::getStatus, 1)
+               .isNotNull(Shop::getMerchantId);
+        
+        // 关键词搜索
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            wrapper.and(w -> w.like(Shop::getName, keyword.trim())
+                    .or()
+                    .like(Shop::getAddress, keyword.trim()));
+        }
+        
+        // 按评分和人气排序
+        wrapper.orderByDesc(Shop::getRating).orderByDesc(Shop::getPopularity);
+        
+        Page<Shop> shopPage = shopMapper.selectPage(page, wrapper);
+        
+        List<ShopItemResponse> list = shopPage.getRecords().stream()
+                .map(this::convertToShopItem)
+                .collect(Collectors.toList());
+        
+        return PageResult.of(list, shopPage.getTotal(), pageNum, pageSize);
     }
 }

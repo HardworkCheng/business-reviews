@@ -20,6 +20,11 @@ public class Shop implements Serializable {
     private Long id;
     
     /**
+     * 所属商家ID
+     */
+    private Long merchantId;
+    
+    /**
      * 分类ID
      */
     private Integer categoryId;

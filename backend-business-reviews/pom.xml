@@ -24,6 +24,7 @@
         <module>backend-business-reviews-entity</module>
         <module>backend-business-reviews-mapper</module>
         <module>backend-business-reviews-service</module>
+        <module>backend-business-reviews-mobile</module>
         <module>backend-business-reviews-web</module>
     </modules>
     

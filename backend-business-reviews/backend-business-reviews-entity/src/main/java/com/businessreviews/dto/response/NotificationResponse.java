@@ -12,4 +12,14 @@ public class NotificationResponse {
     private Boolean isRead;
     private String createdAt;
     private String timeAgo;
+    
+    // 发送者信息
+    private Long fromUserId;
+    private String fromUsername;
+    private String fromAvatar;
+    
+    // 笔记信息
+    private Long noteId;
+    private String noteTitle;
+    private String noteImage;
 }

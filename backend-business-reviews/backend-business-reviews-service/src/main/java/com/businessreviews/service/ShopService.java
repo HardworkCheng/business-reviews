@@ -11,9 +11,9 @@ import java.util.List;
 public interface ShopService extends IService<Shop> {
     
     /**
-     * 获取商家列表
+     * 获取商家列表（支持分类筛选和关键词搜索）
      */
-    PageResult<ShopItemResponse> getShopList(Long categoryId, String sortBy, Integer pageNum, Integer pageSize);
+    PageResult<ShopItemResponse> getShopList(Long categoryId, String keyword, String sortBy, Integer pageNum, Integer pageSize);
     
     /**
      * 获取附近商家
@@ -50,4 +50,20 @@ public interface ShopService extends IService<Shop> {
      * 检查是否已收藏商家
      */
     boolean isShopBookmarked(Long userId, Long shopId);
+    
+    /**
+     * 获取商家评价列表
+     */
+    PageResult<Object> getShopReviews(Long shopId, Integer pageNum, Integer pageSize, String sortBy);
+    
+    /**
+     * 发表商家评价
+     */
+    void postShopReview(Long userId, Long shopId, java.util.Map<String, Object> request);
+    
+    /**
+     * 获取已注册商户列表（merchantId不为空的商户）
+     * 用于笔记发布时关联商户
+     */
+    PageResult<ShopItemResponse> getRegisteredShops(String keyword, Integer pageNum, Integer pageSize);
 }

@@ -82,9 +82,9 @@ public interface NoteService extends IService<Note> {
     void unbookmarkNote(Long userId, Long noteId);
     
     /**
-     * 增加浏览量
+     * 增加浏览量并记录浏览历史
      */
-    void increaseViewCount(Long noteId);
+    void increaseViewCount(Long noteId, Long userId);
     
     /**
      * 检查是否已点赞

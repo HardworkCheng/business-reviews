@@ -53,4 +53,15 @@ public interface MessageService extends IService<Message> {
      * 发送系统通知
      */
     void sendNotification(Long userId, String title, String content, Integer type, Long relatedId);
+    
+    /**
+     * 发送系统通知（包含发送者信息）
+     * @param userId 接收通知的用户ID
+     * @param fromUserId 触发通知的用户ID
+     * @param type 通知类型（1点赞笔记，2评论笔记，3关注，4点赞评论）
+     * @param targetId 目标ID（笔记ID或评论ID）
+     * @param content 通知内容
+     * @param imageUrl 关联图片URL
+     */
+    void sendSystemNotice(Long userId, Long fromUserId, Integer type, Long targetId, String content, String imageUrl);
 }

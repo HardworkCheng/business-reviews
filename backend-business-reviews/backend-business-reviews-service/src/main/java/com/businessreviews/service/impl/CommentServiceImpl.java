@@ -105,8 +105,9 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         // 发送评论通知
         if (!userId.equals(note.getUserId())) {
             User user = userMapper.selectById(userId);
-            messageService.sendNotification(note.getUserId(), "收到评论",
-                    user.getUsername() + " 评论了你的笔记", 2, note.getId());
+            // 使用新的系统通知方法，包含发送者信息和笔记图片
+            messageService.sendSystemNotice(note.getUserId(), userId, 2, note.getId(),
+                    user.getUsername() + " 评论了你的笔记", note.getCoverImage());
         }
         
         return convertToResponse(comment, userId, false);

@@ -16,6 +16,12 @@
     <description>业务逻辑层模块 - Service接口和实现</description>
     
     <dependencies>
+        <!-- Common模块 -->
+        <dependency>
+            <groupId>com.businessreviews</groupId>
+            <artifactId>backend-business-reviews-common</artifactId>
+        </dependency>
+        
         <!-- Mapper模块 -->
         <dependency>
             <groupId>com.businessreviews</groupId>

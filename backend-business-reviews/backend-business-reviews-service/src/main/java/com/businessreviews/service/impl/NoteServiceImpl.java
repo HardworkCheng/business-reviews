@@ -3,7 +3,7 @@ package com.businessreviews.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.businessreviews.common.Constants;
+import com.businessreviews.constants.RedisKeyConstants;
 import com.businessreviews.common.PageResult;
 import com.businessreviews.dto.request.PublishNoteRequest;
 import com.businessreviews.dto.response.NoteDetailResponse;
@@ -11,6 +11,7 @@ import com.businessreviews.dto.response.NoteItemResponse;
 import com.businessreviews.entity.*;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.*;
+import com.businessreviews.dto.response.NoteDetailResponse.TopicInfo;
 import com.businessreviews.service.MessageService;
 import com.businessreviews.service.NoteService;
 import com.businessreviews.util.RedisUtil;
@@ -44,13 +45,14 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     private final UserFollowMapper userFollowMapper;
     private final ShopMapper shopMapper;
     private final TagMapper tagMapper;
+    private final TopicMapper topicMapper;
     private final RedisUtil redisUtil;
     private final MessageService messageService;
 
     @Override
     public PageResult<NoteItemResponse> getRecommendedNotes(Integer pageNum, Integer pageSize) {
         // 尝试从缓存获取
-        String cacheKey = Constants.RedisKey.NOTES_RECOMMENDED + pageNum;
+        String cacheKey = RedisKeyConstants.NOTES_RECOMMENDED + pageNum;
         
         Page<Note> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
@@ -247,6 +249,14 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
             }
         }
         
+        // 查询话题信息
+        List<TopicInfo> topics = getNoteTopics(noteId);
+        response.setTopics(topics);
+        
+        // 设置位置坐标
+        response.setLatitude(note.getLatitude());
+        response.setLongitude(note.getLongitude());
+        
         // 查询用户互动状态
         if (userId != null) {
             boolean liked = isLiked(userId, noteId);
@@ -374,9 +384,10 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
             throw new BusinessException(40402, "笔记不存在");
         }
         
-        // 检查是否已点赞
+        // 检查是否已点赞，如果已点赞则取消点赞
         if (isLiked(userId, noteId)) {
-            throw new BusinessException(40001, "已点赞");
+            log.info("用户 {} 取消点赞笔记 {}", userId, noteId);
+            return unlikeNote(userId, noteId);
         }
         
         // 插入点赞记录
@@ -394,10 +405,12 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         // 发送点赞通知
         if (!userId.equals(note.getUserId())) {
             User user = userMapper.selectById(userId);
-            messageService.sendNotification(note.getUserId(), "收到点赞", 
-                    user.getUsername() + " 赞了你的笔记", 1, noteId);
+            // 使用新的系统通知方法，包含发送者信息和笔记图片
+            messageService.sendSystemNotice(note.getUserId(), userId, 1, noteId, 
+                    user.getUsername() + " 赞了你的笔记", note.getCoverImage());
         }
         
+        log.info("用户 {} 点赞笔记 {}", userId, noteId);
         return note.getLikeCount() + 1;
     }
 
@@ -439,9 +452,11 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
             throw new BusinessException(40402, "笔记不存在");
         }
         
-        // 检查是否已收藏
+        // 检查是否已收藏，如果已收藏则取消收藏
         if (isBookmarked(userId, noteId)) {
-            throw new BusinessException(40001, "已收藏");
+            log.info("用户 {} 取消收藏笔记 {}", userId, noteId);
+            unbookmarkNote(userId, noteId);
+            return;
         }
         
         // 插入收藏记录
@@ -456,6 +471,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         
         // 更新用户收藏数
         userStatsMapper.incrementFavoriteCount(userId);
+        
+        log.info("用户 {} 收藏笔记 {}", userId, noteId);
     }
 
     @Override
@@ -484,8 +501,45 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
 
     @Override
     @Async("asyncExecutor")
-    public void increaseViewCount(Long noteId) {
+    public void increaseViewCount(Long noteId, Long userId) {
+        log.info("增加浏览量 - 笔记ID: {}, 用户ID: {}", noteId, userId);
         noteMapper.incrementViewCount(noteId);
+        
+        // 记录浏览历史（仅当用户已登录时）
+        if (userId != null) {
+            try {
+                log.info("开始记录浏览历史 - 用户ID: {}, 笔记ID: {}", userId, noteId);
+                
+                // 检查是否已有相同的浏览记录（同一用户、同一笔记）
+                LambdaQueryWrapper<BrowseHistory> wrapper = new LambdaQueryWrapper<>();
+                wrapper.eq(BrowseHistory::getUserId, userId)
+                       .eq(BrowseHistory::getType, 1) // 1=笔记
+                       .eq(BrowseHistory::getTargetId, noteId);
+                BrowseHistory existing = browseHistoryMapper.selectOne(wrapper);
+                
+                if (existing != null) {
+                    // 更新浏览时间
+                    log.info("更新已有浏览记录 - 记录ID: {}", existing.getId());
+                    existing.setCreatedAt(LocalDateTime.now());
+                    browseHistoryMapper.updateById(existing);
+                } else {
+                    // 插入新记录
+                    log.info("插入新浏览记录");
+                    BrowseHistory history = new BrowseHistory();
+                    history.setUserId(userId);
+                    history.setType(1); // 1=笔记
+                    history.setTargetId(noteId);
+                    history.setCreatedAt(LocalDateTime.now());
+                    int result = browseHistoryMapper.insert(history);
+                    log.info("浏览记录插入结果: {}, 新记录ID: {}", result, history.getId());
+                }
+                log.info("浏览历史记录成功 - 用户ID: {}, 笔记ID: {}", userId, noteId);
+            } catch (Exception e) {
+                log.error("记录浏览历史失败 - 用户ID: {}, 笔记ID: {}, 错误: {}", userId, noteId, e.getMessage(), e);
+            }
+        } else {
+            log.info("用户未登录，不记录浏览历史 - 笔记ID: {}", noteId);
+        }
     }
 
     @Override
@@ -603,6 +657,34 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         LambdaQueryWrapper<NoteTag> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(NoteTag::getNoteId, noteId);
         noteTagMapper.delete(wrapper);
+    }
+    
+    /**
+     * 获取笔记关联的话题列表
+     */
+    private List<TopicInfo> getNoteTopics(Long noteId) {
+        LambdaQueryWrapper<NoteTopic> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteTopic::getNoteId, noteId);
+        List<NoteTopic> noteTopics = noteTopicMapper.selectList(wrapper);
+        
+        if (noteTopics.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        List<Long> topicIds = noteTopics.stream()
+                .map(NoteTopic::getTopicId)
+                .collect(Collectors.toList());
+        
+        List<Topic> topics = topicMapper.selectBatchIds(topicIds);
+        
+        return topics.stream()
+                .map(topic -> {
+                    TopicInfo info = new TopicInfo();
+                    info.setId(topic.getId());
+                    info.setName(topic.getName());
+                    return info;
+                })
+                .collect(Collectors.toList());
     }
     
     /**
