@@ -1,0 +1,106 @@
+# ========================
+# 通用操作系统文件
+# ========================
+.DS_Store
+Thumbs.db
+*.swp
+*~
+*.bak
+
+# ========================
+# IDE / 编辑器配置
+# ========================
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Eclipse / STS
+.classpath
+.project
+.settings/
+.springBeans
+.sts4-cache
+.apt_generated
+.factorypath
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# ========================
+# Java / Spring Boot (Maven)
+# ========================
+target/
+!target/classes/application*.yml
+!target/classes/application*.properties
+
+# 保留 Maven wrapper jar（重要！）
+!.mvn/wrapper/maven-wrapper.jar
+.flattened-pom.xml
+
+# Gradle（如果使用）
+.gradle/
+build/
+!build.gradle
+
+# ========================
+# Node.js / Vue 前端
+# ========================
+node_modules/
+
+# 构建输出目录
+dist/
+build/
+out/
+
+# 日志文件
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 本地环境变量文件（敏感信息）
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# 测试与覆盖率
+coverage/
+.nyc_output/
+.jest-cache/
+
+# 缓存
+.cache/
+.eslintcache
+.stylelintcache
+.pnpm-debug.log
+.pnpmfile.cjs
+
+# ========================
+# 其他临时/日志文件
+# ========================
+logs/
+*.log
+temp/
+tmp/
+
+# ========================
+# 锁定文件（通常应提交，不忽略！）
+# ========================
+# 注意：以下文件默认不忽略，确保依赖一致
+# 如果你确实不想提交，请取消注释下面两行：
+# package-lock.json
+# yarn.lock

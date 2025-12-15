@@ -1,0 +1,22 @@
+package com.businessreviews.enums;
+
+import lombok.Getter;
+
+/**
+ * 评论状态枚举
+ */
+@Getter
+public enum CommentStatus {
+    /** 正常 */
+    NORMAL(1, "正常"),
+    /** 隐藏 */
+    HIDDEN(2, "隐藏");
+
+    private final int code;
+    private final String desc;
+
+    CommentStatus(int code, String desc) {
+        this.code = code;
+        this.desc = desc;
+    }
+}
