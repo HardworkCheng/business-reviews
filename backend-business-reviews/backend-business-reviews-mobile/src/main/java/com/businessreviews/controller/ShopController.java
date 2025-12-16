@@ -9,6 +9,23 @@ import com.businessreviews.service.ShopService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * 移动端店铺控制器 (UniApp)
+ * 
+ * 提供移动端用户的店铺相关API：
+ * - GET /shops - 获取商家列表（支持分类筛选和关键词搜索）
+ * - GET /shops/nearby - 获取附近商家
+ * - GET /shops/search - 搜索商家
+ * - GET /shops/{id} - 获取商家详情
+ * - GET /shops/{id}/notes - 获取商家笔记列表
+ * - GET /shops/{id}/reviews - 获取商家评价列表
+ * - POST /shops/{id}/reviews - 发表商家评价
+ * - POST /shops/{id}/bookmark - 收藏商家
+ * - DELETE /shops/{id}/bookmark - 取消收藏商家
+ * - GET /shops/registered - 获取已注册商户列表
+ * 
+ * @see com.businessreviews.service.ShopService
+ */
 @RestController
 @RequestMapping("/shops")
 @RequiredArgsConstructor

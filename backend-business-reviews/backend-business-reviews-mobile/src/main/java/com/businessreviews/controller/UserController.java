@@ -14,6 +14,25 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * 移动端用户控制器 (UniApp)
+ * 
+ * 提供移动端用户的个人信息管理API：
+ * - GET /user/info - 获取当前用户信息
+ * - PUT /user/info - 更新用户信息
+ * - GET /user/profile/{userId} - 获取用户公开主页
+ * - GET /user/notes - 获取我的笔记列表
+ * - GET /user/favorites - 获取我的收藏列表
+ * - GET /user/history - 获取浏览历史
+ * - POST /user/follow - 关注用户
+ * - DELETE /user/follow/{targetUserId} - 取消关注
+ * - GET /user/following - 获取关注列表
+ * - GET /user/followers - 获取粉丝列表
+ * - PUT /user/password - 修改密码
+ * - PUT /user/phone - 修改手机号
+ * 
+ * @see com.businessreviews.service.UserService
+ */
 @Slf4j
 @RestController
 @RequestMapping("/user")

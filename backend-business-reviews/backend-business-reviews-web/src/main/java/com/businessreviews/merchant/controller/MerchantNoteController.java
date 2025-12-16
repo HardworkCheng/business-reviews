@@ -12,7 +12,19 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 /**
- * 商家笔记管理控制器
+ * 商家运营中心 - 笔记管理控制器 (Web端)
+ * 
+ * 提供商家运营中心的笔记管理API：
+ * - GET /merchant/notes - 获取笔记列表
+ * - GET /merchant/notes/{id} - 获取笔记详情
+ * - POST /merchant/notes - 创建笔记
+ * - PUT /merchant/notes/{id} - 更新笔记
+ * - POST /merchant/notes/{id}/publish - 发布笔记
+ * - POST /merchant/notes/{id}/offline - 下线笔记
+ * - DELETE /merchant/notes/{id} - 删除笔记
+ * - GET /merchant/notes/{id}/stats - 获取笔记统计
+ * 
+ * @see com.businessreviews.service.MerchantNoteService
  */
 @RestController
 @RequestMapping("/merchant/notes")

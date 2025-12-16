@@ -13,6 +13,19 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 移动端评论控制器 (UniApp)
+ * 
+ * 提供移动端用户的评论相关API：
+ * - GET /notes/{noteId}/comments - 获取笔记评论列表
+ * - GET /comments/{commentId}/replies - 获取评论的回复列表
+ * - POST /comments - 添加评论
+ * - DELETE /comments/{id} - 删除评论
+ * - POST /comments/{id}/like - 点赞评论
+ * - DELETE /comments/{id}/like - 取消点赞评论
+ * 
+ * @see com.businessreviews.service.CommentService
+ */
 @RestController
 @RequestMapping("")
 @RequiredArgsConstructor

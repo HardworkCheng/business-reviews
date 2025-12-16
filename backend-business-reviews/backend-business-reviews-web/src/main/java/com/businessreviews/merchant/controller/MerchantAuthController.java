@@ -13,7 +13,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 商家认证控制器
+ * 商家运营中心 - 认证控制器 (Web端)
+ * 
+ * 提供商家运营中心的认证相关API：
+ * - POST /merchant/auth/send-code - 发送验证码
+ * - POST /merchant/auth/login - 登录（支持密码和验证码）
+ * - POST /merchant/auth/register - 商家入驻注册
+ * - GET /merchant/auth/profile - 获取当前用户信息
+ * - POST /merchant/auth/logout - 退出登录
+ * 
+ * @see com.businessreviews.service.MerchantAuthService
  */
 @RestController
 @RequestMapping("/merchant/auth")

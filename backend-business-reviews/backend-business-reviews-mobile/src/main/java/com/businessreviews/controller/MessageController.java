@@ -12,6 +12,21 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * 移动端消息控制器 (UniApp)
+ * 
+ * 提供移动端用户的消息和通知API：
+ * - GET /messages/conversations - 获取会话列表
+ * - GET /messages/chat/{targetUserId} - 获取聊天记录
+ * - POST /messages/send - 发送消息
+ * - POST /messages/read/{targetUserId} - 标记消息已读
+ * - GET /messages/notifications - 获取系统通知列表
+ * - POST /messages/notifications/{id}/read - 标记通知已读
+ * - POST /messages/notifications/read-all - 标记所有通知已读
+ * - GET /messages/unread-count - 获取未读消息数量
+ * 
+ * @see com.businessreviews.service.MessageService
+ */
 @RestController
 @RequestMapping("/messages")
 @RequiredArgsConstructor

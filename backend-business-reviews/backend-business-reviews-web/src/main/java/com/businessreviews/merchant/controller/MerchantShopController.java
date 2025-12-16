@@ -13,7 +13,18 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 /**
- * 商家门店管理控制器
+ * 商家运营中心 - 门店管理控制器 (Web端)
+ * 
+ * 提供商家运营中心的门店管理API：
+ * - GET /merchant/shops - 获取门店列表
+ * - GET /merchant/shops/{id} - 获取门店详情
+ * - POST /merchant/shops - 新增门店
+ * - PUT /merchant/shops/{id} - 更新门店信息
+ * - PUT /merchant/shops/{id}/status - 更新门店状态
+ * - DELETE /merchant/shops/{id} - 删除门店
+ * - GET /merchant/shops/{id}/stats - 获取门店统计数据
+ * 
+ * @see com.businessreviews.service.MerchantShopService
  */
 @RestController
 @RequestMapping("/merchant/shops")

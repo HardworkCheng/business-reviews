@@ -14,6 +14,25 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 移动端笔记控制器 (UniApp)
+ * 
+ * 提供移动端用户的笔记相关API：
+ * - GET /notes/recommended - 获取推荐笔记列表
+ * - GET /notes/my - 获取我的笔记列表
+ * - GET /notes/liked - 获取我点赞的笔记
+ * - GET /notes/explore - 获取探索页笔记
+ * - GET /notes/nearby - 获取附近笔记
+ * - GET /notes/following - 获取关注用户的笔记
+ * - GET /notes/{id} - 获取笔记详情
+ * - POST /notes - 发布笔记
+ * - PUT /notes/{id} - 更新笔记
+ * - DELETE /notes/{id} - 删除笔记
+ * - POST /notes/{id}/like - 点赞笔记
+ * - POST /notes/{id}/bookmark - 收藏笔记
+ * 
+ * @see com.businessreviews.service.NoteService
+ */
 @RestController
 @RequestMapping("/notes")
 @RequiredArgsConstructor

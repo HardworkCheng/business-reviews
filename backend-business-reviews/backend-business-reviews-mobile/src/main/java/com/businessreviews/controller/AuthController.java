@@ -11,6 +11,17 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * 移动端用户认证控制器 (UniApp)
+ * 
+ * 提供移动端用户的认证相关API：
+ * - POST /auth/send-code - 发送验证码
+ * - POST /auth/login-by-code - 验证码登录
+ * - POST /auth/oauth-login - 第三方登录（微信/QQ/微博）
+ * - POST /auth/logout - 退出登录
+ * 
+ * @see com.businessreviews.service.AuthService
+ */
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
