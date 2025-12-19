@@ -1,266 +1,259 @@
 <template>
-  <div class="note-list">
-    <el-card>
-      <template #header>
-        <div class="card-header">
-          <span>笔记管理</span>
-          <el-button type="primary" @click="$router.push('/notes/create')">
-            <el-icon><Plus /></el-icon>
-            发布笔记
-          </el-button>
+  <div class="note-page">
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <div class="header-info">
+        <h1 class="page-title">笔记管理</h1>
+        <p class="page-desc">管理您发布的笔记，UniApp用户可实时查看</p>
+      </div>
+      <el-button type="primary" size="large" @click="$router.push('/notes/create')" class="create-btn">
+        <el-icon><Plus /></el-icon>发布笔记
+      </el-button>
+    </div>
+
+    <!-- 筛选和搜索 -->
+    <div class="filter-bar">
+      <div class="filter-tabs">
+        <button class="tab-btn" :class="{ active: currentFilter === 'all' }" @click="setFilter('all')">全部 <span class="count">{{ counts.all }}</span></button>
+        <button class="tab-btn" :class="{ active: currentFilter === 'published' }" @click="setFilter('published')">已发布 <span class="count success">{{ counts.published }}</span></button>
+        <button class="tab-btn" :class="{ active: currentFilter === 'pending' }" @click="setFilter('pending')">待审核 <span class="count warning">{{ counts.pending }}</span></button>
+        <button class="tab-btn" :class="{ active: currentFilter === 'draft' }" @click="setFilter('draft')">草稿 <span class="count">{{ counts.draft }}</span></button>
+      </div>
+      <div class="search-area">
+        <el-input v-model="searchKeyword" placeholder="搜索笔记标题..." class="search-input" clearable @keyup.enter="searchNotes">
+          <template #prefix><el-icon><Search /></el-icon></template>
+        </el-input>
+        <el-select v-model="selectedShop" placeholder="选择门店" clearable class="shop-select">
+          <el-option v-for="shop in shopList" :key="shop.id" :label="shop.name" :value="shop.id" />
+        </el-select>
+      </div>
+    </div>
+
+    <!-- 笔记卡片网格 -->
+    <div class="note-grid" v-loading="loading">
+      <div v-for="note in noteList" :key="note.id" class="note-card" @click="viewNote(note)">
+        <div class="card-cover">
+          <img :src="getNoteImage(note)" :alt="note.title" @error="handleImageError" />
+          <div class="card-status" :class="getStatusClass(note.status)">{{ getStatusText(note.status) }}</div>
+          <div class="card-overlay">
+            <el-button circle @click.stop="editNote(note)"><el-icon><Edit /></el-icon></el-button>
+            <el-button circle type="danger" @click.stop="deleteNote(note)"><el-icon><Delete /></el-icon></el-button>
+          </div>
         </div>
-      </template>
-      
-      <!-- 搜索条件 -->
-      <el-form :model="searchForm" inline>
-        <el-form-item label="笔记标题">
-          <el-input v-model="searchForm.title" placeholder="请输入笔记标题" />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable>
-            <el-option label="草稿" :value="0" />
-            <el-option label="待审核" :value="1" />
-            <el-option label="已发布" :value="2" />
-            <el-option label="已下线" :value="3" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="门店">
-          <el-select v-model="searchForm.shopId" placeholder="请选择门店" clearable>
-            <el-option 
-              v-for="shop in shopList" 
-              :key="shop.id" 
-              :label="shop.name" 
-              :value="shop.id" 
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="searchNotes">搜索</el-button>
-          <el-button @click="resetSearch">重置</el-button>
-        </el-form-item>
-      </el-form>
-      
-      <!-- 笔记列表 -->
-      <el-table :data="noteList" v-loading="loading" style="width: 100%">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="title" label="笔记标题" />
-        <el-table-column prop="shopName" label="关联门店" width="120" />
-        <el-table-column prop="views" label="浏览量" width="100" />
-        <el-table-column prop="likes" label="点赞数" width="100" />
-        <el-table-column prop="comments" label="评论数" width="100" />
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="scope">
-            <el-tag :type="getNoteStatusTag(scope.row.status)">
-              {{ getNoteStatusName(scope.row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createdAt" label="创建时间" width="180" />
-        <el-table-column label="操作" width="200">
-          <template #default="scope">
-            <el-button link type="primary" @click="editNote(scope.row)">编辑</el-button>
-            <el-button 
-              v-if="scope.row.status === 2" 
-              link 
-              type="warning" 
-              @click="offlineNote(scope.row)"
-            >
-              下线
-            </el-button>
-            <el-button 
-              v-else-if="scope.row.status === 0 || scope.row.status === 3" 
-              link 
-              type="success" 
-              @click="publishNote(scope.row)"
-            >
-              发布
-            </el-button>
-            <el-button link type="danger" @click="deleteNote(scope.row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      
-      <!-- 分页 -->
-      <el-pagination
-        v-model:current-page="pagination.currentPage"
-        v-model:page-size="pagination.pageSize"
-        :page-sizes="[10, 20, 50]"
-        :total="pagination.total"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-        style="margin-top: 20px; justify-content: flex-end;"
-      />
-    </el-card>
+        <div class="card-content">
+          <div class="card-shop">
+            <el-icon><Shop /></el-icon>
+            <span>{{ note.shopName || '未关联门店' }}</span>
+          </div>
+          <h3 class="card-title">{{ note.title }}</h3>
+          <p class="card-desc">{{ note.content?.substring(0, 60) || '暂无描述' }}...</p>
+          <div class="card-stats">
+            <span class="stat"><el-icon><View /></el-icon>{{ note.views || 0 }}</span>
+            <span class="stat"><el-icon><Star /></el-icon>{{ note.likes || 0 }}</span>
+            <span class="stat"><el-icon><ChatDotRound /></el-icon>{{ note.comments || 0 }}</span>
+          </div>
+          <div class="card-footer">
+            <span class="card-time">{{ formatDate(note.createdAt) }}</span>
+            <el-tag v-if="note.syncedToApp" type="success" size="small">已同步</el-tag>
+            <el-tag v-else type="info" size="small">待同步</el-tag>
+          </div>
+        </div>
+      </div>
+
+      <!-- 空状态 -->
+      <div v-if="noteList.length === 0 && !loading" class="empty-state">
+        <el-icon :size="80" color="#FFB366"><Document /></el-icon>
+        <h3>暂无笔记</h3>
+        <p>发布您的第一篇笔记，让UniApp用户看到您的精彩内容</p>
+        <el-button type="primary" @click="$router.push('/notes/create')">立即发布</el-button>
+      </div>
+    </div>
+
+    <!-- 分页 -->
+    <div class="pagination-wrapper" v-if="pagination.total > 0">
+      <el-pagination v-model:current-page="pagination.currentPage" v-model:page-size="pagination.pageSize"
+        :page-sizes="[8, 12, 16, 24]" :total="pagination.total" layout="total, sizes, prev, pager, next"
+        @size-change="searchNotes" @current-change="searchNotes" />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
-import { getNoteList, deleteNote as deleteNoteApi, publishNote as publishNoteApi, offlineNote as offlineNoteApi } from '@/api/note'
+import { Plus, Search, View, Star, ChatDotRound, Edit, Delete, Document, Shop } from '@element-plus/icons-vue'
+import { getNoteList, deleteNote as deleteNoteApi } from '@/api/note'
 import { getShopList } from '@/api/shop'
 
 const router = useRouter()
-
-// 搜索表单
-const searchForm = ref({
-  title: '',
-  status: undefined as number | undefined,
-  shopId: undefined as number | undefined
-})
-
-// 分页
-const pagination = ref({
-  currentPage: 1,
-  pageSize: 10,
-  total: 0
-})
-
-// 笔记列表
+const currentFilter = ref('all')
+const searchKeyword = ref('')
+const selectedShop = ref<number | undefined>()
+const pagination = ref({ currentPage: 1, pageSize: 12, total: 0 })
 const noteList = ref<any[]>([])
-
-// 门店列表
 const shopList = ref<any[]>([])
-
-// 加载状态
 const loading = ref(false)
+const counts = reactive({ all: 0, published: 0, pending: 0, draft: 0 })
 
-// 获取笔记状态名称
-const getNoteStatusName = (status: number) => {
-  const statuses: Record<number, string> = {
-    0: '草稿',
-    1: '待审核',
-    2: '已发布',
-    3: '已下线'
+const getStatusClass = (status: number) => ({ 0: 'draft', 1: 'published', 2: 'pending', 3: 'offline' }[status] || 'draft')
+const getStatusText = (status: number) => ({ 0: '草稿', 1: '已发布', 2: '待审核', 3: '已下线' }[status] || '草稿')
+const formatDate = (date: string) => { if (!date) return '-'; try { return new Date(date).toLocaleDateString('zh-CN') } catch { return date } }
+
+// 获取笔记封面图片
+const getNoteImage = (note: any) => {
+  // 优先使用coverImage
+  if (note.coverImage && note.coverImage.trim()) {
+    return note.coverImage
   }
-  return statuses[status] || '未知'
+  // 其次使用image
+  if (note.image && note.image.trim()) {
+    return note.image
+  }
+  // 尝试从images中获取第一张
+  if (note.images) {
+    try {
+      let images = note.images
+      if (typeof images === 'string') {
+        // 尝试JSON解析
+        if (images.startsWith('[')) {
+          images = JSON.parse(images)
+        } else {
+          images = images.split(',').filter((s: string) => s.trim())
+        }
+      }
+      if (Array.isArray(images) && images.length > 0) {
+        return images[0]
+      }
+    } catch {
+      // 解析失败，返回默认图片
+    }
+  }
+  return '/default-cover.png'
 }
 
-// 获取笔记状态标签
-const getNoteStatusTag = (status: number) => {
-  const tags: Record<number, string> = {
-    0: 'info',
-    1: 'warning',
-    2: 'success',
-    3: 'danger'
-  }
-  return tags[status] || 'info'
+// 图片加载失败处理
+const handleImageError = (e: Event) => {
+  const target = e.target as HTMLImageElement
+  target.src = '/default-cover.png'
 }
 
-// 搜索笔记
+const setFilter = (filter: string) => { currentFilter.value = filter; pagination.value.currentPage = 1; searchNotes() }
+
 const searchNotes = async () => {
   try {
     loading.value = true
-    const params = {
-      ...searchForm.value,
-      pageNum: pagination.value.currentPage,
-      pageSize: pagination.value.pageSize
-    }
+    // 状态映射：0草稿，1已发布，2待审核，3已下线
+    const statusMap: Record<string, number | undefined> = { all: undefined, published: 1, pending: 2, draft: 0 }
+    const res = await getNoteList({ 
+      title: searchKeyword.value, 
+      status: statusMap[currentFilter.value], 
+      shopId: selectedShop.value, 
+      pageNum: pagination.value.currentPage, 
+      pageSize: pagination.value.pageSize 
+    })
+    console.log('📝 笔记列表响应:', res)
     
-    const res = await getNoteList(params)
-    noteList.value = res.list || res.records || []
+    // 处理笔记数据
+    noteList.value = (res.list || res.records || []).map((n: any) => ({
+      ...n,
+      // 确保syncedToApp有值
+      syncedToApp: n.syncedToApp ?? (n.syncStatus === 1)
+    }))
+    
     pagination.value.total = res.total || 0
-  } catch (error) {
-    ElMessage.error('获取笔记列表失败')
-  } finally {
-    loading.value = false
+    
+    // 更新统计数据
+    counts.all = pagination.value.total
+    // 这里可以根据实际API返回的统计数据更新
+    counts.published = noteList.value.filter((n: any) => n.status === 1).length
+    counts.pending = noteList.value.filter((n: any) => n.status === 2).length
+    counts.draft = noteList.value.filter((n: any) => n.status === 0).length
+  } catch (e: any) { 
+    console.error('获取笔记列表失败:', e)
+    ElMessage.error('获取笔记列表失败: ' + (e.message || '未知错误')) 
   }
+  finally { loading.value = false }
 }
 
-// 重置搜索
-const resetSearch = () => {
-  searchForm.value = {
-    title: '',
-    status: undefined,
-    shopId: undefined
-  }
-  pagination.value.currentPage = 1
-  searchNotes()
+const fetchShops = async () => { try { const res = await getShopList({ pageNum: 1, pageSize: 100 }); shopList.value = res.list || res.records || [] } catch {} }
+const viewNote = (note: any) => { router.push(`/notes/detail/${note.id}`) }
+const editNote = (note: any) => { router.push(`/notes/edit/${note.id}`) }
+const deleteNote = (note: any) => {
+  ElMessageBox.confirm(`确定删除笔记 "${note.title}" 吗？删除后UniApp用户将无法查看`, '删除确认', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' })
+    .then(async () => { try { await deleteNoteApi(note.id); ElMessage.success('删除成功'); searchNotes() } catch { ElMessage.error('删除失败') } })
 }
 
-// 编辑笔记
-const editNote = (row: any) => {
-  router.push(`/notes/edit/${row.id}`)
-}
-
-// 发布笔记
-const publishNote = async (row: any) => {
-  try {
-    await publishNoteApi(row.id)
-    ElMessage.success('发布成功')
-    searchNotes()
-  } catch (error) {
-    ElMessage.error('发布失败')
-  }
-}
-
-// 下线笔记
-const offlineNote = async (row: any) => {
-  try {
-    await offlineNoteApi(row.id)
-    ElMessage.success('下线成功')
-    searchNotes()
-  } catch (error) {
-    ElMessage.error('下线失败')
-  }
-}
-
-// 删除笔记
-const deleteNote = (row: any) => {
-  ElMessageBox.confirm(
-    `确定要删除笔记 "${row.title}" 吗？`,
-    '提示',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(async () => {
-    try {
-      await deleteNoteApi(row.id)
-      ElMessage.success('删除成功')
-      searchNotes()
-    } catch (error) {
-      ElMessage.error('删除失败')
-    }
-  })
-}
-
-// 获取门店列表
-const fetchShopList = async () => {
-  try {
-    const res = await getShopList({ pageNum: 1, pageSize: 100 })
-    shopList.value = res.list || res.records || []
-  } catch (error) {
-    ElMessage.error('获取门店列表失败')
-  }
-}
-
-// 分页变化
-const handleSizeChange = (val: number) => {
-  pagination.value.pageSize = val
-  searchNotes()
-}
-
-const handleCurrentChange = (val: number) => {
-  pagination.value.currentPage = val
-  searchNotes()
-}
-
-// 页面加载时获取数据
-onMounted(() => {
-  searchNotes()
-  fetchShopList()
-})
+watch([searchKeyword, selectedShop], () => { pagination.value.currentPage = 1 })
+onMounted(() => { searchNotes(); fetchShops() })
 </script>
 
+
 <style scoped>
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+.note-page { max-width: 1400px; margin: 0 auto; }
+
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+.page-title { font-size: 26px; font-weight: 700; color: #171717; margin: 0 0 6px 0; }
+.page-desc { font-size: 14px; color: #737373; margin: 0; }
+.create-btn { background: linear-gradient(135deg, #FF7D00 0%, #FF9933 100%); border: none; border-radius: 10px; padding: 12px 24px; font-size: 15px; box-shadow: 0 4px 14px rgba(255, 125, 0, 0.35); }
+.create-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 125, 0, 0.45); }
+
+.filter-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; background: white; padding: 20px 24px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); }
+.filter-tabs { display: flex; gap: 8px; }
+.tab-btn { display: flex; align-items: center; gap: 8px; padding: 10px 20px; font-size: 14px; color: #525252; background: #F5F5F5; border: none; border-radius: 10px; cursor: pointer; transition: all 0.2s ease; }
+.tab-btn:hover { background: #FFF7ED; color: #FF7D00; }
+.tab-btn.active { background: linear-gradient(135deg, #FF7D00 0%, #FF9933 100%); color: white; box-shadow: 0 4px 12px rgba(255, 125, 0, 0.3); }
+.tab-btn .count { padding: 2px 8px; border-radius: 10px; font-size: 12px; background: rgba(255, 255, 255, 0.2); }
+.tab-btn:not(.active) .count { background: #E5E5E5; }
+.tab-btn:not(.active) .count.success { background: #D1FAE5; color: #059669; }
+.tab-btn:not(.active) .count.warning { background: #FEF3C7; color: #D97706; }
+
+.search-area { display: flex; gap: 12px; }
+.search-input { width: 260px; }
+.search-input :deep(.el-input__wrapper) { border-radius: 10px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); }
+.shop-select { width: 160px; }
+.shop-select :deep(.el-input__wrapper) { border-radius: 10px; }
+
+/* 笔记卡片网格 - 放大版 */
+.note-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; min-height: 400px; }
+
+.note-card { background: white; border-radius: 16px; overflow: hidden; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06); }
+.note-card:hover { transform: translateY(-6px); box-shadow: 0 12px 40px rgba(255, 125, 0, 0.15); }
+.note-card:hover .card-overlay { opacity: 1; }
+
+.card-cover { position: relative; aspect-ratio: 16/10; overflow: hidden; }
+.card-cover img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
+.note-card:hover .card-cover img { transform: scale(1.08); }
+
+.card-status { position: absolute; top: 14px; left: 14px; padding: 6px 14px; font-size: 12px; font-weight: 600; border-radius: 8px; backdrop-filter: blur(8px); }
+.card-status.published { background: rgba(16, 185, 129, 0.9); color: white; }
+.card-status.pending { background: rgba(245, 158, 11, 0.9); color: white; }
+.card-status.draft { background: rgba(107, 114, 128, 0.85); color: white; }
+.card-status.offline { background: rgba(239, 68, 68, 0.9); color: white; }
+
+.card-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; gap: 12px; opacity: 0; transition: opacity 0.3s ease; }
+.card-overlay .el-button { width: 44px; height: 44px; }
+
+.card-content { padding: 20px; }
+.card-shop { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #FF7D00; margin-bottom: 10px; }
+.card-shop .el-icon { font-size: 14px; }
+.card-title { font-size: 17px; font-weight: 600; color: #171717; margin: 0 0 10px 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-desc { font-size: 13px; color: #737373; margin: 0 0 14px 0; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.card-stats { display: flex; gap: 18px; margin-bottom: 14px; }
+.stat { display: flex; align-items: center; gap: 5px; font-size: 13px; color: #737373; }
+.stat .el-icon { font-size: 16px; color: #A3A3A3; }
+
+.card-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 14px; border-top: 1px solid #F5F5F5; }
+.card-time { font-size: 12px; color: #A3A3A3; }
+
+/* 空状态 */
+.empty-state { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 20px; background: white; border-radius: 16px; }
+.empty-state h3 { font-size: 20px; color: #171717; margin: 20px 0 10px; }
+.empty-state p { font-size: 14px; color: #737373; margin: 0 0 24px; }
+
+/* 分页 */
+.pagination-wrapper { display: flex; justify-content: center; margin-top: 32px; padding: 20px; background: white; border-radius: 12px; }
+.pagination-wrapper :deep(.el-pager li.is-active) { background: linear-gradient(135deg, #FF7D00 0%, #FF9933 100%); color: white; border-radius: 8px; }
+.pagination-wrapper :deep(.el-pager li:hover) { color: #FF7D00; }
 </style>

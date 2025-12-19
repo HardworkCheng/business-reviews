@@ -58,22 +58,7 @@ public class Shop implements Serializable {
      * 详细地址
      */
     private String address;
-    
-    /**
-     * 省份
-     */
-    private String province;
-    
-    /**
-     * 城市
-     */
-    private String city;
-    
-    /**
-     * 区县
-     */
-    private String district;
-    
+
     /**
      * 纬度
      */

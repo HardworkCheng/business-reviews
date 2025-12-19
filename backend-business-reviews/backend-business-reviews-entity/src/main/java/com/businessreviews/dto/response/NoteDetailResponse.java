@@ -16,6 +16,8 @@ public class NoteDetailResponse {
     
     private String image;
     
+    private String coverImage;
+    
     private List<String> images;
     
     private String title;
@@ -23,6 +25,8 @@ public class NoteDetailResponse {
     private String content;
     
     private String author;
+    
+    private String authorName;
     
     private String authorAvatar;
     
@@ -44,6 +48,14 @@ public class NoteDetailResponse {
     private Integer viewCount;
     
     private Integer favoriteCount;
+    
+    private Integer shareCount;
+    
+    private Integer status;
+    
+    private Integer syncStatus;
+    
+    private Integer noteType;
     
     @com.fasterxml.jackson.annotation.JsonProperty("isLiked")
     @lombok.Getter(lombok.AccessLevel.NONE)

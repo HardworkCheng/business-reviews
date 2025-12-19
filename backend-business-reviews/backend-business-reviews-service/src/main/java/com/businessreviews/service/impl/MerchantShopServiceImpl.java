@@ -55,6 +55,13 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         LambdaQueryWrapper<Shop> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Shop::getMerchantId, merchantId);
         
+        // 检查是否有关联的店铺，如果没有则创建默认店铺
+        long shopCount = shopMapper.selectCount(wrapper);
+        if (shopCount == 0) {
+            log.info("商家{}没有关联的店铺，创建默认店铺", merchantId);
+            createDefaultShop(merchantId);
+        }
+        
         if (status != null) {
             wrapper.eq(Shop::getStatus, status);
         }
@@ -79,6 +86,42 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         result.setPageNum(pageNum);
         result.setPageSize(pageSize);
         return result;
+    }
+    
+    /**
+     * 为商家创建默认店铺
+     */
+    private void createDefaultShop(Long merchantId) {
+        try {
+            // 获取商家信息
+            Merchant merchant = merchantMapper.selectById(merchantId);
+            if (merchant == null) {
+                log.error("商家不存在: merchantId={}", merchantId);
+                return;
+            }
+            
+            // 创建默认店铺
+            Shop shop = new Shop();
+            shop.setMerchantId(merchantId);
+            shop.setName(merchant.getName() != null ? merchant.getName() : "我的店铺");
+            shop.setDescription("欢迎来到我的店铺");
+            shop.setStatus(1); // 营业中
+            shop.setCategoryId(1); // 默认分类
+            shop.setBusinessHours("09:00-22:00");
+            shop.setRating(BigDecimal.valueOf(5.0));
+            shop.setTasteScore(BigDecimal.valueOf(5.0));
+            shop.setEnvironmentScore(BigDecimal.valueOf(5.0));
+            shop.setServiceScore(BigDecimal.valueOf(5.0));
+            shop.setReviewCount(0);
+            shop.setPopularity(0);
+            shop.setCreatedAt(LocalDateTime.now());
+            shop.setUpdatedAt(LocalDateTime.now());
+            
+            shopMapper.insert(shop);
+            log.info("为商家{}创建默认店铺成功: shopId={}", merchantId, shop.getId());
+        } catch (Exception e) {
+            log.error("为商家{}创建默认店铺失败", merchantId, e);
+        }
     }
 
 
@@ -135,15 +178,6 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         if (request.get("longitude") != null) {
             shop.setLongitude(new BigDecimal(request.get("longitude").toString()));
         }
-        if (request.get("province") != null) {
-            shop.setProvince((String) request.get("province"));
-        }
-        if (request.get("city") != null) {
-            shop.setCity((String) request.get("city"));
-        }
-        if (request.get("district") != null) {
-            shop.setDistrict((String) request.get("district"));
-        }
         if (request.get("categoryId") != null) {
             Object catId = request.get("categoryId");
             if (catId instanceof Integer) {
@@ -176,6 +210,11 @@ public class MerchantShopServiceImpl implements MerchantShopService {
             throw new BusinessException(40404, "门店不存在");
         }
         
+        // 验证商家权限 - 确保商家只能更新自己的店铺
+        if (!merchantId.equals(shop.getMerchantId())) {
+            throw new BusinessException(40403, "无权限操作此门店");
+        }
+        
         // 更新门店信息
         if (request.get("name") != null) {
             shop.setName((String) request.get("name"));
@@ -186,34 +225,58 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         if (request.get("phone") != null) {
             shop.setPhone((String) request.get("phone"));
         }
-        if (request.get("openingHours") != null) {
-            shop.setBusinessHours((String) request.get("openingHours"));
+        if (request.get("businessHours") != null) {
+            shop.setBusinessHours((String) request.get("businessHours"));
         }
         if (request.get("description") != null) {
             shop.setDescription((String) request.get("description"));
         }
-        if (request.get("avatar") != null) {
-            shop.setHeaderImage((String) request.get("avatar"));
+        if (request.get("headerImage") != null) {
+            shop.setHeaderImage((String) request.get("headerImage"));
         }
-        if (request.get("cover") != null) {
-            shop.setImages((String) request.get("cover"));
+        if (request.get("images") != null) {
+            shop.setImages((String) request.get("images"));
         }
         if (request.get("status") != null) {
             shop.setStatus((Integer) request.get("status"));
         }
-        if (request.get("latitude") != null) {
-            shop.setLatitude(new BigDecimal(request.get("latitude").toString()));
+        if (request.get("categoryId") != null) {
+            shop.setCategoryId((Integer) request.get("categoryId"));
         }
-        if (request.get("longitude") != null) {
-            shop.setLongitude(new BigDecimal(request.get("longitude").toString()));
+        if (request.get("latitude") != null && !request.get("latitude").toString().trim().isEmpty()) {
+            try {
+                shop.setLatitude(new BigDecimal(request.get("latitude").toString()));
+            } catch (NumberFormatException e) {
+                log.warn("纬度格式错误: {}", request.get("latitude"));
+            }
         }
-        if (request.get("averagePrice") != null) {
-            shop.setAveragePrice(new BigDecimal(request.get("averagePrice").toString()));
+        if (request.get("longitude") != null && !request.get("longitude").toString().trim().isEmpty()) {
+            try {
+                shop.setLongitude(new BigDecimal(request.get("longitude").toString()));
+            } catch (NumberFormatException e) {
+                log.warn("经度格式错误: {}", request.get("longitude"));
+            }
+        }
+        if (request.get("averagePrice") != null && !request.get("averagePrice").toString().trim().isEmpty()) {
+            try {
+                shop.setAveragePrice(new BigDecimal(request.get("averagePrice").toString()));
+            } catch (NumberFormatException e) {
+                log.warn("人均消费格式错误: {}", request.get("averagePrice"));
+            }
         }
         
         shop.setUpdatedAt(LocalDateTime.now());
-        shopMapper.updateById(shop);
-        log.info("门店更新成功: shopId={}", shopId);
+        
+        // 记录更新的字段
+        log.info("更新门店字段: shopId={}, 更新内容={}", shopId, request.keySet());
+        
+        int updateResult = shopMapper.updateById(shop);
+        if (updateResult > 0) {
+            log.info("门店更新成功: shopId={}, 影响行数={}", shopId, updateResult);
+        } else {
+            log.error("门店更新失败: shopId={}, 影响行数={}", shopId, updateResult);
+            throw new BusinessException(50000, "门店更新失败");
+        }
     }
 
     @Override
@@ -320,11 +383,24 @@ public class MerchantShopServiceImpl implements MerchantShopService {
     private ShopItemResponse convertToShopItemResponse(Shop shop) {
         ShopItemResponse response = new ShopItemResponse();
         response.setId(shop.getId().toString());
+        response.setMerchantId(shop.getMerchantId());
+        response.setCategoryId(shop.getCategoryId());
         response.setName(shop.getName());
         response.setImage(shop.getHeaderImage());
+        response.setHeaderImage(shop.getHeaderImage());
+        response.setImages(shop.getImages());
+        response.setDescription(shop.getDescription());
         response.setAddress(shop.getAddress());
+        response.setLatitude(shop.getLatitude());
+        response.setLongitude(shop.getLongitude());
         response.setRating(shop.getRating());
+        response.setTasteScore(shop.getTasteScore());
+        response.setEnvironmentScore(shop.getEnvironmentScore());
+        response.setServiceScore(shop.getServiceScore());
+        response.setReviewCount(shop.getReviewCount());
+        response.setPopularity(shop.getPopularity());
         response.setAvgPrice(shop.getAveragePrice() != null ? shop.getAveragePrice().intValue() : null);
+        response.setAveragePrice(shop.getAveragePrice());
         response.setPhone(shop.getPhone());
         response.setStatus(shop.getStatus());
         response.setBusinessHours(shop.getBusinessHours());
@@ -363,15 +439,40 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         response.setIsFavorited(false); // 商家端不需要收藏状态
         
         // 处理图片列表
-        if (shop.getImages() != null && !shop.getImages().isEmpty()) {
+        response.setImages(parseImages(shop.getImages()));
+        
+        return response;
+    }
+    
+    /**
+     * 解析图片字符串为列表
+     */
+    private List<String> parseImages(String images) {
+        if (images == null || images.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        // 尝试解析JSON数组格式
+        if (images.trim().startsWith("[") && images.trim().endsWith("]")) {
             try {
-                // 假设images是JSON数组格式
-                response.setImages(java.util.Arrays.asList(shop.getImages().split(",")));
+                // 简单的JSON数组解析
+                String content = images.trim().substring(1, images.trim().length() - 1);
+                if (content.isEmpty()) {
+                    return new ArrayList<>();
+                }
+                return java.util.Arrays.stream(content.split(","))
+                        .map(s -> s.trim().replaceAll("^\"|\"$", "")) // 移除引号
+                        .filter(s -> !s.isEmpty())
+                        .collect(java.util.stream.Collectors.toList());
             } catch (Exception e) {
-                response.setImages(new ArrayList<>());
+                log.warn("解析图片JSON数组失败，使用逗号分割: {}", images, e);
             }
         }
         
-        return response;
+        // 回退到逗号分割
+        return java.util.Arrays.stream(images.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(java.util.stream.Collectors.toList());
     }
 }

@@ -13,6 +13,24 @@
 		<view class="form-container clay-shadow">
 			<text class="form-title">欢迎登录</text>
 
+			<!-- 登录模式切换 -->
+			<view class="login-tabs">
+				<view 
+					class="tab-item" 
+					:class="{ active: loginMode === 'sms' }"
+					@click="loginMode = 'sms'"
+				>
+					<text>短信验证码登录</text>
+				</view>
+				<view 
+					class="tab-item" 
+					:class="{ active: loginMode === 'password' }"
+					@click="loginMode = 'password'"
+				>
+					<text>密码登录</text>
+				</view>
+			</view>
+
 			<!-- 手机号输入 -->
 			<view class="input-section">
 				<text class="label">手机号</text>
@@ -28,8 +46,8 @@
 				</view>
 			</view>
 
-			<!-- 验证码输入 -->
-			<view class="input-section">
+			<!-- 验证码输入 (短信登录模式) -->
+			<view class="input-section" v-if="loginMode === 'sms'">
 				<text class="label">验证码</text>
 				<view class="code-wrapper">
 					<view class="input-wrapper clay-border flex-1">
@@ -52,30 +70,28 @@
 				</view>
 			</view>
 
+			<!-- 密码输入 (密码登录模式) -->
+			<view class="input-section" v-if="loginMode === 'password'">
+				<text class="label">密码</text>
+				<view class="input-wrapper clay-border">
+					<text class="input-icon">🔒</text>
+					<input 
+						:type="showPassword ? 'text' : 'password'" 
+						v-model="password" 
+						placeholder="请输入密码" 
+						class="input-field"
+					/>
+					<view class="password-toggle" @click="showPassword = !showPassword">
+						<text>{{ showPassword ? '👁️' : '👁️‍🗨️' }}</text>
+					</view>
+				</view>
+				<text class="password-hint">新用户首次登录请使用短信验证码，密码默认为手机号</text>
+			</view>
+
 			<!-- 登录按钮 -->
 			<button class="login-btn bg-primary clay-border clay-shadow" @click="handleLogin">
 				登录
 			</button>
-
-			<!-- 分隔线 -->
-			<view class="divider">
-				<view class="divider-line"></view>
-				<text class="divider-text">或</text>
-				<view class="divider-line"></view>
-			</view>
-
-			<!-- 第三方登录 -->
-			<view class="third-party">
-				<view class="third-party-btn clay-icon wechat" @click="wechatLogin">
-					<text>💬</text>
-				</view>
-				<view class="third-party-btn clay-icon qq" @click="qqLogin">
-					<text>🐧</text>
-				</view>
-				<view class="third-party-btn clay-icon weibo" @click="weiboLogin">
-					<text>📮</text>
-				</view>
-			</view>
 
 			<!-- 协议 -->
 			<view class="agreement">
@@ -96,11 +112,14 @@
 <script setup>
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { sendCode, loginByCode } from '../../api/auth'
+import { sendCode, loginByCode, loginByPassword } from '../../api/auth'
 
 const phone = ref('')
 const code = ref('')
+const password = ref('')
 const countdown = ref(0)
+const loginMode = ref('sms') // 'sms' | 'password'
+const showPassword = ref(false)
 let timer = null
 
 onLoad(() => {
@@ -137,7 +156,7 @@ const getCode = async () => {
       icon: 'success'
     })
   } catch (e) {
-    // 失败提示已在统一 request 里处理，这里无需额外处理
+    // 失败提示已在统一 request 里处理
   }
 }
 
@@ -151,6 +170,15 @@ const handleLogin = async () => {
     return
   }
 
+  if (loginMode.value === 'sms') {
+    await handleSmsLogin()
+  } else {
+    await handlePasswordLogin()
+  }
+}
+
+// 短信验证码登录
+const handleSmsLogin = async () => {
   if (!code.value || code.value.length !== 6) {
     uni.showToast({
       title: '请输入6位验证码',
@@ -161,71 +189,62 @@ const handleLogin = async () => {
 
   try {
     const res = await loginByCode(phone.value, code.value)
-    // res 对应后端 Result.data，即 LoginResponse
-    console.log('登录响应:', res)
-    const token = res.token
-    const userInfo = res.userInfo
-
-    // 清除所有缓存数据，确保新用户登录时不会显示旧数据
-    uni.clearStorageSync()
-    console.log('已清除所有缓存数据')
-
-    if (token) {
-      // 存“裸 token”，不要带 Bearer
-      uni.setStorageSync('token', token)
-      console.log('Token 已存储:', token.substring(0, 20) + '...')
-    } else {
-      console.error('登录响应中没有 token')
-      throw new Error('登录响应中没有 token')
-    }
-    if (userInfo) {
-      uni.setStorageSync('userInfo', userInfo)
-      console.log('UserInfo 已存储:', userInfo)
-      console.log('- 用户ID:', userInfo.id)
-      console.log('- 手机号:', userInfo.phone)
-      console.log('- 用户名:', userInfo.username)
-    } else {
-      console.error('登录响应中没有用户信息')
-    }
-
-    uni.showToast({
-      title: '登录成功',
-      icon: 'success'
-    })
-
-    setTimeout(() => {
-      uni.switchTab({
-        url: '/pages/index/index'
-      })
-    }, 800)
+    handleLoginSuccess(res)
   } catch (e) {
-    // 失败提示已在统一 request 里处理
-    console.error('登录失败:', e)
+    console.error('短信登录失败:', e)
   }
 }
 
-// 微信登录
-const wechatLogin = () => {
-  uni.showToast({
-    title: '微信登录暂未开通',
-    icon: 'none'
-  })
+// 密码登录
+const handlePasswordLogin = async () => {
+  if (!password.value) {
+    uni.showToast({
+      title: '请输入密码',
+      icon: 'none'
+    })
+    return
+  }
+
+  try {
+    const res = await loginByPassword(phone.value, password.value)
+    handleLoginSuccess(res)
+  } catch (e) {
+    console.error('密码登录失败:', e)
+  }
 }
 
-// QQ登录
-const qqLogin = () => {
-  uni.showToast({
-    title: 'QQ登录暂未开通',
-    icon: 'none'
-  })
-}
+// 处理登录成功
+const handleLoginSuccess = (res) => {
+  console.log('登录响应:', res)
+  const token = res.token
+  const userInfo = res.userInfo
 
-// 微博登录
-const weiboLogin = () => {
+  // 清除所有缓存数据，确保新用户登录时不会显示旧数据
+  uni.clearStorageSync()
+  console.log('已清除所有缓存数据')
+
+  if (token) {
+    uni.setStorageSync('token', token)
+    console.log('Token 已存储:', token.substring(0, 20) + '...')
+  } else {
+    console.error('登录响应中没有 token')
+    throw new Error('登录响应中没有 token')
+  }
+  if (userInfo) {
+    uni.setStorageSync('userInfo', userInfo)
+    console.log('UserInfo 已存储:', userInfo)
+  }
+
   uni.showToast({
-    title: '微博登录暂未开通',
-    icon: 'none'
+    title: '登录成功',
+    icon: 'success'
   })
+
+  setTimeout(() => {
+    uni.switchTab({
+      url: '/pages/index/index'
+    })
+  }, 800)
 }
 
 // 打开协议
@@ -243,7 +262,6 @@ const guestMode = () => {
   })
 }
 </script>
-
 
 <style lang="scss" scoped>
 .login-container {
@@ -299,7 +317,33 @@ const guestMode = () => {
 	font-weight: bold;
 	text-align: center;
 	display: block;
-	margin-bottom: 50rpx;
+	margin-bottom: 30rpx;
+}
+
+/* 登录模式切换Tab */
+.login-tabs {
+	display: flex;
+	background: #f5f5f5;
+	border-radius: 30rpx;
+	padding: 8rpx;
+	margin-bottom: 40rpx;
+}
+
+.tab-item {
+	flex: 1;
+	text-align: center;
+	padding: 20rpx 0;
+	border-radius: 24rpx;
+	font-size: 26rpx;
+	color: #666;
+	transition: all 0.3s;
+}
+
+.tab-item.active {
+	background: white;
+	color: #FF9E64;
+	font-weight: 500;
+	box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.1);
 }
 
 .input-section {
@@ -330,6 +374,18 @@ const guestMode = () => {
 	font-size: 28rpx;
 }
 
+.password-toggle {
+	padding: 10rpx;
+	font-size: 32rpx;
+}
+
+.password-hint {
+	display: block;
+	font-size: 22rpx;
+	color: #999;
+	margin-top: 10rpx;
+}
+
 .code-wrapper {
 	display: flex;
 	gap: 15rpx;
@@ -357,52 +413,6 @@ const guestMode = () => {
 	margin-top: 20rpx;
 	margin-bottom: 40rpx;
 	border: none;
-}
-
-.divider {
-	display: flex;
-	align-items: center;
-	margin: 40rpx 0;
-}
-
-.divider-line {
-	flex: 1;
-	height: 1px;
-	background: #ddd;
-}
-
-.divider-text {
-	padding: 0 30rpx;
-	font-size: 28rpx;
-	color: #999;
-}
-
-.third-party {
-	display: flex;
-	justify-content: center;
-	gap: 30rpx;
-	margin-bottom: 40rpx;
-}
-
-.third-party-btn {
-	width: 90rpx;
-	height: 90rpx;
-	background: white;
-	border: 3rpx solid #e0e0e0;
-	font-size: 40rpx;
-	transition: all 0.3s;
-}
-
-.third-party-btn.wechat {
-	border-color: #07c160;
-}
-
-.third-party-btn.qq {
-	border-color: #12b7f5;
-}
-
-.third-party-btn.weibo {
-	border-color: #e6162d;
 }
 
 .agreement {

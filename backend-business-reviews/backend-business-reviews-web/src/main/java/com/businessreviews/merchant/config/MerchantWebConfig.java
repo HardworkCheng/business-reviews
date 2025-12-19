@@ -23,7 +23,8 @@ public class MerchantWebConfig implements WebMvcConfigurer {
                 .excludePathPatterns(
                         "/merchant/auth/login",
                         "/merchant/auth/register",
-                        "/merchant/auth/send-code"
+                        "/merchant/auth/send-code",
+                        "/merchant/upload/public"  // 商家入驻时的公开上传接口
                 );
     }
 

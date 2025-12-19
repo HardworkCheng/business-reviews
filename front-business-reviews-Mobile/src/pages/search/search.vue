@@ -217,8 +217,8 @@ onLoad((options) => {
 
 onShow(() => {
 	console.log('=== 搜索页面显示 ===')
-	// 每次显示页面时检查城市是否变化
-	const storedCity = uni.getStorageSync('currentCity')
+	// 每次显示页面时检查城市是否变化（与主页保持一致，使用selectedCity）
+	const storedCity = uni.getStorageSync('selectedCity')
 	console.log('缓存中的城市:', storedCity)
 	console.log('当前显示的城市:', currentCity.value)
 	
@@ -286,7 +286,7 @@ const fetchShopList = async () => {
 			const newList = result.list.map(shop => ({
 				id: shop.id,
 				name: shop.name,
-				image: shop.image || '/static/default-shop.png',
+				image: shop.image || 'https://via.placeholder.com/400x300/FF9E64/FFFFFF?text=Shop',
 				rating: shop.rating || 0,
 				reviews: shop.noteCount || 0,
 				tags: shop.category ? [shop.category] : [],
@@ -409,103 +409,208 @@ const fetchUserInfo = async () => {
 
 // 获取当前城市
 const getCurrentCity = () => {
-	// 先从缓存获取
-	const storedCity = uni.getStorageSync('currentCity')
+	// 先从缓存获取（与主页保持一致，使用selectedCity）
+	const storedCity = uni.getStorageSync('selectedCity')
 	if (storedCity) {
 		currentCity.value = storedCity
-		console.log('从缓存获取城市:', storedCity)
+		console.log('搜索页从缓存获取城市:', storedCity)
 		return
 	}
 	
 	// 尝试定位
 	currentCity.value = '定位中...'
-	console.log('开始定位...')
+	console.log('搜索页开始定位...')
 	
-	// H5环境使用浏览器定位
+	// 使用多重定位策略：先尝试IP定位（快速），同时尝试GPS定位（精确）
 	// #ifdef H5
+	// 1. 先使用IP定位（快速获取大致位置）
+	getCityByIP()
+	
+	// 2. 同时尝试GPS定位（更精确，但可能较慢）
 	if (navigator.geolocation) {
 		navigator.geolocation.getCurrentPosition(
 			(position) => {
-				console.log('H5定位成功:', position)
-				// 使用高德地图逆地理编码获取城市名
-				reverseGeocode(position.coords.latitude, position.coords.longitude)
+				console.log('搜索页GPS定位成功:', position)
+				const { latitude, longitude } = position.coords
+				// WGS84转GCJ02坐标
+				const gcj02Coords = wgs84ToGcj02(longitude, latitude)
+				// GPS定位成功后，覆盖IP定位的结果（更精确）
+				reverseGeocode(gcj02Coords[1], gcj02Coords[0])
 			},
 			(error) => {
-				console.error('H5定位失败:', error)
-				currentCity.value = '杭州' // 默认城市
-				uni.setStorageSync('currentCity', '杭州')
+				console.warn('搜索页GPS定位失败（已使用IP定位）:', error.message)
+				// IP定位已经执行，不需要再处理
 			},
 			{
-				enableHighAccuracy: true,
-				timeout: 5000,
-				maximumAge: 0
+				enableHighAccuracy: false, // 降低精度要求，提高成功率
+				timeout: 8000,
+				maximumAge: 30000 // 允许使用30秒内的缓存位置
 			}
 		)
-	} else {
-		console.log('浏览器不支持定位，使用默认城市')
-		currentCity.value = '杭州'
-		uni.setStorageSync('currentCity', '杭州')
 	}
 	// #endif
 	
 	// APP环境使用uni.getLocation
 	// #ifndef H5
+	// 先尝试IP定位
+	getCityByIP()
+	
 	uni.getLocation({
 		type: 'gcj02',
 		success: (res) => {
-			console.log('APP定位成功:', res)
+			console.log('搜索页APP定位成功:', res)
 			reverseGeocode(res.latitude, res.longitude)
 		},
 		fail: (err) => {
-			console.error('APP定位失败:', err)
-			currentCity.value = '杭州'
-			uni.setStorageSync('currentCity', '杭州')
+			console.error('搜索页APP定位失败:', err)
+			// IP定位已经执行，不需要再处理
 		}
 	})
 	// #endif
 }
 
-// 逆地理编码获取城市名
-const reverseGeocode = (lat, lng) => {
-	console.log('开始逆地理编码:', lat, lng)
+// WGS84坐标转GCJ02坐标（火星坐标系）
+const wgs84ToGcj02 = (lng, lat) => {
+	const a = 6378245.0
+	const ee = 0.00669342162296594323
 	
-	// 使用高德地图API（需要替换为实际的key）
-	const key = 'YOUR_AMAP_KEY'
-	
-	// 如果没有配置高德地图key，直接使用默认城市
-	if (key === 'YOUR_AMAP_KEY') {
-		console.log('未配置高德地图key，使用默认城市')
-		currentCity.value = '杭州'
-		uni.setStorageSync('currentCity', '杭州')
-		return
+	if (outOfChina(lng, lat)) {
+		return [lng, lat]
 	}
 	
-	const url = `https://restapi.amap.com/v3/geocode/regeo?key=${key}&location=${lng},${lat}&extensions=base`
+	let dLat = transformLat(lng - 105.0, lat - 35.0)
+	let dLng = transformLng(lng - 105.0, lat - 35.0)
+	const radLat = lat / 180.0 * Math.PI
+	let magic = Math.sin(radLat)
+	magic = 1 - ee * magic * magic
+	const sqrtMagic = Math.sqrt(magic)
+	dLat = (dLat * 180.0) / ((a * (1 - ee)) / (magic * sqrtMagic) * Math.PI)
+	dLng = (dLng * 180.0) / (a / sqrtMagic * Math.cos(radLat) * Math.PI)
+	const mgLat = lat + dLat
+	const mgLng = lng + dLng
+	return [mgLng, mgLat]
+}
+
+const transformLat = (lng, lat) => {
+	let ret = -100.0 + 2.0 * lng + 3.0 * lat + 0.2 * lat * lat + 0.1 * lng * lat + 0.2 * Math.sqrt(Math.abs(lng))
+	ret += (20.0 * Math.sin(6.0 * lng * Math.PI) + 20.0 * Math.sin(2.0 * lng * Math.PI)) * 2.0 / 3.0
+	ret += (20.0 * Math.sin(lat * Math.PI) + 40.0 * Math.sin(lat / 3.0 * Math.PI)) * 2.0 / 3.0
+	ret += (160.0 * Math.sin(lat / 12.0 * Math.PI) + 320 * Math.sin(lat * Math.PI / 30.0)) * 2.0 / 3.0
+	return ret
+}
+
+const transformLng = (lng, lat) => {
+	let ret = 300.0 + lng + 2.0 * lat + 0.1 * lng * lng + 0.1 * lng * lat + 0.1 * Math.sqrt(Math.abs(lng))
+	ret += (20.0 * Math.sin(6.0 * lng * Math.PI) + 20.0 * Math.sin(2.0 * lng * Math.PI)) * 2.0 / 3.0
+	ret += (20.0 * Math.sin(lng * Math.PI) + 40.0 * Math.sin(lng / 3.0 * Math.PI)) * 2.0 / 3.0
+	ret += (150.0 * Math.sin(lng / 12.0 * Math.PI) + 300.0 * Math.sin(lng / 30.0 * Math.PI)) * 2.0 / 3.0
+	return ret
+}
+
+const outOfChina = (lng, lat) => {
+	return (lng < 72.004 || lng > 137.8347) || (lat < 0.8293 || lat > 55.8271)
+}
+
+// IP定位（使用高德Web服务API）
+const getCityByIP = () => {
+	console.log('🔍 搜索页开始IP定位...')
+	const key = '1521141ae4ee08e1a0e37b59d2fd2438'
+	const url = `https://restapi.amap.com/v3/ip?key=${key}`
 	
 	uni.request({
 		url: url,
 		method: 'GET',
 		success: (res) => {
-			console.log('逆地理编码响应:', res)
-			if (res.data && res.data.status === '1' && res.data.regeocode) {
-				const addressComponent = res.data.regeocode.addressComponent
-				const city = addressComponent.city || addressComponent.province || '杭州'
-				const cityName = city.replace('市', '').replace('省', '')
-				console.log('解析出的城市名:', cityName)
-				currentCity.value = cityName
-				uni.setStorageSync('currentCity', cityName)
+			console.log('搜索页IP定位响应:', JSON.stringify(res.data))
+			
+			if (res.data.status === '1') {
+				let cityName = ''
+				
+				// 获取城市名称
+				if (res.data.city && typeof res.data.city === 'string' && res.data.city !== '') {
+					cityName = res.data.city
+				} else if (res.data.province && typeof res.data.province === 'string') {
+					cityName = res.data.province
+				}
+				
+				if (cityName) {
+					cityName = cityName.replace('市', '').replace('省', '').replace('自治区', '').replace('特别行政区', '')
+					currentCity.value = cityName
+					uni.setStorageSync('selectedCity', cityName)
+					console.log('✅ 搜索页IP定位成功:', cityName)
+				} else {
+					console.warn('⚠️ 搜索页IP定位无城市信息，使用默认城市')
+					setDefaultCity()
+				}
 			} else {
-				console.log('逆地理编码失败，使用默认城市')
-				currentCity.value = '杭州'
-				uni.setStorageSync('currentCity', '杭州')
+				console.warn('⚠️ 搜索页IP定位失败，使用默认城市')
+				setDefaultCity()
 			}
 		},
 		fail: (err) => {
-			console.error('逆地理编码请求失败:', err)
-			currentCity.value = '杭州'
-			uni.setStorageSync('currentCity', '杭州')
+			console.error('❌ 搜索页IP定位请求失败:', err)
+			setDefaultCity()
 		}
 	})
+}
+
+// 逆地理编码获取城市名
+const reverseGeocode = (lat, lng) => {
+	console.log('搜索页开始逆地理编码:', lat, lng)
+	
+	const key = '1521141ae4ee08e1a0e37b59d2fd2438'
+	const url = `https://restapi.amap.com/v3/geocode/regeo?key=${key}&location=${lng},${lat}&poitype=&radius=1000&extensions=base&batch=false&roadlevel=0`
+	
+	uni.request({
+		url: url,
+		method: 'GET',
+		success: (res) => {
+			console.log('搜索页逆地理编码响应:', JSON.stringify(res.data))
+			
+			if (res.data.status === '1' && res.data.regeocode) {
+				const addressComponent = res.data.regeocode.addressComponent
+				let cityName = ''
+				
+				if (addressComponent) {
+					// 优先使用province（省级）
+					if (addressComponent.province && typeof addressComponent.province === 'string') {
+						cityName = addressComponent.province
+					}
+					
+					// 如果有city且不是空数组/空字符串，优先使用city（更精确）
+					if (addressComponent.city) {
+						if (Array.isArray(addressComponent.city)) {
+							if (addressComponent.city.length > 0 && typeof addressComponent.city[0] === 'string') {
+								cityName = addressComponent.city[0]
+							}
+						} else if (typeof addressComponent.city === 'string' && addressComponent.city !== '') {
+							cityName = addressComponent.city
+						}
+					}
+				}
+				
+				if (cityName && typeof cityName === 'string') {
+					cityName = cityName.replace('市', '').replace('省', '').replace('自治区', '').replace('特别行政区', '')
+					currentCity.value = cityName
+					uni.setStorageSync('selectedCity', cityName)
+					console.log('✅ 搜索页GPS定位成功:', cityName)
+				} else {
+					console.log('⚠️ 搜索页逆地理编码无城市信息，保持IP定位结果')
+				}
+			} else {
+				console.log('⚠️ 搜索页逆地理编码失败，保持IP定位结果')
+			}
+		},
+		fail: (err) => {
+			console.error('❌ 搜索页逆地理编码请求失败:', err)
+		}
+	})
+}
+
+// 设置默认城市
+const setDefaultCity = () => {
+	currentCity.value = '杭州'
+	uni.setStorageSync('selectedCity', '杭州')
 }
 
 // 跳转到城市选择页面
@@ -516,17 +621,200 @@ const goToCitySelect = () => {
 		success: (res) => {
 			if (res.tapIndex === 0) {
 				// 重新定位
-				uni.removeStorageSync('currentCity')
-				getCurrentCity()
-				uni.showToast({
-					title: '正在重新定位...',
-					icon: 'loading',
-					duration: 2000
-				})
+				reLocation()
 			} else if (res.tapIndex === 1) {
 				// 跳转到城市选择页面
 				uni.navigateTo({
 					url: '/pages/city-select/city-select'
+				})
+			}
+		}
+	})
+}
+
+// 重新定位（强制刷新）
+const reLocation = () => {
+	// 清除缓存
+	uni.removeStorageSync('selectedCity')
+	// 显示定位中状态
+	currentCity.value = '定位中...'
+	
+	uni.showLoading({
+		title: '正在定位...',
+		mask: true
+	})
+	
+	// 使用多重定位策略
+	// #ifdef H5
+	// 1. 先尝试GPS定位（更精确）
+	if (navigator.geolocation) {
+		navigator.geolocation.getCurrentPosition(
+			(position) => {
+				console.log('🎯 搜索页重新定位GPS成功:', position)
+				const { latitude, longitude } = position.coords
+				// WGS84转GCJ02坐标
+				const gcj02Coords = wgs84ToGcj02(longitude, latitude)
+				// GPS定位成功，使用逆地理编码获取城市
+				reverseGeocodeForReLocation(gcj02Coords[1], gcj02Coords[0])
+			},
+			(error) => {
+				console.warn('⚠️ 搜索页重新定位GPS失败:', error.message)
+				// GPS失败，尝试IP定位
+				getCityByIPForReLocation()
+			},
+			{
+				enableHighAccuracy: true, // 重新定位时使用高精度
+				timeout: 10000,
+				maximumAge: 0 // 不使用缓存
+			}
+		)
+	} else {
+		// 不支持GPS，使用IP定位
+		getCityByIPForReLocation()
+	}
+	// #endif
+	
+	// APP环境
+	// #ifndef H5
+	uni.getLocation({
+		type: 'gcj02',
+		success: (res) => {
+			console.log('🎯 搜索页重新定位APP成功:', res)
+			reverseGeocodeForReLocation(res.latitude, res.longitude)
+		},
+		fail: (err) => {
+			console.error('❌ 搜索页重新定位APP失败:', err)
+			getCityByIPForReLocation()
+		}
+	})
+	// #endif
+}
+
+// 重新定位专用的IP定位
+const getCityByIPForReLocation = () => {
+	console.log('🔍 搜索页重新定位使用IP定位...')
+	const key = '1521141ae4ee08e1a0e37b59d2fd2438'
+	const url = `https://restapi.amap.com/v3/ip?key=${key}`
+	
+	uni.request({
+		url: url,
+		method: 'GET',
+		success: (res) => {
+			uni.hideLoading()
+			console.log('搜索页重新定位IP响应:', JSON.stringify(res.data))
+			
+			if (res.data.status === '1') {
+				let cityName = ''
+				
+				if (res.data.city && typeof res.data.city === 'string' && res.data.city !== '') {
+					cityName = res.data.city
+				} else if (res.data.province && typeof res.data.province === 'string') {
+					cityName = res.data.province
+				}
+				
+				if (cityName) {
+					cityName = cityName.replace('市', '').replace('省', '').replace('自治区', '').replace('特别行政区', '')
+					currentCity.value = cityName
+					uni.setStorageSync('selectedCity', cityName)
+					console.log('✅ 搜索页重新定位成功:', cityName)
+					uni.showToast({
+						title: `定位成功: ${cityName}`,
+						icon: 'success'
+					})
+				} else {
+					handleLocationFailed()
+				}
+			} else {
+				handleLocationFailed()
+			}
+		},
+		fail: (err) => {
+			uni.hideLoading()
+			console.error('❌ 搜索页重新定位IP请求失败:', err)
+			handleLocationFailed()
+		}
+	})
+}
+
+// 重新定位专用的逆地理编码
+const reverseGeocodeForReLocation = (lat, lng) => {
+	console.log('搜索页重新定位逆地理编码:', lat, lng)
+	
+	const key = '1521141ae4ee08e1a0e37b59d2fd2438'
+	const url = `https://restapi.amap.com/v3/geocode/regeo?key=${key}&location=${lng},${lat}&poitype=&radius=1000&extensions=base&batch=false&roadlevel=0`
+	
+	uni.request({
+		url: url,
+		method: 'GET',
+		success: (res) => {
+			uni.hideLoading()
+			console.log('搜索页重新定位逆地理编码响应:', JSON.stringify(res.data))
+			
+			if (res.data.status === '1' && res.data.regeocode) {
+				const addressComponent = res.data.regeocode.addressComponent
+				let cityName = ''
+				
+				if (addressComponent) {
+					if (addressComponent.province && typeof addressComponent.province === 'string') {
+						cityName = addressComponent.province
+					}
+					
+					if (addressComponent.city) {
+						if (Array.isArray(addressComponent.city)) {
+							if (addressComponent.city.length > 0 && typeof addressComponent.city[0] === 'string') {
+								cityName = addressComponent.city[0]
+							}
+						} else if (typeof addressComponent.city === 'string' && addressComponent.city !== '') {
+							cityName = addressComponent.city
+						}
+					}
+				}
+				
+				if (cityName && typeof cityName === 'string') {
+					cityName = cityName.replace('市', '').replace('省', '').replace('自治区', '').replace('特别行政区', '')
+					currentCity.value = cityName
+					uni.setStorageSync('selectedCity', cityName)
+					console.log('✅ 搜索页重新定位GPS成功:', cityName)
+					uni.showToast({
+						title: `定位成功: ${cityName}`,
+						icon: 'success'
+					})
+				} else {
+					// GPS逆地理编码失败，尝试IP定位
+					getCityByIPForReLocation()
+				}
+			} else {
+				// 逆地理编码失败，尝试IP定位
+				getCityByIPForReLocation()
+			}
+		},
+		fail: (err) => {
+			console.error('❌ 搜索页重新定位逆地理编码请求失败:', err)
+			// 失败后尝试IP定位
+			getCityByIPForReLocation()
+		}
+	})
+}
+
+// 处理定位失败
+const handleLocationFailed = () => {
+	uni.showModal({
+		title: '定位失败',
+		content: '无法获取您的位置，是否手动选择城市？',
+		confirmText: '选择城市',
+		cancelText: '使用默认',
+		success: (res) => {
+			if (res.confirm) {
+				// 跳转到城市选择页面
+				uni.navigateTo({
+					url: '/pages/city-select/city-select'
+				})
+			} else {
+				// 使用默认城市
+				setDefaultCity()
+				uni.showToast({
+					title: '已使用默认城市',
+					icon: 'none'
 				})
 			}
 		}

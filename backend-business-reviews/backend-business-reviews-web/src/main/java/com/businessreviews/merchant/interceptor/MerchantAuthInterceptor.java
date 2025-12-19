@@ -1,7 +1,7 @@
 package com.businessreviews.merchant.interceptor;
 
-import com.businessreviews.entity.MerchantUser;
-import com.businessreviews.mapper.MerchantUserMapper;
+import com.businessreviews.entity.Merchant;
+import com.businessreviews.mapper.MerchantMapper;
 import com.businessreviews.merchant.context.MerchantContext;
 import com.businessreviews.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,6 +14,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
  * 商家端认证拦截器
+ * 已整合merchant_users表到merchants表，直接使用merchants表进行认证
  */
 @Slf4j
 @Component
@@ -21,7 +22,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class MerchantAuthInterceptor implements HandlerInterceptor {
 
     private final JwtUtil jwtUtil;
-    private final MerchantUserMapper merchantUserMapper;
+    private final MerchantMapper merchantMapper;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -34,15 +35,16 @@ public class MerchantAuthInterceptor implements HandlerInterceptor {
             try {
                 // 验证token
                 if (jwtUtil.validateToken(token)) {
-                    Long userId = jwtUtil.getUserIdFromToken(token);
+                    // Token中存储的是商家ID（整合后userId和merchantId相同）
+                    Long merchantId = jwtUtil.getUserIdFromToken(token);
                     
-                    // 查询用户信息
-                    MerchantUser user = merchantUserMapper.selectById(userId);
-                    if (user != null && user.getStatus() == 1) {
-                        // 设置上下文
-                        MerchantContext.setUserId(userId);
-                        MerchantContext.setMerchantId(user.getMerchantId());
-                        log.debug("商家用户认证成功: userId={}, merchantId={}", userId, user.getMerchantId());
+                    // 查询商家信息（直接使用merchants表）
+                    Merchant merchant = merchantMapper.selectById(merchantId);
+                    if (merchant != null && merchant.getStatus() == 1) {
+                        // 设置上下文（userId和merchantId现在相同）
+                        MerchantContext.setUserId(merchantId);
+                        MerchantContext.setMerchantId(merchantId);
+                        log.debug("商家认证成功: merchantId={}", merchantId);
                         return true;
                     }
                 }

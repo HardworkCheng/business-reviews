@@ -1,14 +1,17 @@
 package com.businessreviews.service.impl;
 
-import com.businessreviews.constants.RedisKeyConstants;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.businessreviews.dto.request.MerchantLoginRequest;
+import com.businessreviews.dto.request.MerchantRegisterRequest;
 import com.businessreviews.dto.response.MerchantLoginResponse;
 import com.businessreviews.dto.response.MerchantUserInfoResponse;
 import com.businessreviews.entity.Merchant;
-import com.businessreviews.entity.MerchantUser;
+import com.businessreviews.entity.Shop;
+import com.businessreviews.entity.User;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.MerchantMapper;
-import com.businessreviews.mapper.MerchantUserMapper;
+import com.businessreviews.mapper.ShopMapper;
+import com.businessreviews.mapper.UserMapper;
 import com.businessreviews.service.MerchantAuthService;
 import com.businessreviews.util.JwtUtil;
 import com.businessreviews.util.RedisUtil;
@@ -17,13 +20,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Random;
 
 /**
  * 商家认证服务实现类
+ * 已整合merchant_users表到merchants表，直接使用merchants表进行认证
  */
 @Slf4j
 @Service
@@ -31,7 +35,8 @@ import java.util.Random;
 public class MerchantAuthServiceImpl implements MerchantAuthService {
 
     private final MerchantMapper merchantMapper;
-    private final MerchantUserMapper merchantUserMapper;
+    private final UserMapper userMapper;
+    private final ShopMapper shopMapper;
     private final RedisUtil redisUtil;
     private final JwtUtil jwtUtil;
 
@@ -65,9 +70,9 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
             throw new BusinessException(40002, "验证码错误或已过期");
         }
 
-        // 查找商家用户
-        MerchantUser user = merchantUserMapper.selectByPhone(phone);
-        if (user == null) {
+        // 查找商家（直接使用merchants表）
+        Merchant merchant = merchantMapper.selectByPhone(phone);
+        if (merchant == null) {
             throw new BusinessException(40401, "账号不存在，请先入驻");
         }
 
@@ -75,49 +80,48 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         redisUtil.delete(MERCHANT_SMS_CODE_PREFIX + phone);
 
         // 更新登录时间
-        user.setLastLoginAt(LocalDateTime.now());
-        merchantUserMapper.updateById(user);
+        merchant.setLastLoginAt(LocalDateTime.now());
+        merchantMapper.updateById(merchant);
 
         // 生成Token并返回
-        return buildLoginResponse(user);
+        return buildLoginResponse(merchant);
     }
 
     @Override
     public MerchantLoginResponse loginByPassword(MerchantLoginRequest request) {
-        MerchantUser user = merchantUserMapper.selectByPhone(request.getPhone());
-        if (user == null) {
+        // 查找商家（直接使用merchants表）
+        Merchant merchant = merchantMapper.selectByPhone(request.getPhone());
+        if (merchant == null) {
             throw new BusinessException(40401, "账号不存在");
         }
 
         // 验证密码（实际项目应使用BCrypt加密比对）
-        if (!request.getPassword().equals(user.getPassword())) {
+        if (!request.getPassword().equals(merchant.getPassword())) {
             throw new BusinessException(40003, "密码错误");
         }
 
         // 更新登录时间
-        user.setLastLoginAt(LocalDateTime.now());
-        merchantUserMapper.updateById(user);
+        merchant.setLastLoginAt(LocalDateTime.now());
+        merchantMapper.updateById(merchant);
 
-        return buildLoginResponse(user);
+        return buildLoginResponse(merchant);
     }
 
     @Override
-    public MerchantUserInfoResponse getCurrentUserInfo(Long userId) {
-        MerchantUser user = merchantUserMapper.selectById(userId);
-        if (user == null) {
-            throw new BusinessException(40401, "用户不存在");
+    public MerchantUserInfoResponse getCurrentUserInfo(Long merchantId) {
+        Merchant merchant = merchantMapper.selectById(merchantId);
+        if (merchant == null) {
+            throw new BusinessException(40401, "商家不存在");
         }
 
-        Merchant merchant = merchantMapper.selectById(user.getMerchantId());
-
         MerchantUserInfoResponse response = new MerchantUserInfoResponse();
-        response.setUserId(user.getId().toString());
-        response.setMerchantId(user.getMerchantId().toString());
-        response.setMerchantName(merchant != null ? merchant.getName() : "");
-        response.setMerchantLogo(merchant != null ? merchant.getLogo() : "");
-        response.setName(user.getName());
-        response.setPhone(maskPhone(user.getPhone()));
-        response.setAvatar(user.getAvatar());
+        response.setUserId(merchant.getId().toString());
+        response.setMerchantId(merchant.getId().toString());
+        response.setMerchantName(merchant.getName());
+        response.setMerchantLogo(merchant.getLogo());
+        response.setName(merchant.getContactName());
+        response.setPhone(maskPhone(merchant.getContactPhone()));
+        response.setAvatar(merchant.getAvatar());
         response.setRoleName("管理员"); // TODO: 根据角色ID查询
         response.setPermissions(Arrays.asList("shop:*", "note:*", "coupon:*", "dashboard:*"));
 
@@ -138,48 +142,125 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public MerchantLoginResponse register(String phone, String code, String password, String merchantName) {
+    public MerchantLoginResponse register(MerchantRegisterRequest request) {
         // 验证验证码
-        String cacheCode = redisUtil.get(MERCHANT_SMS_CODE_PREFIX + phone);
-        if (cacheCode == null || !cacheCode.equals(code)) {
+        String cacheCode = redisUtil.get(MERCHANT_SMS_CODE_PREFIX + request.getPhone());
+        if (cacheCode == null || !cacheCode.equals(request.getCode())) {
             throw new BusinessException(40002, "验证码错误或已过期");
         }
 
-        // 检查手机号是否已注册
-        MerchantUser existUser = merchantUserMapper.selectByPhone(phone);
-        if (existUser != null) {
+        // 检查手机号是否已注册（商家表）
+        int count = merchantMapper.countByPhone(request.getPhone());
+        if (count > 0) {
             throw new BusinessException(40001, "该手机号已注册");
         }
 
-        // 创建商家
+        // 创建商家（整合了原merchant_users表的所有信息）
         Merchant merchant = new Merchant();
-        merchant.setName(merchantName);
-        merchant.setContactPhone(phone);
-        merchant.setStatus(1);
+        
+        // 基本信息
+        merchant.setName(request.getMerchantName());
+        merchant.setLogo(request.getLogo());
+        merchant.setAvatar(request.getAvatar());
+        
+        // 联系人信息
+        merchant.setContactName(request.getContactName());
+        merchant.setContactPhone(request.getPhone());
+        merchant.setContactEmail(request.getContactEmail());
+        
+        // 营业资质信息
+        merchant.setLicenseNo(request.getLicenseNo());
+        merchant.setLicenseImage(request.getLicenseImage());
+        
+        // 登录信息（原merchant_users表字段）
+        merchant.setPassword(request.getPassword()); // TODO: 应使用BCrypt加密
+        merchant.setLastLoginAt(LocalDateTime.now());
+        
+        // 状态
+        merchant.setStatus(1); // 1正常
+        
         merchantMapper.insert(merchant);
+        log.info("商家入驻成功: merchantId={}, name={}", merchant.getId(), merchant.getName());
 
-        // 创建商家管理员账号
-        MerchantUser user = new MerchantUser();
-        user.setMerchantId(merchant.getId());
-        user.setPhone(phone);
-        user.setPassword(password); // TODO: 应使用BCrypt加密
-        user.setName("管理员");
-        user.setStatus(1);
-        user.setLastLoginAt(LocalDateTime.now());
-        merchantUserMapper.insert(user);
+        // 自动在UniApp用户表(users)中创建商家账号
+        createUniAppUser(merchant, request);
+        
+        // 自动创建默认门店，将商家信息注入到门店管理中
+        createDefaultShop(merchant, request);
 
         // 删除验证码
-        redisUtil.delete(MERCHANT_SMS_CODE_PREFIX + phone);
+        redisUtil.delete(MERCHANT_SMS_CODE_PREFIX + request.getPhone());
 
-        return buildLoginResponse(user);
+        return buildLoginResponse(merchant);
+    }
+    
+    /**
+     * 自动在UniApp用户表(users)中创建商家账号
+     * 字段映射：
+     * - users.phone = merchants.contact_phone
+     * - users.username = merchants.name
+     * - users.avatar = merchants.logo (或 avatar)
+     * - users.password = merchants.password
+     */
+    private void createUniAppUser(Merchant merchant, MerchantRegisterRequest request) {
+        // 检查手机号是否已在users表中存在
+        User existingUser = userMapper.selectByPhone(request.getPhone());
+        if (existingUser != null) {
+            log.info("UniApp用户已存在，跳过创建: phone={}", request.getPhone());
+            return;
+        }
+        
+        User user = new User();
+        user.setPhone(request.getPhone());
+        user.setUsername(request.getMerchantName());
+        // 优先使用avatar，如果没有则使用logo
+        String userAvatar = request.getAvatar() != null ? request.getAvatar() : request.getLogo();
+        user.setAvatar(userAvatar);
+        user.setPassword(request.getPassword());
+        user.setBio(request.getMerchantName() + " 官方账号");
+        user.setGender(0); // 未知
+        user.setStatus(1); // 正常
+        user.setCreatedAt(LocalDateTime.now());
+        user.setUpdatedAt(LocalDateTime.now());
+        
+        userMapper.insert(user);
+        log.info("自动创建UniApp用户成功: userId={}, phone={}, username={}", user.getId(), user.getPhone(), user.getUsername());
+    }
+    
+    /**
+     * 自动创建默认门店，将商家注册信息注入到门店管理中
+     * 避免商家二次填写重复信息
+     */
+    private void createDefaultShop(Merchant merchant, MerchantRegisterRequest request) {
+        Shop shop = new Shop();
+        shop.setMerchantId(merchant.getId());
+        shop.setName(request.getMerchantName()); // 商家名称 -> 门店名称
+        shop.setHeaderImage(request.getLogo()); // 商家Logo -> 门店封面图
+        shop.setPhone(request.getPhone()); // 联系电话
+        shop.setAddress("待完善"); // 默认地址，商家后续可在门店管理中修改
+        shop.setDescription(request.getMerchantName() + " 欢迎您的光临"); // 默认描述
+        shop.setCategoryId(1); // 默认分类（美食）
+        shop.setStatus(1); // 营业中
+        shop.setRating(new BigDecimal("5.0")); // 默认评分
+        shop.setTasteScore(new BigDecimal("5.0"));
+        shop.setEnvironmentScore(new BigDecimal("5.0"));
+        shop.setServiceScore(new BigDecimal("5.0"));
+        shop.setReviewCount(0);
+        shop.setPopularity(0);
+        shop.setCreatedAt(LocalDateTime.now());
+        shop.setUpdatedAt(LocalDateTime.now());
+        
+        shopMapper.insert(shop);
+        log.info("自动创建默认门店成功: shopId={}, merchantId={}, name={}", shop.getId(), merchant.getId(), shop.getName());
     }
 
-    private MerchantLoginResponse buildLoginResponse(MerchantUser user) {
-        String token = jwtUtil.generateToken(user.getId());
+    private MerchantLoginResponse buildLoginResponse(Merchant merchant) {
+        // 使用商家ID生成Token
+        String token = jwtUtil.generateToken(merchant.getId());
 
         MerchantLoginResponse response = new MerchantLoginResponse();
         response.setToken(token);
-        response.setUserInfo(getCurrentUserInfo(user.getId()));
+        response.setUserInfo(getCurrentUserInfo(merchant.getId()));
 
         return response;
     }

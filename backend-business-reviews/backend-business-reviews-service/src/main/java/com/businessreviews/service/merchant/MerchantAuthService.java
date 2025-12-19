@@ -1,12 +1,14 @@
 package com.businessreviews.service.merchant;
 
 import com.businessreviews.dto.request.MerchantLoginRequest;
+import com.businessreviews.dto.request.MerchantRegisterRequest;
 import com.businessreviews.dto.response.MerchantLoginResponse;
 import com.businessreviews.dto.response.MerchantUserInfoResponse;
 
 /**
  * 商家认证服务接口
  * 提供商家运营中心的登录、注册、验证码等功能
+ * 已整合merchant_users表到merchants表
  */
 public interface MerchantAuthService {
     
@@ -26,9 +28,9 @@ public interface MerchantAuthService {
     MerchantLoginResponse loginByPassword(MerchantLoginRequest request);
     
     /**
-     * 获取当前登录用户信息
+     * 获取当前登录商家信息（使用商家ID）
      */
-    MerchantUserInfoResponse getCurrentUserInfo(Long userId);
+    MerchantUserInfoResponse getCurrentUserInfo(Long merchantId);
     
     /**
      * 退出登录
@@ -36,7 +38,7 @@ public interface MerchantAuthService {
     void logout(String token);
     
     /**
-     * 商家入驻注册
+     * 商家入驻注册（完整信息）
      */
-    MerchantLoginResponse register(String phone, String code, String password, String merchantName);
+    MerchantLoginResponse register(MerchantRegisterRequest request);
 }

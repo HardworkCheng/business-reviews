@@ -7,10 +7,12 @@ import com.businessreviews.dto.response.NoteDetailResponse;
 import com.businessreviews.dto.response.NoteItemResponse;
 import com.businessreviews.entity.Merchant;
 import com.businessreviews.entity.Note;
+import com.businessreviews.entity.NoteComment;
 import com.businessreviews.entity.Shop;
 import com.businessreviews.entity.User;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.MerchantMapper;
+import com.businessreviews.mapper.NoteCommentMapper;
 import com.businessreviews.mapper.NoteMapper;
 import com.businessreviews.mapper.ShopMapper;
 import com.businessreviews.mapper.UserMapper;
@@ -34,6 +36,7 @@ import java.util.stream.Collectors;
 public class MerchantNoteServiceImpl implements MerchantNoteService {
 
     private final NoteMapper noteMapper;
+    private final NoteCommentMapper noteCommentMapper;
     private final ShopMapper shopMapper;
     private final MerchantMapper merchantMapper;
     private final UserMapper userMapper;
@@ -45,14 +48,19 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         
         validateMerchant(merchantId);
         
-        // 获取商家关联的门店ID列表
-        List<Long> shopIds = getShopIdsByMerchant(merchantId);
-        if (shopIds.isEmpty()) {
-            return emptyPageResult(pageNum, pageSize);
-        }
+        // 获取商家关联的用户ID（通过手机号匹配）
+        Long merchantUserId = findUserIdByMerchantId(merchantId);
+        log.info("商家关联的用户ID: merchantId={}, userId={}", merchantId, merchantUserId);
         
         LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(Note::getShopId, shopIds);
+        // 查询商家笔记：merchantId匹配 或者 (noteType=2 且 userId匹配)
+        wrapper.and(w -> {
+            w.eq(Note::getMerchantId, merchantId);
+            if (merchantUserId != null) {
+                // 也查询通过UniApp发布的商家笔记（noteType=2且userId匹配）
+                w.or(inner -> inner.eq(Note::getNoteType, 2).eq(Note::getUserId, merchantUserId));
+            }
+        });
         
         if (status != null) {
             wrapper.eq(Note::getStatus, status);
@@ -117,22 +125,40 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         if (request.get("images") != null) {
             @SuppressWarnings("unchecked")
             List<String> images = (List<String>) request.get("images");
-            note.setImages(String.join(",", images));
             if (!images.isEmpty()) {
+                note.setImages(String.join(",", images));
                 note.setCoverImage(images.get(0));
             }
         }
         
-        // 设置默认值
+        // 处理位置信息
+        if (request.get("location") != null) {
+            note.setLocation((String) request.get("location"));
+        }
+        if (request.get("latitude") != null) {
+            note.setLatitude(new java.math.BigDecimal(request.get("latitude").toString()));
+        }
+        if (request.get("longitude") != null) {
+            note.setLongitude(new java.math.BigDecimal(request.get("longitude").toString()));
+        }
+        
+        // 设置商家笔记特有字段
         note.setUserId(userId);  // 使用确保存在的用户ID
-        // 默认状态为1（已发布），这样笔记可以在UniApp中显示
+        note.setNoteType(2);  // 标记为商家笔记
+        note.setMerchantId(merchantId);  // 设置商家ID
+        
+        // 设置状态和推荐
         note.setStatus(request.get("status") != null ? (Integer) request.get("status") : 1);
+        note.setIsRecommend(request.get("isRecommend") != null ? (Integer) request.get("isRecommend") : 0);
+        note.setSyncStatus(1);  // 默认已同步
+        
+        // 初始化统计数据
         note.setLikeCount(0);
         note.setCommentCount(0);
         note.setViewCount(0);
         note.setFavoriteCount(0);
         note.setShareCount(0);
-        note.setIsRecommend(0);
+        
         note.setCreatedAt(LocalDateTime.now());
         note.setUpdatedAt(LocalDateTime.now());
         
@@ -218,10 +244,27 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         if (request.get("images") != null) {
             @SuppressWarnings("unchecked")
             List<String> images = (List<String>) request.get("images");
-            note.setImages(String.join(",", images));
             if (!images.isEmpty()) {
+                note.setImages(String.join(",", images));
                 note.setCoverImage(images.get(0));
             }
+        }
+        
+        // 更新位置信息
+        if (request.get("location") != null) {
+            note.setLocation((String) request.get("location"));
+        }
+        if (request.get("latitude") != null) {
+            note.setLatitude(new java.math.BigDecimal(request.get("latitude").toString()));
+        }
+        if (request.get("longitude") != null) {
+            note.setLongitude(new java.math.BigDecimal(request.get("longitude").toString()));
+        }
+        if (request.get("isRecommend") != null) {
+            note.setIsRecommend((Integer) request.get("isRecommend"));
+        }
+        if (request.get("status") != null) {
+            note.setStatus((Integer) request.get("status"));
         }
         
         note.setUpdatedAt(LocalDateTime.now());
@@ -333,10 +376,17 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         NoteItemResponse response = new NoteItemResponse();
         response.setId(note.getId().toString());
         response.setTitle(note.getTitle());
+        response.setContent(note.getContent());
         response.setImage(note.getCoverImage());
+        response.setCoverImage(note.getCoverImage());
         response.setLikes(note.getLikeCount());
         response.setViews(note.getViewCount());
+        response.setComments(note.getCommentCount());
         response.setTag(note.getTagType());
+        response.setStatus(note.getStatus());
+        response.setSyncStatus(note.getSyncStatus());
+        response.setSyncedToApp(note.getSyncStatus() != null && note.getSyncStatus() == 1);
+        response.setNoteType(note.getNoteType());
         response.setCreatedAt(note.getCreatedAt() != null ? note.getCreatedAt().toString() : null);
         
         // 获取作者信息
@@ -349,6 +399,15 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
             }
         }
         
+        // 获取门店信息
+        if (note.getShopId() != null) {
+            Shop shop = shopMapper.selectById(note.getShopId());
+            if (shop != null) {
+                response.setShopId(shop.getId().toString());
+                response.setShopName(shop.getName());
+            }
+        }
+        
         return response;
     }
     
@@ -358,16 +417,23 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         response.setTitle(note.getTitle());
         response.setContent(note.getContent());
         response.setImage(note.getCoverImage());
+        response.setCoverImage(note.getCoverImage());
         response.setLikeCount(note.getLikeCount());
         response.setCommentCount(note.getCommentCount());
         response.setViewCount(note.getViewCount());
         response.setFavoriteCount(note.getFavoriteCount());
+        response.setShareCount(note.getShareCount());
         response.setLocation(note.getLocation());
+        response.setLatitude(note.getLatitude());
+        response.setLongitude(note.getLongitude());
+        response.setStatus(note.getStatus());
+        response.setSyncStatus(note.getSyncStatus());
+        response.setNoteType(note.getNoteType());
         response.setCreatedAt(note.getCreatedAt());
         response.setIsLiked(false);
         response.setIsBookmarked(false);
         response.setIsFollowing(false);
-        response.setIsAuthor(false);
+        response.setIsAuthor(true);  // 商家查看自己的笔记
         
         // 处理图片列表
         if (note.getImages() != null && !note.getImages().isEmpty()) {
@@ -380,6 +446,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
             if (user != null) {
                 response.setAuthorId(user.getId());
                 response.setAuthor(user.getUsername());
+                response.setAuthorName(user.getUsername());
                 response.setAuthorAvatar(user.getAvatar());
             }
         }
@@ -394,5 +461,159 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         }
         
         return response;
+    }
+
+    @Override
+    public PageResult<Map<String, Object>> getNoteComments(Long merchantId, Long noteId, Integer pageNum, Integer pageSize) {
+        log.info("获取笔记评论: merchantId={}, noteId={}, pageNum={}, pageSize={}", merchantId, noteId, pageNum, pageSize);
+        
+        validateMerchant(merchantId);
+        
+        // 验证笔记存在
+        Note note = noteMapper.selectById(noteId);
+        if (note == null) {
+            throw new BusinessException(40404, "笔记不存在");
+        }
+        
+        // 查询评论列表（只查询顶级评论）
+        LambdaQueryWrapper<NoteComment> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteComment::getNoteId, noteId)
+               .isNull(NoteComment::getParentId)
+               .eq(NoteComment::getStatus, 1)
+               .orderByDesc(NoteComment::getCreatedAt);
+        
+        Page<NoteComment> page = new Page<>(pageNum, pageSize);
+        Page<NoteComment> commentPage = noteCommentMapper.selectPage(page, wrapper);
+        
+        // 转换为响应格式
+        List<Map<String, Object>> list = commentPage.getRecords().stream()
+                .map(comment -> convertCommentToMap(comment, noteId))
+                .collect(Collectors.toList());
+        
+        PageResult<Map<String, Object>> result = new PageResult<>();
+        result.setList(list);
+        result.setTotal(commentPage.getTotal());
+        result.setPageNum(pageNum);
+        result.setPageSize(pageSize);
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public Long createNoteComment(Long merchantId, Long operatorId, Long noteId, Map<String, Object> request) {
+        log.info("商家发表评论: merchantId={}, noteId={}", merchantId, noteId);
+        
+        validateMerchant(merchantId);
+        
+        // 验证笔记存在
+        Note note = noteMapper.selectById(noteId);
+        if (note == null) {
+            throw new BusinessException(40404, "笔记不存在");
+        }
+        
+        // 确保商家用户存在
+        Long userId = ensureMerchantUserExists(merchantId, operatorId);
+        
+        // 创建评论
+        NoteComment comment = new NoteComment();
+        comment.setNoteId(noteId);
+        comment.setUserId(userId);
+        comment.setContent((String) request.get("content"));
+        
+        // 处理父评论ID
+        if (request.get("parentId") != null) {
+            comment.setParentId(Long.valueOf(request.get("parentId").toString()));
+        }
+        
+        comment.setLikeCount(0);
+        comment.setStatus(1);
+        comment.setCreatedAt(LocalDateTime.now());
+        comment.setUpdatedAt(LocalDateTime.now());
+        
+        noteCommentMapper.insert(comment);
+        
+        // 更新笔记评论数
+        note.setCommentCount((note.getCommentCount() != null ? note.getCommentCount() : 0) + 1);
+        note.setUpdatedAt(LocalDateTime.now());
+        noteMapper.updateById(note);
+        
+        log.info("评论创建成功: commentId={}", comment.getId());
+        return comment.getId();
+    }
+
+    private Map<String, Object> convertCommentToMap(NoteComment comment, Long noteId) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", comment.getId());
+        map.put("noteId", comment.getNoteId());
+        map.put("content", comment.getContent());
+        map.put("likeCount", comment.getLikeCount());
+        map.put("createdAt", comment.getCreatedAt() != null ? comment.getCreatedAt().toString() : null);
+        
+        // 获取用户信息
+        if (comment.getUserId() != null) {
+            User user = userMapper.selectById(comment.getUserId());
+            if (user != null) {
+                map.put("userId", user.getId());
+                map.put("userName", user.getUsername());
+                map.put("userAvatar", user.getAvatar());
+            }
+        }
+        
+        // 获取子评论（回复）
+        LambdaQueryWrapper<NoteComment> replyWrapper = new LambdaQueryWrapper<>();
+        replyWrapper.eq(NoteComment::getNoteId, noteId)
+                   .eq(NoteComment::getParentId, comment.getId())
+                   .eq(NoteComment::getStatus, 1)
+                   .orderByAsc(NoteComment::getCreatedAt)
+                   .last("LIMIT 3");  // 只显示前3条回复
+        
+        List<NoteComment> replies = noteCommentMapper.selectList(replyWrapper);
+        List<Map<String, Object>> replyList = replies.stream()
+                .map(reply -> {
+                    Map<String, Object> replyMap = new HashMap<>();
+                    replyMap.put("id", reply.getId());
+                    replyMap.put("content", reply.getContent());
+                    replyMap.put("createdAt", reply.getCreatedAt() != null ? reply.getCreatedAt().toString() : null);
+                    
+                    if (reply.getUserId() != null) {
+                        User replyUser = userMapper.selectById(reply.getUserId());
+                        if (replyUser != null) {
+                            replyMap.put("userId", replyUser.getId());
+                            replyMap.put("userName", replyUser.getUsername());
+                            replyMap.put("userAvatar", replyUser.getAvatar());
+                        }
+                    }
+                    return replyMap;
+                })
+                .collect(Collectors.toList());
+        
+        map.put("replies", replyList);
+        
+        return map;
+    }
+    
+    /**
+     * 根据商家ID查找关联的用户ID
+     * 通过商家联系电话匹配用户手机号
+     */
+    private Long findUserIdByMerchantId(Long merchantId) {
+        if (merchantId == null) {
+            return null;
+        }
+        
+        // 查询商家信息
+        Merchant merchant = merchantMapper.selectById(merchantId);
+        if (merchant == null || merchant.getContactPhone() == null) {
+            return null;
+        }
+        
+        // 通过手机号查找用户
+        User user = userMapper.selectByPhone(merchant.getContactPhone());
+        if (user != null) {
+            log.info("商家关联到用户: merchantId={}, userId={}, phone={}", merchantId, user.getId(), merchant.getContactPhone());
+            return user.getId();
+        }
+        
+        return null;
     }
 }

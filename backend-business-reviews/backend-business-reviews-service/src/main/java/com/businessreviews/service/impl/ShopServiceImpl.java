@@ -408,7 +408,29 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
         if (images == null || images.isEmpty()) {
             return List.of();
         }
-        return Arrays.asList(images.split(","));
+        
+        // 尝试解析JSON数组格式
+        if (images.trim().startsWith("[") && images.trim().endsWith("]")) {
+            try {
+                // 简单的JSON数组解析
+                String content = images.trim().substring(1, images.trim().length() - 1);
+                if (content.isEmpty()) {
+                    return List.of();
+                }
+                return Arrays.stream(content.split(","))
+                        .map(s -> s.trim().replaceAll("^\"|\"$", "")) // 移除引号
+                        .filter(s -> !s.isEmpty())
+                        .collect(java.util.stream.Collectors.toList());
+            } catch (Exception e) {
+                log.warn("解析图片JSON数组失败，使用逗号分割: {}", images, e);
+            }
+        }
+        
+        // 回退到逗号分割
+        return Arrays.stream(images.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(java.util.stream.Collectors.toList());
     }
 
     private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {

@@ -55,16 +55,11 @@ public class MerchantAuthController {
     }
 
     /**
-     * 商家入驻注册
+     * 商家入驻注册（完整信息）
      */
     @PostMapping("/register")
     public Result<MerchantLoginResponse> register(@RequestBody @Valid MerchantRegisterRequest request) {
-        MerchantLoginResponse response = merchantAuthService.register(
-                request.getPhone(), 
-                request.getCode(), 
-                request.getPassword(), 
-                request.getMerchantName()
-        );
+        MerchantLoginResponse response = merchantAuthService.register(request);
         return Result.success("入驻成功", response);
     }
 

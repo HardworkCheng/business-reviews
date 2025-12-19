@@ -123,4 +123,30 @@ public class MerchantNoteController {
         Map<String, Object> stats = merchantNoteService.getNoteStats(merchantId, id);
         return Result.success(stats);
     }
+
+    /**
+     * 获取笔记评论列表
+     */
+    @GetMapping("/{id}/comments")
+    public Result<PageResult<Map<String, Object>>> getNoteComments(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+        Long merchantId = MerchantContext.requireMerchantId();
+        PageResult<Map<String, Object>> result = merchantNoteService.getNoteComments(merchantId, id, pageNum, pageSize);
+        return Result.success(result);
+    }
+
+    /**
+     * 商家发表评论
+     */
+    @PostMapping("/{id}/comments")
+    public Result<Map<String, Long>> createNoteComment(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> request) {
+        Long merchantId = MerchantContext.requireMerchantId();
+        Long operatorId = MerchantContext.requireUserId();
+        Long commentId = merchantNoteService.createNoteComment(merchantId, operatorId, id, request);
+        return Result.success("评论成功", Map.of("commentId", commentId));
+    }
 }

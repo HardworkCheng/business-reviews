@@ -59,7 +59,13 @@
 					<view class="note-info">
 						<text class="note-title line-clamp-2">{{ note.title }}</text>
 						<view class="note-meta">
-							<text class="author">@{{ note.author }}</text>
+							<view class="author-info">
+								<!-- 商家笔记显示"@商家名称官方" -->
+								<text v-if="note.noteType === 2" class="author merchant-author">@{{ note.author }}</text>
+								<text v-else class="author">@{{ note.author }}</text>
+								<!-- 商家笔记显示店铺名称 -->
+								<text v-if="note.noteType === 2 && note.shopName" class="shop-info">{{ note.shopName }}</text>
+							</view>
 							<view class="like-info">
 								<text class="like-icon">❤️</text>
 								<text class="like-count">{{ note.likes }}</text>
@@ -382,7 +388,7 @@ const fetchNoteList = async () => {
 		console.log('获取笔记列表:', result)
 		
 		if (result && result.list) {
-			// 转换数据格式
+			// 转换数据格式，支持商家笔记
 			noteList.value = result.list.map(note => ({
 				id: note.id,
 				title: note.title,
@@ -390,9 +396,12 @@ const fetchNoteList = async () => {
 				author: note.author || '匿名用户',
 				likes: note.likes || 0,
 				tag: note.tag || null,
-				tagClass: note.tagClass || ''
+				tagClass: note.tagClass || '',
+				noteType: note.noteType || 1, // 笔记类型：1用户笔记，2商家笔记
+				shopId: note.shopId || null,
+				shopName: note.shopName || null
 			}))
-			console.log('笔记列表已更新:', noteList.value.length, noteList.value)
+			console.log('笔记列表已更新:', noteList.value.length, '条，包含商家笔记')
 		}
 	} catch (e) {
 		console.error('获取笔记列表失败:', e)
@@ -615,6 +624,10 @@ const goToNoteDetail = (id) => {
 	background: #FFD166;
 }
 
+.tag-merchant {
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
 .tag-text {
 	font-size: 22rpx;
 	color: white;
@@ -637,9 +650,32 @@ const goToNoteDetail = (id) => {
 	align-items: center;
 }
 
+.author-info {
+	display: flex;
+	flex-direction: column;
+	gap: 4rpx;
+}
+
 .author {
 	font-size: 24rpx;
 	color: #999;
+}
+
+/* 商家作者样式 - 带蓝色边框 */
+.merchant-author {
+	font-size: 24rpx;
+	color: #667eea;
+	font-weight: 500;
+	padding: 4rpx 12rpx;
+	border: 2rpx solid #667eea;
+	border-radius: 20rpx;
+	background: rgba(102, 126, 234, 0.1);
+}
+
+.shop-info {
+	font-size: 22rpx;
+	color: #667eea;
+	font-weight: 500;
 }
 
 .like-info {

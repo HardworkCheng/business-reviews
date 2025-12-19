@@ -23,12 +23,12 @@ export const loginByCode = (phone, code) => {
 }
 
 /**
- * 第三方登录
- * @param {String} type - 登录类型 wechat/qq/weibo
- * @param {String} code - 授权码
+ * 密码登录
+ * @param {String} phone - 手机号
+ * @param {String} password - 密码
  */
-export const oauthLogin = (type, code) => {
-  return post('/auth/oauth-login', { type, code }, { noAuth: true })
+export const loginByPassword = (phone, password) => {
+  return post('/auth/login-by-password', { phone, password }, { noAuth: true })
 }
 
 /**
@@ -41,6 +41,6 @@ export const logout = () => {
 export default {
   sendCode,
   loginByCode,
-  oauthLogin,
+  loginByPassword,
   logout
 }

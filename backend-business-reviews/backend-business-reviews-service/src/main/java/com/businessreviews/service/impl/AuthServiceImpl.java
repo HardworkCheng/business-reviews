@@ -4,6 +4,7 @@ import com.businessreviews.constants.RedisKeyConstants;
 import com.businessreviews.constants.SmsCodeConstants;
 import com.businessreviews.common.DefaultAvatar;
 import com.businessreviews.dto.request.LoginByCodeRequest;
+import com.businessreviews.dto.request.LoginByPasswordRequest;
 import com.businessreviews.dto.request.OAuthLoginRequest;
 import com.businessreviews.dto.request.SendCodeRequest;
 import com.businessreviews.dto.response.LoginResponse;
@@ -130,14 +131,56 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public LoginResponse oauthLogin(OAuthLoginRequest request) {
-        // 这里实现第三方登录逻辑
-        // 1. 根据type调用不同的OAuth接口
-        // 2. 使用code换取access_token
-        // 3. 获取第三方用户信息
-        // 4. 根据openid查找或创建用户
+    public LoginResponse loginByPassword(LoginByPasswordRequest request) {
+        String phone = request.getPhone();
+        String password = request.getPassword();
         
-        // 模拟实现
+        log.info("开始密码登录，手机号: {}", phone);
+        
+        // 验证手机号格式
+        if (!PHONE_PATTERN.matcher(phone).matches()) {
+            throw new BusinessException(40001, "手机号格式错误");
+        }
+        
+        // 查找用户
+        User user = userMapper.selectByPhone(phone);
+        if (user == null) {
+            // 为了安全，不透露用户是否存在
+            log.warn("密码登录失败，用户不存在: {}", phone);
+            throw new BusinessException(40003, "手机号或密码错误");
+        }
+        
+        // 验证密码（当前密码未加密，直接比对）
+        if (!password.equals(user.getPassword())) {
+            log.warn("密码登录失败，密码错误: {}", phone);
+            throw new BusinessException(40003, "手机号或密码错误");
+        }
+        
+        // 检查用户状态
+        if (user.getStatus() != 1) {
+            throw new BusinessException(40004, "账号已被禁用");
+        }
+        
+        // 更新最后登录时间
+        user.setLastLoginAt(LocalDateTime.now());
+        userMapper.updateById(user);
+        log.info("更新最后登录时间，用户ID: {}", user.getId());
+        
+        // 清除用户信息缓存
+        redisUtil.delete(RedisKeyConstants.USER_INFO + user.getId());
+        
+        // 生成Token
+        String token = jwtUtil.generateToken(user.getId());
+        log.info("密码登录成功，用户ID: {}", user.getId());
+        
+        // 构建响应
+        return buildLoginResponse(user, token);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public LoginResponse oauthLogin(OAuthLoginRequest request) {
+        // 第三方登录已禁用
         throw new BusinessException(50000, "暂不支持第三方登录");
     }
 

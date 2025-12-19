@@ -5,7 +5,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 商家实体类
+ * 商家实体类（整合了原merchant_users表的登录信息）
  */
 @Data
 @TableName("merchants")
@@ -29,11 +29,23 @@ public class Merchant {
     /** 联系人姓名 */
     private String contactName;
     
-    /** 联系电话 */
+    /** 联系电话（用于登录） */
     private String contactPhone;
     
     /** 联系邮箱 */
     private String contactEmail;
+    
+    /** 登录密码（加密） */
+    private String password;
+    
+    /** 商家头像 */
+    private String avatar;
+    
+    /** 角色ID */
+    private Long roleId;
+    
+    /** 最后登录时间 */
+    private LocalDateTime lastLoginAt;
     
     /** 状态（1正常，2禁用，3待审核） */
     private Integer status;

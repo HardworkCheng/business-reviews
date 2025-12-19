@@ -3,6 +3,7 @@ package com.businessreviews.controller;
 
 import com.businessreviews.common.Result;
 import com.businessreviews.dto.request.LoginByCodeRequest;
+import com.businessreviews.dto.request.LoginByPasswordRequest;
 import com.businessreviews.dto.request.OAuthLoginRequest;
 import com.businessreviews.dto.request.SendCodeRequest;
 import com.businessreviews.dto.response.LoginResponse;
@@ -48,7 +49,16 @@ public class AuthController {
     }
 
     /**
-     * 第三方登录
+     * 密码登录
+     */
+    @PostMapping("/login-by-password")
+    public Result<LoginResponse> loginByPassword(@RequestBody @Valid LoginByPasswordRequest request) {
+        LoginResponse response = authService.loginByPassword(request);
+        return Result.success("登录成功", response);
+    }
+
+    /**
+     * 第三方登录（已禁用）
      */
     @PostMapping("/oauth-login")
     public Result<LoginResponse> oauthLogin(@RequestBody @Valid OAuthLoginRequest request) {

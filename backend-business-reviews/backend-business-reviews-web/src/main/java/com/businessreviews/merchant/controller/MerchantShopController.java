@@ -8,6 +8,7 @@ import com.businessreviews.merchant.context.MerchantContext;
 import com.businessreviews.service.MerchantShopService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -26,6 +27,7 @@ import java.util.Map;
  * 
  * @see com.businessreviews.service.MerchantShopService
  */
+@Slf4j
 @RestController
 @RequestMapping("/merchant/shops")
 @RequiredArgsConstructor
@@ -73,9 +75,12 @@ public class MerchantShopController {
      */
     @PutMapping("/{id}")
     public Result<?> updateShop(@PathVariable Long id, @RequestBody @Valid Map<String, Object> request) {
+        log.info("收到更新店铺请求: shopId={}, 请求数据={}", id, request);
         Long merchantId = MerchantContext.requireMerchantId();
         Long operatorId = MerchantContext.requireUserId();
+        log.info("当前商家信息: merchantId={}, operatorId={}", merchantId, operatorId);
         merchantShopService.updateShop(merchantId, operatorId, id, request);
+        log.info("店铺更新完成: shopId={}", id);
         return Result.success("更新成功");
     }
 

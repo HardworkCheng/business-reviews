@@ -46,6 +46,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     private final ShopMapper shopMapper;
     private final TagMapper tagMapper;
     private final TopicMapper topicMapper;
+    private final MerchantMapper merchantMapper;
     private final RedisUtil redisUtil;
     private final MessageService messageService;
 
@@ -56,7 +57,9 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         
         Page<Note> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Note::getStatus, 1)
+        wrapper.eq(Note::getStatus, 1)  // 只显示已发布的笔记
+               .in(Note::getNoteType, 1, 2)  // 包含用户笔记和商家笔记
+               .orderByDesc(Note::getIsRecommend)  // 推荐笔记优先
                .orderByDesc(Note::getLikeCount)
                .orderByDesc(Note::getCreatedAt);
         
@@ -307,6 +310,17 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         note.setCommentCount(0);
         note.setViewCount(0);
         note.setFavoriteCount(0);
+        
+        // 检查用户是否是商家账号，如果是则设置商家笔记标识
+        Long merchantId = findMerchantIdByUserId(userId);
+        if (merchantId != null) {
+            note.setNoteType(2);  // 商家笔记
+            note.setMerchantId(merchantId);
+            note.setSyncStatus(1);  // 已同步
+            log.info("用户{}是商家账号，设置为商家笔记，merchantId={}", userId, merchantId);
+        } else {
+            note.setNoteType(1);  // 用户笔记
+        }
         
         noteMapper.insert(note);
         
@@ -603,14 +617,33 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
             item.setAuthorId(author.getId().toString());
         }
         
-        // 计算热度标签
-        if (note.getLikeCount() > 1000) {
-            item.setTag("热门");
-            item.setTagClass("tag-hot");
-        } else if (note.getCreatedAt() != null && 
-                   note.getCreatedAt().isAfter(LocalDateTime.now().minusDays(1))) {
-            item.setTag("新发");
-            item.setTagClass("tag-new");
+        // 设置笔记类型
+        item.setNoteType(note.getNoteType() != null ? note.getNoteType() : 1);
+        
+        // 处理商家笔记标识
+        if (note.getNoteType() != null && note.getNoteType() == 2) {
+            // 商家笔记
+            item.setTag("商家");
+            item.setTagClass("tag-merchant");
+            
+            // 如果有关联店铺，显示店铺信息
+            if (note.getShopId() != null) {
+                Shop shop = shopMapper.selectById(note.getShopId());
+                if (shop != null) {
+                    item.setShopId(shop.getId().toString());
+                    item.setShopName(shop.getName());
+                }
+            }
+        } else {
+            // 用户笔记，计算热度标签
+            if (note.getLikeCount() > 1000) {
+                item.setTag("热门");
+                item.setTagClass("tag-hot");
+            } else if (note.getCreatedAt() != null && 
+                       note.getCreatedAt().isAfter(LocalDateTime.now().minusDays(1))) {
+                item.setTag("新发");
+                item.setTagClass("tag-new");
+            }
         }
         
         return item;
@@ -702,5 +735,34 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         boolean result = count > 0;
         log.debug("检查关注状态 - 用户ID: {}, 目标用户ID: {}, 记录数: {}, 结果: {}", userId, targetUserId, count, result);
         return result;
+    }
+    
+    /**
+     * 根据用户ID查找关联的商家ID
+     * 通过用户手机号匹配商家的联系电话
+     */
+    private Long findMerchantIdByUserId(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        
+        // 查询用户信息
+        User user = userMapper.selectById(userId);
+        if (user == null || user.getPhone() == null) {
+            return null;
+        }
+        
+        // 通过手机号查找商家
+        LambdaQueryWrapper<Merchant> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Merchant::getContactPhone, user.getPhone())
+               .eq(Merchant::getStatus, 1);  // 只查找正常状态的商家
+        Merchant merchant = merchantMapper.selectOne(wrapper);
+        
+        if (merchant != null) {
+            log.info("用户{}关联到商家: merchantId={}, merchantName={}", userId, merchant.getId(), merchant.getName());
+            return merchant.getId();
+        }
+        
+        return null;
     }
 }

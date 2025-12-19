@@ -25,6 +25,16 @@ public class Note implements Serializable {
     private Long userId;
     
     /**
+     * 笔记类型（1用户笔记，2商家笔记）
+     */
+    private Integer noteType;
+    
+    /**
+     * 商家ID（商家笔记专用）
+     */
+    private Long merchantId;
+    
+    /**
      * 关联商家ID
      */
     private Long shopId;
@@ -105,6 +115,11 @@ public class Note implements Serializable {
      * 是否推荐（0否，1是）
      */
     private Integer isRecommend;
+    
+    /**
+     * 同步状态（0未同步，1已同步）
+     */
+    private Integer syncStatus;
     
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

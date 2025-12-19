@@ -1,7 +1,7 @@
 <template>
 	<view class="container">
 		<view class="shop-header">
-			<image :src="shopData.headerImage || 'https://via.placeholder.com/800x600/FF9E64/FFFFFF?text=Shop'" class="header-image" mode="aspectFill"></image>
+			<image :src="shopData.headerImage || 'https://via.placeholder.com/800x600/FF9E64/FFFFFF?text=Shop'" class="header-image" mode="aspectFill" @error="handleImageError"></image>
 			<view class="header-actions">
 				<view class="action-btn clay-icon" @click="goBack">
 					<text>←</text>
@@ -64,6 +64,18 @@
 				<button class="btn btn-primary bg-primary">🍽️ 点餐</button>
 				<button class="btn btn-secondary" @click="callPhone">📞 电话</button>
 			</view>
+		</view>
+
+		<!-- 商家相册 -->
+		<view class="gallery-section" v-if="galleryImages.length > 0">
+			<text class="section-title">商家相册 ({{ galleryImages.length }})</text>
+			<scroll-view class="gallery-scroll" scroll-x>
+				<view class="gallery-grid">
+					<view v-for="(img, index) in galleryImages" :key="index" class="gallery-item" @click="previewGalleryImage(index)">
+						<image :src="img" class="gallery-image" mode="aspectFill"></image>
+					</view>
+				</view>
+			</scroll-view>
 		</view>
 
 		<view class="reviews-section">
@@ -162,6 +174,8 @@ const tags = ref([])
 const shopId = ref(null)
 // 评价列表（从后端获取）
 const reviews = ref([])
+// 商家相册图片
+const galleryImages = ref([])
 const loading = ref(false)
 
 // 评价表单
@@ -198,6 +212,8 @@ const fetchShopDetail = async (id) => {
 			if (result.averagePrice) {
 				tags.value.push(`人均¥${result.averagePrice}`)
 			}
+			// 解析商家相册图片
+			galleryImages.value = processImages(result.images)
 		}
 	} catch (e) {
 		console.error('获取商家详情失败:', e)
@@ -217,7 +233,7 @@ const fetchReviews = async (id) => {
 		console.log('评价列表:', result)
 		if (result && result.list) {
 			reviews.value = result.list.map(item => ({
-				avatar: item.userAvatar || '/static/default-avatar.png',
+				avatar: item.userAvatar || 'https://via.placeholder.com/80x80/FF9E64/FFFFFF?text=U',
 				author: item.username || '匿名用户',
 				date: item.createdAt || '',
 				content: item.content || '',
@@ -265,6 +281,35 @@ const callPhone = () => {
 	} else {
 		uni.showToast({ title: '暂无联系电话', icon: 'none' })
 	}
+}
+
+// 统一处理图片数据
+const processImages = (images) => {
+	if (Array.isArray(images)) {
+		return images.filter(Boolean)
+	}
+	if (typeof images === 'string' && images) {
+		try {
+			const parsed = JSON.parse(images)
+			return Array.isArray(parsed) ? parsed : images.split(',').filter(Boolean)
+		} catch {
+			return images.split(',').filter(Boolean)
+		}
+	}
+	return []
+}
+
+// 处理图片加载错误
+const handleImageError = (e) => {
+	console.log('图片加载失败:', e)
+}
+
+// 预览商家相册图片
+const previewGalleryImage = (index) => {
+	uni.previewImage({
+		urls: galleryImages.value,
+		current: index
+	})
 }
 
 // 设置评分
@@ -493,6 +538,36 @@ const submitReview = async () => {
 	background: white;
 	border: 3rpx solid #000;
 	box-shadow: 10rpx 10rpx 0rpx rgba(0, 0, 0, 0.1);
+}
+
+/* 商家相册样式 */
+.gallery-section {
+	background: white;
+	margin-top: 20rpx;
+	padding: 30rpx;
+}
+
+.gallery-scroll {
+	width: 100%;
+	white-space: nowrap;
+}
+
+.gallery-grid {
+	display: flex;
+	gap: 20rpx;
+}
+
+.gallery-item {
+	flex-shrink: 0;
+	width: 200rpx;
+	height: 200rpx;
+	border-radius: 16rpx;
+	overflow: hidden;
+}
+
+.gallery-image {
+	width: 100%;
+	height: 100%;
 }
 
 .reviews-section {

@@ -1,9 +1,9 @@
 package com.businessreviews.service;
 
 import com.businessreviews.dto.request.MerchantLoginRequest;
+import com.businessreviews.dto.request.MerchantRegisterRequest;
 import com.businessreviews.dto.response.MerchantLoginResponse;
 import com.businessreviews.dto.response.MerchantUserInfoResponse;
-import com.businessreviews.entity.MerchantUser;
 
 /**
  * 商家认证服务接口
@@ -26,9 +26,9 @@ public interface MerchantAuthService {
     MerchantLoginResponse loginByPassword(MerchantLoginRequest request);
     
     /**
-     * 获取当前登录用户信息
+     * 获取当前登录用户信息（使用商家ID）
      */
-    MerchantUserInfoResponse getCurrentUserInfo(Long userId);
+    MerchantUserInfoResponse getCurrentUserInfo(Long merchantId);
     
     /**
      * 退出登录
@@ -36,7 +36,7 @@ public interface MerchantAuthService {
     void logout(String token);
     
     /**
-     * 商家入驻注册
+     * 商家入驻注册（完整信息）
      */
-    MerchantLoginResponse register(String phone, String code, String password, String merchantName);
+    MerchantLoginResponse register(MerchantRegisterRequest request);
 }

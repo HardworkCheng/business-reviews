@@ -82,41 +82,6 @@
 			</view>
 		</view>
 
-		<!-- 第三方账号绑定 -->
-		<view class="section">
-			<view class="section-title">第三方账号</view>
-			<view class="setting-item clay-shadow" @click="editWechat">
-				<view class="item-left">
-					<text class="social-icon wechat">💬</text>
-					<text class="item-label">微信</text>
-				</view>
-				<view class="item-right">
-					<text class="item-value">{{ userInfo.wechatOpenid ? '已绑定' : '未绑定' }}</text>
-					<text class="arrow">›</text>
-				</view>
-			</view>
-			<view class="setting-item clay-shadow" @click="editQQ">
-				<view class="item-left">
-					<text class="social-icon qq">🐧</text>
-					<text class="item-label">QQ</text>
-				</view>
-				<view class="item-right">
-					<text class="item-value">{{ userInfo.qqOpenid ? '已绑定' : '未绑定' }}</text>
-					<text class="arrow">›</text>
-				</view>
-			</view>
-			<view class="setting-item clay-shadow" @click="editWeibo">
-				<view class="item-left">
-					<text class="social-icon weibo">🎐</text>
-					<text class="item-label">微博</text>
-				</view>
-				<view class="item-right">
-					<text class="item-value">{{ userInfo.weiboUid ? '已绑定' : '未绑定' }}</text>
-					<text class="arrow">›</text>
-				</view>
-			</view>
-		</view>
-
 		<!-- 退出登录按钮 -->
 		<view class="logout-section">
 			<view class="save-btn clay-shadow" @click="handleSave">
@@ -132,19 +97,13 @@
 <script setup>
 import { ref, nextTick, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { logout, sendCode } from '../../api/auth'
-import { getUserInfo, updateUserInfo, changePassword } from '../../api/user'
+import { logout } from '../../api/auth'
+import { getUserInfo, updateUserInfo } from '../../api/user'
 
 const userInfo = ref({})
-const originalUserInfo = ref({}) // 保存原始数据用于比较
-const hasChanges = ref(false) // 是否有修改
-const isLoading = ref(false) // 是否正在加载
-const showGenderPicker = ref(false)
-const genderOptions = [
-	{ text: '保密', value: 0 },
-	{ text: '男', value: 1 },
-	{ text: '女', value: 2 }
-]
+const originalUserInfo = ref({})
+const hasChanges = ref(false)
+const isLoading = ref(false)
 
 // 计算属性 - 确保头像响应式更新
 const avatarUrl = computed(() => {
@@ -165,18 +124,10 @@ const fetchUserInfo = async () => {
 	try {
 		const info = await getUserInfo()
 		console.log('=== 获取到的用户信息 ===', JSON.stringify(info, null, 2))
-		console.log('fullPhone:', info?.fullPhone)
-		console.log('phone:', info?.phone)
-		console.log('birthday:', info?.birthday)
-		console.log('gender:', info?.gender)
-		console.log('bio:', info?.bio)
 		
 		if (info) {
-			// 直接使用后端返回的数据,不使用缓存
 			userInfo.value = info
-			// 保存原始数据
 			originalUserInfo.value = JSON.parse(JSON.stringify(info))
-			// 更新缓存
 			uni.setStorageSync('userInfo', info)
 			console.log('用户信息已更新')
 		} else {
@@ -187,13 +138,11 @@ const fetchUserInfo = async () => {
 	} catch (e) {
 		console.error('获取用户信息失败:', e)
 		
-		// 如果是401或用户不存在,不使用缓存,直接跳转登录
 		if (e.code === 401 || e.code === 40401) {
 			console.warn('认证失败,清除缓存并跳转登录')
 			uni.clearStorageSync()
 			uni.reLaunch({ url: '/pages/login/login' })
 		} else {
-			// 其他错误显示提示
 			uni.showToast({ 
 				title: '获取用户信息失败', 
 				icon: 'none' 
@@ -206,28 +155,24 @@ const fetchUserInfo = async () => {
 
 const goBack = () => {
 	try {
-		// 检查是否有返回页面
 		const pages = getCurrentPages()
 		if (pages.length > 1) {
 			uni.navigateBack({
 				delta: 1,
 				fail: (err) => {
 					console.error('返回失败:', err)
-					// 如果返回失败,跳转到首页
 					uni.switchTab({
 						url: '/pages/profile/profile'
 					})
 				}
 			})
 		} else {
-			// 如果没有上一页,直接跳转到个人主页
 			uni.switchTab({
 				url: '/pages/profile/profile'
 			})
 		}
 	} catch (e) {
 		console.error('goBack error:', e)
-		// 出错时跳转到个人主页
 		uni.switchTab({
 			url: '/pages/profile/profile'
 		})
@@ -260,8 +205,6 @@ const getAvatarUrl = (avatar) => {
 	if (!avatar) {
 		return 'https://via.placeholder.com/200/FFD166/FFFFFF?text=User'
 	}
-	
-	// 直接返回阿里云OSS URL
 	return avatar
 }
 
@@ -278,7 +221,6 @@ const editAvatar = () => {
 			try {
 				uni.showLoading({ title: '上传中...' })
 				
-				// 上传头像
 				const token = uni.getStorageSync('token') || ''
 				
 				uni.uploadFile({
@@ -296,34 +238,20 @@ const editAvatar = () => {
 						
 						if (data.code === 200) {
 							const avatarUrl = data.data.url
-							console.log('=== 头像上传成功 ===')
-							console.log('头像 URL:', avatarUrl)
-							console.log('完整 URL:', getAvatarUrl(avatarUrl))
-							console.log('更新前 userInfo.avatar:', userInfo.value.avatar)
 							
-							// 更新用户信息
 							try {
 								await updateUserInfo({ avatar: avatarUrl })
-								console.log('后端更新成功')
 								
-								// 直接赋值更新
 								userInfo.value.avatar = avatarUrl
 								originalUserInfo.value.avatar = avatarUrl
 								
-								console.log('更新后 userInfo.avatar:', userInfo.value.avatar)
-								
-								// 同步更新localStorage
 								const cachedUserInfo = uni.getStorageSync('userInfo')
 								if (cachedUserInfo) {
 									cachedUserInfo.avatar = avatarUrl
 									uni.setStorageSync('userInfo', cachedUserInfo)
-									console.log('缓存已更新')
 								}
 								
-								// 使用 nextTick 确保 DOM 已更新
 								await nextTick()
-								console.log('DOM已更新')
-								
 								uni.showToast({ title: '头像修改成功', icon: 'success' })
 							} catch (e) {
 								console.error('更新用户信息失败:', e)
@@ -399,7 +327,6 @@ const editBio = () => {
 		content: userInfo.value.bio || '',
 		success: (res) => {
 			if (res.confirm) {
-				// 允许空字符串
 				userInfo.value.bio = res.content || ''
 				checkChanges()
 				uni.showToast({ title: '简介已更新,请保存', icon: 'none' })
@@ -408,22 +335,18 @@ const editBio = () => {
 	})
 }
 
-// 编辑手机号 - 跳转到修改手机号页面
+// 编辑手机号
 const editPhone = () => {
-	// 跳转到修改手机号页面
 	uni.navigateTo({
 		url: '/pages/change-phone/change-phone'
 	})
 }
 
-// 修改密码 - 跳转到修改密码页面
+// 修改密码
 const editPassword = () => {
-	// 获取完整的手机号(不是脱敏后的)
 	let fullPhone = userInfo.value.fullPhone
 	
-	// 如果 fullPhone 不存在,尝试使用 phone 字段
 	if (!fullPhone && userInfo.value.phone) {
-		// 检查 phone 是否是脱敏后的(包含****)
 		if (userInfo.value.phone.includes('*')) {
 			console.error('phone 字段是脱敏后的,无法使用')
 			uni.showToast({ 
@@ -446,67 +369,9 @@ const editPassword = () => {
 		return
 	}
 	
-	// 跳转到修改密码页面
 	uni.navigateTo({
 		url: `/pages/change-password/change-password?phone=${fullPhone}`
 	})
-}
-
-// 编辑微信绑定
-const editWechat = () => {
-	if (userInfo.value.wechatOpenid) {
-		uni.showModal({
-			title: '解绑微信',
-			content: '确定要解绑微信账号吗？',
-			success: (res) => {
-				if (res.confirm) {
-					userInfo.value.wechatOpenid = ''
-					checkChanges()
-					uni.showToast({ title: '微信已解绑，请保存', icon: 'none' })
-				}
-			}
-		})
-	} else {
-		uni.showToast({ title: '微信绑定功能开发中', icon: 'none' })
-	}
-}
-
-// 编辑QQ绑定
-const editQQ = () => {
-	if (userInfo.value.qqOpenid) {
-		uni.showModal({
-			title: '解绑QQ',
-			content: '确定要解绑QQ账号吗？',
-			success: (res) => {
-				if (res.confirm) {
-					userInfo.value.qqOpenid = ''
-					checkChanges()
-					uni.showToast({ title: 'QQ已解绑，请保存', icon: 'none' })
-				}
-			}
-		})
-	} else {
-		uni.showToast({ title: 'QQ绑定功能开发中', icon: 'none' })
-	}
-}
-
-// 编辑微博绑定
-const editWeibo = () => {
-	if (userInfo.value.weiboUid) {
-		uni.showModal({
-			title: '解绑微博',
-			content: '确定要解绑微博账号吗？',
-			success: (res) => {
-				if (res.confirm) {
-					userInfo.value.weiboUid = ''
-					checkChanges()
-					uni.showToast({ title: '微博已解绑，请保存', icon: 'none' })
-				}
-			}
-		})
-	} else {
-		uni.showToast({ title: '微博绑定功能开发中', icon: 'none' })
-	}
 }
 
 // 检查是否有修改
@@ -524,25 +389,17 @@ const handleSave = async () => {
 	uni.showLoading({ title: '保存中...' })
 	
 	try {
-		// 准备更新数据
 		const updateData = {
 			username: userInfo.value.username,
 			avatar: userInfo.value.avatar,
 			bio: userInfo.value.bio,
 			gender: userInfo.value.gender,
-			birthday: userInfo.value.birthday,
-			wechatOpenid: userInfo.value.wechatOpenid || '',
-			qqOpenid: userInfo.value.qqOpenid || '',
-			weiboUid: userInfo.value.weiboUid || ''
+			birthday: userInfo.value.birthday
 		}
 		
-		// 调用后端API
 		await updateUserInfo(updateData)
 		
-		// 更新缓存
 		uni.setStorageSync('userInfo', userInfo.value)
-		
-		// 更新原始数据
 		originalUserInfo.value = JSON.parse(JSON.stringify(userInfo.value))
 		hasChanges.value = false
 		
@@ -569,23 +426,18 @@ const handleLogout = () => {
 			if (res.confirm) {
 				try {
 					console.log('开始退出登录...')
-					
-					// 调用后端退出登录接口
 					await logout()
 					console.log('后端退出成功')
 					
-					// 清除所有本地存储
 					uni.clearStorageSync()
 					console.log('已清除所有缓存')
 					
-					// 显示成功提示
 					uni.showToast({
 						title: '退出成功',
 						icon: 'success',
 						duration: 1500
 					})
 					
-					// 延迟跳转到登录页面
 					setTimeout(() => {
 						uni.reLaunch({
 							url: '/pages/login/login'
@@ -594,7 +446,6 @@ const handleLogout = () => {
 					
 				} catch (e) {
 					console.error('退出登录失败:', e)
-					// 即使接口调用失败,也清除本地数据并跳转
 					uni.clearStorageSync()
 					uni.showToast({
 						title: '已退出',
@@ -711,28 +562,6 @@ const handleLogout = () => {
 	justify-content: space-between;
 }
 
-.item-left {
-	display: flex;
-	align-items: center;
-}
-
-.social-icon {
-	font-size: 36rpx;
-	margin-right: 15rpx;
-}
-
-.social-icon.wechat {
-	filter: grayscale(0);
-}
-
-.social-icon.qq {
-	filter: grayscale(0);
-}
-
-.social-icon.weibo {
-	filter: grayscale(0);
-}
-
 .item-label {
 	font-size: 32rpx;
 	color: #333;
@@ -741,13 +570,6 @@ const handleLogout = () => {
 .item-right {
 	display: flex;
 	align-items: center;
-}
-
-.avatar-preview {
-	width: 80rpx;
-	height: 80rpx;
-	border-radius: 50%;
-	margin-right: 15rpx;
 }
 
 .item-value {
