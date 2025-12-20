@@ -6,11 +6,11 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.businessreviews.constants.RedisKeyConstants;
 import com.businessreviews.constants.SmsCodeConstants;
 import com.businessreviews.common.PageResult;
-import com.businessreviews.dto.request.ChangePhoneRequest;
-import com.businessreviews.dto.request.UpdateUserInfoRequest;
-import com.businessreviews.dto.request.ChangePasswordRequest;
-import com.businessreviews.dto.response.*;
-import com.businessreviews.entity.*;
+import com.businessreviews.model.dto.ChangePhoneDTO;
+import com.businessreviews.model.dto.UpdateUserInfoDTO;
+import com.businessreviews.model.dto.ChangePasswordDTO;
+import com.businessreviews.model.vo.*;
+import com.businessreviews.model.dataobject.*;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.*;
 import com.businessreviews.service.MessageService;
@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
+public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements UserService {
 
     private final UserMapper userMapper;
     private final UserStatsMapper userStatsMapper;
@@ -62,14 +62,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     private static final Random RANDOM = new Random();
 
     @Override
-    public User getByPhone(String phone) {
+    public UserDO getByPhone(String phone) {
         return userMapper.selectByPhone(phone);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public User register(String phone) {
-        User user = new User();
+    public UserDO register(String phone) {
+        UserDO user = new UserDO();
         user.setPhone(phone);
         user.setUsername("用户" + phone.substring(7));
         
@@ -79,7 +79,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         user.setStatus(1);
         userMapper.insert(user);
         
-        UserStats stats = new UserStats();
+        UserStatsDO stats = new UserStatsDO();
         stats.setUserId(user.getId());
         stats.setFollowingCount(0);
         stats.setFollowerCount(0);
@@ -92,8 +92,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
-    public UserInfoResponse getUserInfo(Long userId) {
-        User user = userMapper.selectById(userId);
+    public UserInfoVO getUserInfo(Long userId) {
+        UserDO user = userMapper.selectById(userId);
         if (user == null) {
             log.warn("用户不存在: userId={}, 可能是Token已失效或用户已被删除", userId);
             // 清除可能的脏缓存
@@ -101,9 +101,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new BusinessException(40401, "用户信息已失效,请重新登录");
         }
         
-        UserStats stats = userStatsMapper.selectByUserId(userId);
+        UserStatsDO stats = userStatsMapper.selectByUserId(userId);
         
-        UserInfoResponse response = new UserInfoResponse();
+        UserInfoVO response = new UserInfoVO();
         response.setUserId(user.getId().toString());
         response.setUsername(user.getUsername());
         response.setAvatar(user.getAvatar());
@@ -129,8 +129,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void updateUserInfo(Long userId, UpdateUserInfoRequest request) {
-        User user = userMapper.selectById(userId);
+    public void updateUserInfo(Long userId, UpdateUserInfoDTO request) {
+        UserDO user = userMapper.selectById(userId);
         if (user == null) {
             throw new BusinessException(40401, "用户不存在");
         }
@@ -167,15 +167,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
-    public UserProfileResponse getUserProfile(Long userId, Long currentUserId) {
-        User user = userMapper.selectById(userId);
+    public UserProfileVO getUserProfile(Long userId, Long currentUserId) {
+        UserDO user = userMapper.selectById(userId);
         if (user == null) {
             throw new BusinessException(40401, "用户不存在");
         }
         
-        UserStats stats = userStatsMapper.selectByUserId(userId);
+        UserStatsDO stats = userStatsMapper.selectByUserId(userId);
         
-        UserProfileResponse response = new UserProfileResponse();
+        UserProfileVO response = new UserProfileVO();
         response.setUserId(user.getId().toString());
         response.setUsername(user.getUsername());
         response.setAvatar(user.getAvatar());
@@ -190,25 +190,25 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         
         // 检查是否已关注
         if (currentUserId != null && !currentUserId.equals(userId)) {
-            response.setIsFollowing(isFollowing(currentUserId, userId));
+            response.setFollowing(isFollowing(currentUserId, userId));
         } else {
-            response.setIsFollowing(false);
+            response.setFollowing(false);
         }
         
         return response;
     }
 
     @Override
-    public PageResult<NoteItemResponse> getMyNotes(Long userId, Integer pageNum, Integer pageSize) {
-        Page<Note> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Note::getUserId, userId)
-               .eq(Note::getStatus, 1)
-               .orderByDesc(Note::getCreatedAt);
+    public PageResult<NoteItemVO> getMyNotes(Long userId, Integer pageNum, Integer pageSize) {
+        Page<NoteDO> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteDO::getUserId, userId)
+               .eq(NoteDO::getStatus, 1)
+               .orderByDesc(NoteDO::getCreatedAt);
         
-        Page<Note> notePage = noteMapper.selectPage(page, wrapper);
+        Page<NoteDO> notePage = noteMapper.selectPage(page, wrapper);
         
-        List<NoteItemResponse> list = notePage.getRecords().stream()
+        List<NoteItemVO> list = notePage.getRecords().stream()
                 .map(this::convertToNoteItem)
                 .collect(Collectors.toList());
         
@@ -216,18 +216,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
-    public PageResult<FavoriteItemResponse> getMyFavorites(Long userId, Integer type, Integer pageNum, Integer pageSize) {
-        Page<UserFavorite> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<UserFavorite> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserFavorite::getUserId, userId)
-               .eq(type != null, UserFavorite::getType, type)
-               .orderByDesc(UserFavorite::getCreatedAt);
+    public PageResult<FavoriteItemVO> getMyFavorites(Long userId, Integer type, Integer pageNum, Integer pageSize) {
+        Page<UserFavoriteDO> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<UserFavoriteDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserFavoriteDO::getUserId, userId)
+               .eq(type != null, UserFavoriteDO::getType, type)
+               .orderByDesc(UserFavoriteDO::getCreatedAt);
         
-        Page<UserFavorite> favPage = userFavoriteMapper.selectPage(page, wrapper);
+        Page<UserFavoriteDO> favPage = userFavoriteMapper.selectPage(page, wrapper);
         
-        List<FavoriteItemResponse> list = new ArrayList<>();
-        for (UserFavorite fav : favPage.getRecords()) {
-            FavoriteItemResponse item = new FavoriteItemResponse();
+        List<FavoriteItemVO> list = new ArrayList<>();
+        for (UserFavoriteDO fav : favPage.getRecords()) {
+            FavoriteItemVO item = new FavoriteItemVO();
             item.setId(fav.getId().toString());
             item.setType(fav.getType());
             item.setTargetId(fav.getTargetId().toString());
@@ -235,7 +235,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             
             if (fav.getType() == 1) {
                 // 笔记
-                Note note = noteMapper.selectById(fav.getTargetId());
+                NoteDO note = noteMapper.selectById(fav.getTargetId());
                 if (note != null) {
                     item.setImage(note.getCoverImage());
                     item.setTitle(note.getTitle());
@@ -243,7 +243,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                 }
             } else if (fav.getType() == 2) {
                 // 商家
-                Shop shop = shopMapper.selectById(fav.getTargetId());
+                ShopDO shop = shopMapper.selectById(fav.getTargetId());
                 if (shop != null) {
                     item.setImage(shop.getHeaderImage());
                     item.setTitle(shop.getName());
@@ -257,17 +257,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
-    public PageResult<HistoryItemResponse> getBrowseHistory(Long userId, Integer pageNum, Integer pageSize) {
-        Page<BrowseHistory> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<BrowseHistory> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BrowseHistory::getUserId, userId)
-               .orderByDesc(BrowseHistory::getCreatedAt);
+    public PageResult<HistoryItemVO> getBrowseHistory(Long userId, Integer pageNum, Integer pageSize) {
+        Page<BrowseHistoryDO> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<BrowseHistoryDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BrowseHistoryDO::getUserId, userId)
+               .orderByDesc(BrowseHistoryDO::getCreatedAt);
         
-        Page<BrowseHistory> historyPage = browseHistoryMapper.selectPage(page, wrapper);
+        Page<BrowseHistoryDO> historyPage = browseHistoryMapper.selectPage(page, wrapper);
         
-        List<HistoryItemResponse> list = new ArrayList<>();
-        for (BrowseHistory history : historyPage.getRecords()) {
-            HistoryItemResponse item = new HistoryItemResponse();
+        List<HistoryItemVO> list = new ArrayList<>();
+        for (BrowseHistoryDO history : historyPage.getRecords()) {
+            HistoryItemVO item = new HistoryItemVO();
             item.setId(history.getId().toString());
             item.setType(history.getType());
             item.setTargetId(history.getTargetId().toString());
@@ -275,13 +275,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             item.setCreatedAt(history.getCreatedAt().toString());
             
             if (history.getType() == 1) {
-                Note note = noteMapper.selectById(history.getTargetId());
+                NoteDO note = noteMapper.selectById(history.getTargetId());
                 if (note != null) {
                     item.setImage(note.getCoverImage());
                     item.setTitle(note.getTitle());
                 }
             } else if (history.getType() == 2) {
-                Shop shop = shopMapper.selectById(history.getTargetId());
+                ShopDO shop = shopMapper.selectById(history.getTargetId());
                 if (shop != null) {
                     item.setImage(shop.getHeaderImage());
                     item.setTitle(shop.getName());
@@ -301,7 +301,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         
         // 检查目标用户是否存在
-        User targetUser = userMapper.selectById(targetUserId);
+        UserDO targetUser = userMapper.selectById(targetUserId);
         if (targetUser == null) {
             throw new BusinessException(40401, "用户不存在");
         }
@@ -312,7 +312,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         
         // 插入关注记录
-        UserFollow follow = new UserFollow();
+        UserFollowDO follow = new UserFollowDO();
         follow.setUserId(userId);
         follow.setFollowUserId(targetUserId);
         userFollowMapper.insert(follow);
@@ -322,7 +322,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         userStatsMapper.incrementFollowerCount(targetUserId);
         
         // 发送关注通知
-        User user = userMapper.selectById(userId);
+        UserDO user = userMapper.selectById(userId);
         // 使用新的系统通知方法，包含发送者信息
         messageService.sendSystemNotice(targetUserId, userId, 3, userId,
                 user.getUsername() + " 关注了你", user.getAvatar());
@@ -332,11 +332,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Transactional(rollbackFor = Exception.class)
     public void unfollowUser(Long userId, Long targetUserId) {
         // 检查是否已关注
-        LambdaQueryWrapper<UserFollow> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserFollow::getUserId, userId)
-               .eq(UserFollow::getFollowUserId, targetUserId);
+        LambdaQueryWrapper<UserFollowDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserFollowDO::getUserId, userId)
+               .eq(UserFollowDO::getFollowUserId, targetUserId);
         
-        UserFollow follow = userFollowMapper.selectOne(wrapper);
+        UserFollowDO follow = userFollowMapper.selectOne(wrapper);
         if (follow == null) {
             throw new BusinessException(40001, "未关注该用户");
         }
@@ -350,21 +350,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
-    public PageResult<UserItemResponse> getFollowingList(Long userId, Integer pageNum, Integer pageSize) {
-        Page<UserFollow> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<UserFollow> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserFollow::getUserId, userId)
-               .orderByDesc(UserFollow::getCreatedAt);
+    public PageResult<UserItemVO> getFollowingList(Long userId, Integer pageNum, Integer pageSize) {
+        Page<UserFollowDO> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<UserFollowDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserFollowDO::getUserId, userId)
+               .orderByDesc(UserFollowDO::getCreatedAt);
         
-        Page<UserFollow> followPage = userFollowMapper.selectPage(page, wrapper);
+        Page<UserFollowDO> followPage = userFollowMapper.selectPage(page, wrapper);
         
-        List<UserItemResponse> list = followPage.getRecords().stream()
+        List<UserItemVO> list = followPage.getRecords().stream()
                 .map(f -> {
-                    User user = userMapper.selectById(f.getFollowUserId());
-                    UserItemResponse item = convertToUserItem(user);
+                    UserDO user = userMapper.selectById(f.getFollowUserId());
+                    UserItemVO item = convertToUserItem(user);
                     // 关注列表中的所有用户都是已关注的
                     if (item != null) {
-                        item.setIsFollowing(true);
+                        item.setFollowing(true);
                     }
                     return item;
                 })
@@ -374,21 +374,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
-    public PageResult<UserItemResponse> getFollowerList(Long userId, Integer pageNum, Integer pageSize) {
-        Page<UserFollow> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<UserFollow> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserFollow::getFollowUserId, userId)
-               .orderByDesc(UserFollow::getCreatedAt);
+    public PageResult<UserItemVO> getFollowerList(Long userId, Integer pageNum, Integer pageSize) {
+        Page<UserFollowDO> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<UserFollowDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserFollowDO::getFollowUserId, userId)
+               .orderByDesc(UserFollowDO::getCreatedAt);
         
-        Page<UserFollow> followPage = userFollowMapper.selectPage(page, wrapper);
+        Page<UserFollowDO> followPage = userFollowMapper.selectPage(page, wrapper);
         
-        List<UserItemResponse> list = followPage.getRecords().stream()
+        List<UserItemVO> list = followPage.getRecords().stream()
                 .map(f -> {
-                    User user = userMapper.selectById(f.getUserId());
-                    UserItemResponse item = convertToUserItem(user);
+                    UserDO user = userMapper.selectById(f.getUserId());
+                    UserItemVO item = convertToUserItem(user);
                     // 设置当前用户是否关注了该粉丝
                     if (item != null) {
-                        item.setIsFollowing(isFollowing(userId, user.getId()));
+                        item.setFollowing(isFollowing(userId, user.getId()));
                     }
                     return item;
                 })
@@ -402,14 +402,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (userId == null || targetUserId == null) {
             return false;
         }
-        LambdaQueryWrapper<UserFollow> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserFollow::getUserId, userId)
-               .eq(UserFollow::getFollowUserId, targetUserId);
+        LambdaQueryWrapper<UserFollowDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserFollowDO::getUserId, userId)
+               .eq(UserFollowDO::getFollowUserId, targetUserId);
         return userFollowMapper.selectCount(wrapper) > 0;
     }
 
-    private NoteItemResponse convertToNoteItem(Note note) {
-        NoteItemResponse item = new NoteItemResponse();
+    private NoteItemVO convertToNoteItem(NoteDO note) {
+        NoteItemVO item = new NoteItemVO();
         item.setId(note.getId().toString());
         item.setImage(note.getCoverImage());
         item.setTitle(note.getTitle());
@@ -419,11 +419,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return item;
     }
 
-    private UserItemResponse convertToUserItem(User user) {
+    private UserItemVO convertToUserItem(UserDO user) {
         if (user == null) {
             return null;
         }
-        UserItemResponse item = new UserItemResponse();
+        UserItemVO item = new UserItemVO();
         item.setUserId(user.getId().toString());
         item.setUsername(user.getUsername());
         item.setAvatar(user.getAvatar());
@@ -440,8 +440,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void changePassword(Long userId, ChangePasswordRequest request) {
-        User user = userMapper.selectById(userId);
+    public void changePassword(Long userId, ChangePasswordDTO request) {
+        UserDO user = userMapper.selectById(userId);
         if (user == null) {
             throw new BusinessException(40401, "用户不存在");
         }
@@ -500,8 +500,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void changePhone(Long userId, ChangePhoneRequest request) {
-        User user = userMapper.selectById(userId);
+    public void changePhone(Long userId, ChangePhoneDTO request) {
+        UserDO user = userMapper.selectById(userId);
         if (user == null) {
             throw new BusinessException(40401, "用户不存在");
         }
@@ -526,7 +526,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         
         // 检查新手机号是否已被其他用户绑定
-        User existingUser = userMapper.selectByPhone(newPhone);
+        UserDO existingUser = userMapper.selectByPhone(newPhone);
         if (existingUser != null && !existingUser.getId().equals(userId)) {
             throw new BusinessException(40001, "该手机号已被其他账号绑定");
         }
@@ -565,7 +565,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     
     @Override
     public String getUserPhone(Long userId) {
-        User user = userMapper.selectById(userId);
+        UserDO user = userMapper.selectById(userId);
         if (user == null) {
             throw new BusinessException(40401, "用户不存在");
         }

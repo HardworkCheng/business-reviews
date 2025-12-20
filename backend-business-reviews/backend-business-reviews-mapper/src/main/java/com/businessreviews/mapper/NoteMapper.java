@@ -1,13 +1,13 @@
 package com.businessreviews.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.businessreviews.entity.Note;
+import com.businessreviews.model.dataobject.NoteDO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
 
 @Mapper
-public interface NoteMapper extends BaseMapper<Note> {
+public interface NoteMapper extends BaseMapper<NoteDO> {
     
     @Update("UPDATE notes SET view_count = view_count + 1 WHERE id = #{id}")
     int incrementViewCount(@Param("id") Long id);

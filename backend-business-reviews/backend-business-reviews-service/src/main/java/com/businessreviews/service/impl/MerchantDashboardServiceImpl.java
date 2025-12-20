@@ -1,7 +1,7 @@
 package com.businessreviews.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.businessreviews.entity.*;
+import com.businessreviews.model.dataobject.*;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.*;
 import com.businessreviews.service.MerchantDashboardService;
@@ -105,9 +105,9 @@ public class MerchantDashboardServiceImpl implements MerchantDashboardService {
         }
         
         // 统计总浏览量、点赞数、评论数
-        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(Note::getId, noteIds);
-        List<Note> notes = noteMapper.selectList(wrapper);
+        LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(NoteDO::getId, noteIds);
+        List<NoteDO> notes = noteMapper.selectList(wrapper);
         
         int totalViews = notes.stream().mapToInt(n -> n.getViewCount() != null ? n.getViewCount() : 0).sum();
         int totalLikes = notes.stream().mapToInt(n -> n.getLikeCount() != null ? n.getLikeCount() : 0).sum();
@@ -146,9 +146,9 @@ public class MerchantDashboardServiceImpl implements MerchantDashboardService {
         Map<String, Object> data = new HashMap<>();
         
         // 查询商家的优惠券
-        LambdaQueryWrapper<Coupon> couponWrapper = new LambdaQueryWrapper<>();
-        couponWrapper.eq(Coupon::getMerchantId, merchantId);
-        List<Coupon> coupons = couponMapper.selectList(couponWrapper);
+        LambdaQueryWrapper<CouponDO> couponWrapper = new LambdaQueryWrapper<>();
+        couponWrapper.eq(CouponDO::getMerchantId, merchantId);
+        List<CouponDO> coupons = couponMapper.selectList(couponWrapper);
         
         if (coupons.isEmpty()) {
             data.put("totalIssued", 0);
@@ -158,18 +158,18 @@ public class MerchantDashboardServiceImpl implements MerchantDashboardService {
             return data;
         }
         
-        List<Long> couponIds = coupons.stream().map(Coupon::getId).collect(Collectors.toList());
+        List<Long> couponIds = coupons.stream().map(CouponDO::getId).collect(Collectors.toList());
         
         // 统计发放、领取、核销数量
         int totalIssued = coupons.stream().mapToInt(c -> c.getTotalCount() != null ? c.getTotalCount() : 0).sum();
         
-        LambdaQueryWrapper<UserCoupon> claimedWrapper = new LambdaQueryWrapper<>();
-        claimedWrapper.in(UserCoupon::getCouponId, couponIds);
+        LambdaQueryWrapper<UserCouponDO> claimedWrapper = new LambdaQueryWrapper<>();
+        claimedWrapper.in(UserCouponDO::getCouponId, couponIds);
         long totalClaimed = userCouponMapper.selectCount(claimedWrapper);
         
-        LambdaQueryWrapper<UserCoupon> redeemedWrapper = new LambdaQueryWrapper<>();
-        redeemedWrapper.in(UserCoupon::getCouponId, couponIds)
-                .eq(UserCoupon::getStatus, 2);
+        LambdaQueryWrapper<UserCouponDO> redeemedWrapper = new LambdaQueryWrapper<>();
+        redeemedWrapper.in(UserCouponDO::getCouponId, couponIds)
+                .eq(UserCouponDO::getStatus, 2);
         long totalRedeemed = userCouponMapper.selectCount(redeemedWrapper);
         
         data.put("totalIssued", totalIssued);
@@ -213,33 +213,33 @@ public class MerchantDashboardServiceImpl implements MerchantDashboardService {
     }
     
     private void validateMerchant(Long merchantId) {
-        Merchant merchant = merchantMapper.selectById(merchantId);
+        MerchantDO merchant = merchantMapper.selectById(merchantId);
         if (merchant == null) {
             throw new BusinessException(40404, "商家不存在");
         }
     }
     
     private List<Long> getShopIdsByMerchant(Long merchantId) {
-        LambdaQueryWrapper<Shop> wrapper = new LambdaQueryWrapper<>();
-        List<Shop> shops = shopMapper.selectList(wrapper);
-        return shops.stream().map(Shop::getId).collect(Collectors.toList());
+        LambdaQueryWrapper<ShopDO> wrapper = new LambdaQueryWrapper<>();
+        List<ShopDO> shops = shopMapper.selectList(wrapper);
+        return shops.stream().map(ShopDO::getId).collect(Collectors.toList());
     }
     
     private List<Long> getNoteIdsByMerchant(Long merchantId, List<Long> shopIds) {
         if (shopIds.isEmpty()) {
             return new ArrayList<>();
         }
-        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(Note::getShopId, shopIds);
-        List<Note> notes = noteMapper.selectList(wrapper);
-        return notes.stream().map(Note::getId).collect(Collectors.toList());
+        LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(NoteDO::getShopId, shopIds);
+        List<NoteDO> notes = noteMapper.selectList(wrapper);
+        return notes.stream().map(NoteDO::getId).collect(Collectors.toList());
     }
     
     private int calculateTodayViews(List<Long> noteIds) {
         if (noteIds.isEmpty()) return 0;
-        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(Note::getId, noteIds);
-        List<Note> notes = noteMapper.selectList(wrapper);
+        LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(NoteDO::getId, noteIds);
+        List<NoteDO> notes = noteMapper.selectList(wrapper);
         return notes.stream().mapToInt(n -> n.getViewCount() != null ? n.getViewCount() : 0).sum();
     }
     
@@ -249,9 +249,9 @@ public class MerchantDashboardServiceImpl implements MerchantDashboardService {
     
     private int calculateTodayInteractions(List<Long> noteIds) {
         if (noteIds.isEmpty()) return 0;
-        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(Note::getId, noteIds);
-        List<Note> notes = noteMapper.selectList(wrapper);
+        LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(NoteDO::getId, noteIds);
+        List<NoteDO> notes = noteMapper.selectList(wrapper);
         return notes.stream().mapToInt(n -> 
                 (n.getLikeCount() != null ? n.getLikeCount() : 0) +
                 (n.getCommentCount() != null ? n.getCommentCount() : 0) +
@@ -264,35 +264,35 @@ public class MerchantDashboardServiceImpl implements MerchantDashboardService {
     }
     
     private long countCouponsClaimed(Long merchantId, LocalDateTime start, LocalDateTime end) {
-        LambdaQueryWrapper<Coupon> couponWrapper = new LambdaQueryWrapper<>();
-        couponWrapper.eq(Coupon::getMerchantId, merchantId);
-        List<Coupon> coupons = couponMapper.selectList(couponWrapper);
+        LambdaQueryWrapper<CouponDO> couponWrapper = new LambdaQueryWrapper<>();
+        couponWrapper.eq(CouponDO::getMerchantId, merchantId);
+        List<CouponDO> coupons = couponMapper.selectList(couponWrapper);
         
         if (coupons.isEmpty()) return 0;
         
-        List<Long> couponIds = coupons.stream().map(Coupon::getId).collect(Collectors.toList());
+        List<Long> couponIds = coupons.stream().map(CouponDO::getId).collect(Collectors.toList());
         
-        LambdaQueryWrapper<UserCoupon> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(UserCoupon::getCouponId, couponIds)
-                .ge(UserCoupon::getReceiveTime, start)
-                .le(UserCoupon::getReceiveTime, end);
+        LambdaQueryWrapper<UserCouponDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(UserCouponDO::getCouponId, couponIds)
+                .ge(UserCouponDO::getReceiveTime, start)
+                .le(UserCouponDO::getReceiveTime, end);
         return userCouponMapper.selectCount(wrapper);
     }
     
     private long countCouponsRedeemed(Long merchantId, LocalDateTime start, LocalDateTime end) {
-        LambdaQueryWrapper<Coupon> couponWrapper = new LambdaQueryWrapper<>();
-        couponWrapper.eq(Coupon::getMerchantId, merchantId);
-        List<Coupon> coupons = couponMapper.selectList(couponWrapper);
+        LambdaQueryWrapper<CouponDO> couponWrapper = new LambdaQueryWrapper<>();
+        couponWrapper.eq(CouponDO::getMerchantId, merchantId);
+        List<CouponDO> coupons = couponMapper.selectList(couponWrapper);
         
         if (coupons.isEmpty()) return 0;
         
-        List<Long> couponIds = coupons.stream().map(Coupon::getId).collect(Collectors.toList());
+        List<Long> couponIds = coupons.stream().map(CouponDO::getId).collect(Collectors.toList());
         
-        LambdaQueryWrapper<UserCoupon> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(UserCoupon::getCouponId, couponIds)
-                .eq(UserCoupon::getStatus, 2)
-                .ge(UserCoupon::getUseTime, start)
-                .le(UserCoupon::getUseTime, end);
+        LambdaQueryWrapper<UserCouponDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(UserCouponDO::getCouponId, couponIds)
+                .eq(UserCouponDO::getStatus, 2)
+                .ge(UserCouponDO::getUseTime, start)
+                .le(UserCouponDO::getUseTime, end);
         return userCouponMapper.selectCount(wrapper);
     }
     
@@ -321,11 +321,11 @@ public class MerchantDashboardServiceImpl implements MerchantDashboardService {
     private List<Map<String, Object>> getTopNotes(List<Long> noteIds) {
         if (noteIds.isEmpty()) return new ArrayList<>();
         
-        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(Note::getId, noteIds)
-                .orderByDesc(Note::getViewCount)
+        LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(NoteDO::getId, noteIds)
+                .orderByDesc(NoteDO::getViewCount)
                 .last("LIMIT 5");
-        List<Note> notes = noteMapper.selectList(wrapper);
+        List<NoteDO> notes = noteMapper.selectList(wrapper);
         
         return notes.stream().map(note -> {
             Map<String, Object> item = new HashMap<>();

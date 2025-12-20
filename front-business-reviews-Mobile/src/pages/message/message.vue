@@ -67,7 +67,6 @@
 import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getConversationList, getUnreadCount, getNotifications } from '../../api/message'
-import websocket from '../../utils/websocket'
 
 const currentTab = ref(0)
 
@@ -87,7 +86,7 @@ const noticeLoading = ref(false)
 onLoad(() => {
 	console.log('Message page loaded')
 	loadData()
-	connectWebSocket()
+	// 不再在消息列表页面连接WebSocket，只在聊天页面连接
 })
 
 onShow(() => {
@@ -185,30 +184,6 @@ const fetchUnreadCount = async () => {
 		}
 	} catch (e) {
 		console.error('获取未读消息数失败:', e)
-	}
-}
-
-const connectWebSocket = () => {
-	const token = uni.getStorageSync('token')
-	const userInfo = uni.getStorageSync('userInfo')
-	
-	// userInfo 可能有 id 或 userId 字段
-	const userId = userInfo?.id || userInfo?.userId
-	
-	console.log('message.vue 连接WebSocket, userId:', userId, 'token:', token ? '存在' : '不存在')
-	
-	if (token && userId) {
-		websocket.connect(userId, token)
-		websocket.onMessage((message) => {
-			console.log('收到WebSocket消息:', message)
-			if (message.type === 'private_message') {
-				// 刷新会话列表
-				fetchChatList()
-				fetchUnreadCount()
-			}
-		})
-	} else {
-		console.warn('message.vue 无法连接WebSocket: 缺少token或userId')
 	}
 }
 

@@ -2,9 +2,9 @@ package com.businessreviews.merchant.controller;
 
 import com.businessreviews.common.PageResult;
 import com.businessreviews.common.Result;
-import com.businessreviews.dto.request.CreateCouponRequest;
-import com.businessreviews.dto.response.CouponDetailResponse;
-import com.businessreviews.dto.response.CouponItemResponse;
+import com.businessreviews.model.dto.CreateCouponDTO;
+import com.businessreviews.model.vo.CouponDetailVO;
+import com.businessreviews.model.vo.CouponItemVO;
 import com.businessreviews.merchant.context.MerchantContext;
 import com.businessreviews.service.MerchantCouponService;
 import jakarta.validation.Valid;
@@ -27,14 +27,14 @@ public class MerchantCouponController {
      * 获取优惠券列表
      */
     @GetMapping
-    public Result<PageResult<CouponItemResponse>> getCouponList(
+    public Result<PageResult<CouponItemVO>> getCouponList(
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize,
             @RequestParam(required = false) Integer type,
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) Long shopId) {
         Long merchantId = MerchantContext.requireMerchantId();
-        PageResult<CouponItemResponse> result = merchantCouponService.getCouponList(merchantId, pageNum, pageSize, type, status, shopId);
+        PageResult<CouponItemVO> result = merchantCouponService.getCouponList(merchantId, pageNum, pageSize, type, status, shopId);
         return Result.success(result);
     }
 
@@ -42,9 +42,9 @@ public class MerchantCouponController {
      * 获取优惠券详情
      */
     @GetMapping("/{id}")
-    public Result<CouponDetailResponse> getCouponDetail(@PathVariable Long id) {
+    public Result<CouponDetailVO> getCouponDetail(@PathVariable Long id) {
         Long merchantId = MerchantContext.requireMerchantId();
-        CouponDetailResponse response = merchantCouponService.getCouponDetail(merchantId, id);
+        CouponDetailVO response = merchantCouponService.getCouponDetail(merchantId, id);
         return Result.success(response);
     }
 
@@ -52,7 +52,7 @@ public class MerchantCouponController {
      * 创建优惠券
      */
     @PostMapping
-    public Result<Map<String, Long>> createCoupon(@RequestBody @Valid CreateCouponRequest request) {
+    public Result<Map<String, Long>> createCoupon(@RequestBody @Valid CreateCouponDTO request) {
         Long merchantId = MerchantContext.requireMerchantId();
         Long operatorId = MerchantContext.requireUserId();
         Long couponId = merchantCouponService.createCoupon(merchantId, operatorId, request);
@@ -63,7 +63,7 @@ public class MerchantCouponController {
      * 更新优惠券
      */
     @PutMapping("/{id}")
-    public Result<?> updateCoupon(@PathVariable Long id, @RequestBody @Valid CreateCouponRequest request) {
+    public Result<?> updateCoupon(@PathVariable Long id, @RequestBody @Valid CreateCouponDTO request) {
         Long merchantId = MerchantContext.requireMerchantId();
         Long operatorId = MerchantContext.requireUserId();
         merchantCouponService.updateCoupon(merchantId, operatorId, id, request);

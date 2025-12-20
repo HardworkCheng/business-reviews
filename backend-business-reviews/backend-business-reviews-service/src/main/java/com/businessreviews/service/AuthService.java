@@ -1,32 +1,32 @@
 package com.businessreviews.service;
 
-import com.businessreviews.dto.request.LoginByCodeRequest;
-import com.businessreviews.dto.request.LoginByPasswordRequest;
-import com.businessreviews.dto.request.OAuthLoginRequest;
-import com.businessreviews.dto.request.SendCodeRequest;
-import com.businessreviews.dto.response.LoginResponse;
+import com.businessreviews.model.dto.LoginByCodeDTO;
+import com.businessreviews.model.dto.LoginByPasswordDTO;
+import com.businessreviews.model.dto.OAuthLoginDTO;
+import com.businessreviews.model.dto.SendCodeDTO;
+import com.businessreviews.model.vo.LoginVO;
 
 public interface AuthService {
     
     /**
      * 发送验证码
      */
-    void sendCode(SendCodeRequest request);
+    void sendCode(SendCodeDTO request);
     
     /**
      * 验证码登录
      */
-    LoginResponse loginByCode(LoginByCodeRequest request);
+    LoginVO loginByCode(LoginByCodeDTO request);
     
     /**
      * 密码登录
      */
-    LoginResponse loginByPassword(LoginByPasswordRequest request);
+    LoginVO loginByPassword(LoginByPasswordDTO request);
     
     /**
      * 第三方登录
      */
-    LoginResponse oauthLogin(OAuthLoginRequest request);
+    LoginVO oauthLogin(OAuthLoginDTO request);
     
     /**
      * 退出登录

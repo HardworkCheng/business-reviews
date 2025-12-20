@@ -1,7 +1,7 @@
 package com.businessreviews.task;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.businessreviews.entity.BrowseHistory;
+import com.businessreviews.model.dataobject.BrowseHistoryDO;
 import com.businessreviews.mapper.BrowseHistoryMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,8 +33,8 @@ public class BrowseHistoryCleanupTask {
             LocalDateTime expireTime = LocalDateTime.now().minusDays(7);
             
             // 删除7天前的浏览历史
-            LambdaQueryWrapper<BrowseHistory> wrapper = new LambdaQueryWrapper<>();
-            wrapper.lt(BrowseHistory::getCreatedAt, expireTime);
+            LambdaQueryWrapper<BrowseHistoryDO> wrapper = new LambdaQueryWrapper<>();
+            wrapper.lt(BrowseHistoryDO::getCreatedAt, expireTime);
             
             int deletedCount = browseHistoryMapper.delete(wrapper);
             log.info("清理过期浏览历史完成，共删除 {} 条记录", deletedCount);

@@ -3,8 +3,8 @@ package com.businessreviews.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.businessreviews.common.PageResult;
-import com.businessreviews.dto.response.CommentResponse;
-import com.businessreviews.entity.*;
+import com.businessreviews.model.vo.CommentVO;
+import com.businessreviews.model.dataobject.*;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.*;
 import com.businessreviews.service.MerchantCommentService;
@@ -33,7 +33,7 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
     private final UserMapper userMapper;
 
     @Override
-    public PageResult<CommentResponse> getCommentList(Long merchantId, Integer pageNum, Integer pageSize,
+    public PageResult<CommentVO> getCommentList(Long merchantId, Integer pageNum, Integer pageSize,
             Integer status, String keyword) {
         log.info("获取评论列表: merchantId={}, pageNum={}, pageSize={}", merchantId, pageNum, pageSize);
         
@@ -45,25 +45,25 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
             return emptyPageResult(pageNum, pageSize);
         }
         
-        LambdaQueryWrapper<NoteComment> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(NoteComment::getNoteId, noteIds);
+        LambdaQueryWrapper<NoteCommentDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(NoteCommentDO::getNoteId, noteIds);
         
         if (status != null) {
-            wrapper.eq(NoteComment::getStatus, status);
+            wrapper.eq(NoteCommentDO::getStatus, status);
         }
         if (StringUtils.hasText(keyword)) {
-            wrapper.like(NoteComment::getContent, keyword);
+            wrapper.like(NoteCommentDO::getContent, keyword);
         }
-        wrapper.orderByDesc(NoteComment::getCreatedAt);
+        wrapper.orderByDesc(NoteCommentDO::getCreatedAt);
         
-        Page<NoteComment> page = new Page<>(pageNum, pageSize);
-        Page<NoteComment> commentPage = noteCommentMapper.selectPage(page, wrapper);
+        Page<NoteCommentDO> page = new Page<>(pageNum, pageSize);
+        Page<NoteCommentDO> commentPage = noteCommentMapper.selectPage(page, wrapper);
         
-        List<CommentResponse> list = commentPage.getRecords().stream()
-                .map(this::convertToCommentResponse)
+        List<CommentVO> list = commentPage.getRecords().stream()
+                .map(this::convertToCommentVO)
                 .collect(Collectors.toList());
         
-        PageResult<CommentResponse> result = new PageResult<>();
+        PageResult<CommentVO> result = new PageResult<>();
         result.setList(list);
         result.setTotal(commentPage.getTotal());
         result.setPageNum(pageNum);
@@ -78,13 +78,13 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
         
         validateMerchant(merchantId);
         
-        NoteComment parentComment = noteCommentMapper.selectById(commentId);
+        NoteCommentDO parentComment = noteCommentMapper.selectById(commentId);
         if (parentComment == null) {
             throw new BusinessException(40404, "评论不存在");
         }
         
         // 创建回复评论
-        NoteComment reply = new NoteComment();
+        NoteCommentDO reply = new NoteCommentDO();
         reply.setNoteId(parentComment.getNoteId());
         reply.setUserId(operatorId);
         reply.setParentId(commentId);
@@ -109,7 +109,7 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
         
         validateMerchant(merchantId);
         
-        NoteComment comment = noteCommentMapper.selectById(commentId);
+        NoteCommentDO comment = noteCommentMapper.selectById(commentId);
         if (comment == null) {
             throw new BusinessException(40404, "评论不存在");
         }
@@ -137,13 +137,13 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
         long pendingComments = 0;
         
         if (!noteIds.isEmpty()) {
-            LambdaQueryWrapper<NoteComment> totalWrapper = new LambdaQueryWrapper<>();
-            totalWrapper.in(NoteComment::getNoteId, noteIds);
+            LambdaQueryWrapper<NoteCommentDO> totalWrapper = new LambdaQueryWrapper<>();
+            totalWrapper.in(NoteCommentDO::getNoteId, noteIds);
             totalComments = noteCommentMapper.selectCount(totalWrapper);
             
-            LambdaQueryWrapper<NoteComment> pendingWrapper = new LambdaQueryWrapper<>();
-            pendingWrapper.in(NoteComment::getNoteId, noteIds)
-                    .eq(NoteComment::getStatus, 1);
+            LambdaQueryWrapper<NoteCommentDO> pendingWrapper = new LambdaQueryWrapper<>();
+            pendingWrapper.in(NoteCommentDO::getNoteId, noteIds)
+                    .eq(NoteCommentDO::getStatus, 1);
             pendingComments = noteCommentMapper.selectCount(pendingWrapper);
         }
         
@@ -156,7 +156,7 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
     }
     
     private void validateMerchant(Long merchantId) {
-        Merchant merchant = merchantMapper.selectById(merchantId);
+        MerchantDO merchant = merchantMapper.selectById(merchantId);
         if (merchant == null) {
             throw new BusinessException(40404, "商家不存在");
         }
@@ -173,21 +173,21 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
         }
         
         // 获取门店关联的笔记
-        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(Note::getShopId, shopIds);
-        List<Note> notes = noteMapper.selectList(wrapper);
-        return notes.stream().map(Note::getId).collect(Collectors.toList());
+        LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(NoteDO::getShopId, shopIds);
+        List<NoteDO> notes = noteMapper.selectList(wrapper);
+        return notes.stream().map(NoteDO::getId).collect(Collectors.toList());
     }
     
     private List<Long> getShopIdsByMerchant(Long merchantId) {
-        LambdaQueryWrapper<Shop> wrapper = new LambdaQueryWrapper<>();
-        // wrapper.eq(Shop::getMerchantId, merchantId);
-        List<Shop> shops = shopMapper.selectList(wrapper);
-        return shops.stream().map(Shop::getId).collect(Collectors.toList());
+        LambdaQueryWrapper<ShopDO> wrapper = new LambdaQueryWrapper<>();
+        // wrapper.eq(ShopDO::getMerchantId, merchantId);
+        List<ShopDO> shops = shopMapper.selectList(wrapper);
+        return shops.stream().map(ShopDO::getId).collect(Collectors.toList());
     }
     
-    private PageResult<CommentResponse> emptyPageResult(Integer pageNum, Integer pageSize) {
-        PageResult<CommentResponse> result = new PageResult<>();
+    private PageResult<CommentVO> emptyPageResult(Integer pageNum, Integer pageSize) {
+        PageResult<CommentVO> result = new PageResult<>();
         result.setList(new ArrayList<>());
         result.setTotal(0L);
         result.setPageNum(pageNum);
@@ -195,8 +195,8 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
         return result;
     }
     
-    private CommentResponse convertToCommentResponse(NoteComment comment) {
-        CommentResponse response = new CommentResponse();
+    private CommentVO convertToCommentVO(NoteCommentDO comment) {
+        CommentVO response = new CommentVO();
         response.setId(comment.getId());
         response.setContent(comment.getContent());
         response.setLikes(comment.getLikeCount());
@@ -206,7 +206,7 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
         
         // 获取用户信息
         if (comment.getUserId() != null) {
-            User user = userMapper.selectById(comment.getUserId());
+            UserDO user = userMapper.selectById(comment.getUserId());
             if (user != null) {
                 response.setAuthorId(user.getId());
                 response.setAuthor(user.getUsername());

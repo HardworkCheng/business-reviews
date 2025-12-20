@@ -1,17 +1,17 @@
 package com.businessreviews.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.businessreviews.entity.UserStats;
+import com.businessreviews.model.dataobject.UserStatsDO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 @Mapper
-public interface UserStatsMapper extends BaseMapper<UserStats> {
+public interface UserStatsMapper extends BaseMapper<UserStatsDO> {
     
     @Select("SELECT * FROM user_stats WHERE user_id = #{userId}")
-    UserStats selectByUserId(@Param("userId") Long userId);
+    UserStatsDO selectByUserId(@Param("userId") Long userId);
     
     @Update("UPDATE user_stats SET following_count = following_count + 1 WHERE user_id = #{userId}")
     int incrementFollowingCount(@Param("userId") Long userId);

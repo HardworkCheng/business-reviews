@@ -3,13 +3,13 @@ package com.businessreviews.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.businessreviews.common.PageResult;
-import com.businessreviews.dto.response.NoteDetailResponse;
-import com.businessreviews.dto.response.NoteItemResponse;
-import com.businessreviews.entity.Merchant;
-import com.businessreviews.entity.Note;
-import com.businessreviews.entity.NoteComment;
-import com.businessreviews.entity.Shop;
-import com.businessreviews.entity.User;
+import com.businessreviews.model.vo.NoteDetailVO;
+import com.businessreviews.model.vo.NoteItemVO;
+import com.businessreviews.model.dataobject.MerchantDO;
+import com.businessreviews.model.dataobject.NoteDO;
+import com.businessreviews.model.dataobject.NoteCommentDO;
+import com.businessreviews.model.dataobject.ShopDO;
+import com.businessreviews.model.dataobject.UserDO;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.MerchantMapper;
 import com.businessreviews.mapper.NoteCommentMapper;
@@ -42,7 +42,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
     private final UserMapper userMapper;
 
     @Override
-    public PageResult<NoteItemResponse> getNoteList(Long merchantId, Integer pageNum, Integer pageSize,
+    public PageResult<NoteItemVO> getNoteList(Long merchantId, Integer pageNum, Integer pageSize,
             Integer status, Long shopId, String keyword) {
         log.info("获取笔记列表: merchantId={}, pageNum={}, pageSize={}", merchantId, pageNum, pageSize);
         
@@ -52,36 +52,36 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         Long merchantUserId = findUserIdByMerchantId(merchantId);
         log.info("商家关联的用户ID: merchantId={}, userId={}", merchantId, merchantUserId);
         
-        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
         // 查询商家笔记：merchantId匹配 或者 (noteType=2 且 userId匹配)
         wrapper.and(w -> {
-            w.eq(Note::getMerchantId, merchantId);
+            w.eq(NoteDO::getMerchantId, merchantId);
             if (merchantUserId != null) {
                 // 也查询通过UniApp发布的商家笔记（noteType=2且userId匹配）
-                w.or(inner -> inner.eq(Note::getNoteType, 2).eq(Note::getUserId, merchantUserId));
+                w.or(inner -> inner.eq(NoteDO::getNoteType, 2).eq(NoteDO::getUserId, merchantUserId));
             }
         });
         
         if (status != null) {
-            wrapper.eq(Note::getStatus, status);
+            wrapper.eq(NoteDO::getStatus, status);
         }
         if (shopId != null) {
-            wrapper.eq(Note::getShopId, shopId);
+            wrapper.eq(NoteDO::getShopId, shopId);
         }
         if (StringUtils.hasText(keyword)) {
-            wrapper.like(Note::getTitle, keyword);
+            wrapper.like(NoteDO::getTitle, keyword);
         }
-        wrapper.orderByDesc(Note::getCreatedAt);
+        wrapper.orderByDesc(NoteDO::getCreatedAt);
 
         
-        Page<Note> page = new Page<>(pageNum, pageSize);
-        Page<Note> notePage = noteMapper.selectPage(page, wrapper);
+        Page<NoteDO> page = new Page<>(pageNum, pageSize);
+        Page<NoteDO> notePage = noteMapper.selectPage(page, wrapper);
         
-        List<NoteItemResponse> list = notePage.getRecords().stream()
+        List<NoteItemVO> list = notePage.getRecords().stream()
                 .map(this::convertToNoteItemResponse)
                 .collect(Collectors.toList());
         
-        PageResult<NoteItemResponse> result = new PageResult<>();
+        PageResult<NoteItemVO> result = new PageResult<>();
         result.setList(list);
         result.setTotal(notePage.getTotal());
         result.setPageNum(pageNum);
@@ -90,12 +90,12 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
     }
 
     @Override
-    public NoteDetailResponse getNoteDetail(Long merchantId, Long noteId) {
+    public NoteDetailVO getNoteDetail(Long merchantId, Long noteId) {
         log.info("获取笔记详情: merchantId={}, noteId={}", merchantId, noteId);
         
         validateMerchant(merchantId);
         
-        Note note = noteMapper.selectById(noteId);
+        NoteDO note = noteMapper.selectById(noteId);
         if (note == null) {
             throw new BusinessException(40404, "笔记不存在");
         }
@@ -113,7 +113,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         // 确保商家用户在users表中有对应的账号
         Long userId = ensureMerchantUserExists(merchantId, operatorId);
         
-        Note note = new Note();
+        NoteDO note = new NoteDO();
         note.setTitle((String) request.get("title"));
         note.setContent((String) request.get("content"));
         
@@ -149,7 +149,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         
         // 设置状态和推荐
         note.setStatus(request.get("status") != null ? (Integer) request.get("status") : 1);
-        note.setIsRecommend(request.get("isRecommend") != null ? (Integer) request.get("isRecommend") : 0);
+        note.setRecommend(request.get("isRecommend") != null ? (Integer) request.get("isRecommend") : 0);
         note.setSyncStatus(1);  // 默认已同步
         
         // 初始化统计数据
@@ -174,20 +174,20 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
      */
     private Long ensureMerchantUserExists(Long merchantId, Long operatorId) {
         // 先检查users表中是否已存在该ID的用户
-        User existingUser = userMapper.selectById(operatorId);
+        UserDO existingUser = userMapper.selectById(operatorId);
         if (existingUser != null) {
             log.info("商家用户已存在于users表: userId={}", operatorId);
             return operatorId;
         }
         
         // 如果不存在，查询商家信息并创建用户
-        Merchant merchant = merchantMapper.selectById(merchantId);
+        MerchantDO merchant = merchantMapper.selectById(merchantId);
         if (merchant == null) {
             throw new BusinessException(40404, "商家不存在");
         }
         
         // 创建用户账号
-        User user = new User();
+        UserDO user = new UserDO();
         user.setId(operatorId);  // 使用相同的ID
         user.setUsername(merchant.getName() + "官方");  // 使用商家名称作为用户名
         
@@ -195,8 +195,8 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         String phone = merchant.getContactPhone();
         if (phone != null && !phone.isEmpty()) {
             // 检查电话号码是否已存在
-            LambdaQueryWrapper<User> phoneWrapper = new LambdaQueryWrapper<>();
-            phoneWrapper.eq(User::getPhone, phone);
+            LambdaQueryWrapper<UserDO> phoneWrapper = new LambdaQueryWrapper<>();
+            phoneWrapper.eq(UserDO::getPhone, phone);
             Long phoneCount = userMapper.selectCount(phoneWrapper);
             
             if (phoneCount > 0) {
@@ -227,7 +227,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         
         validateMerchant(merchantId);
         
-        Note note = noteMapper.selectById(noteId);
+        NoteDO note = noteMapper.selectById(noteId);
         if (note == null) {
             throw new BusinessException(40404, "笔记不存在");
         }
@@ -261,7 +261,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
             note.setLongitude(new java.math.BigDecimal(request.get("longitude").toString()));
         }
         if (request.get("isRecommend") != null) {
-            note.setIsRecommend((Integer) request.get("isRecommend"));
+            note.setRecommend((Integer) request.get("isRecommend"));
         }
         if (request.get("status") != null) {
             note.setStatus((Integer) request.get("status"));
@@ -279,7 +279,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         
         validateMerchant(merchantId);
         
-        Note note = noteMapper.selectById(noteId);
+        NoteDO note = noteMapper.selectById(noteId);
         if (note == null) {
             throw new BusinessException(40404, "笔记不存在");
         }
@@ -297,7 +297,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         
         validateMerchant(merchantId);
         
-        Note note = noteMapper.selectById(noteId);
+        NoteDO note = noteMapper.selectById(noteId);
         if (note == null) {
             throw new BusinessException(40404, "笔记不存在");
         }
@@ -315,7 +315,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         
         validateMerchant(merchantId);
         
-        Note note = noteMapper.selectById(noteId);
+        NoteDO note = noteMapper.selectById(noteId);
         if (note == null) {
             throw new BusinessException(40404, "笔记不存在");
         }
@@ -330,7 +330,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         
         validateMerchant(merchantId);
         
-        Note note = noteMapper.selectById(noteId);
+        NoteDO note = noteMapper.selectById(noteId);
         if (note == null) {
             throw new BusinessException(40404, "笔记不存在");
         }
@@ -346,7 +346,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
     }
     
     private void validateMerchant(Long merchantId) {
-        Merchant merchant = merchantMapper.selectById(merchantId);
+        MerchantDO merchant = merchantMapper.selectById(merchantId);
         if (merchant == null) {
             throw new BusinessException(40404, "商家不存在");
         }
@@ -357,14 +357,14 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
     
     private List<Long> getShopIdsByMerchant(Long merchantId) {
         // 这里简化处理，实际应该根据商家ID查询关联的门店
-        LambdaQueryWrapper<Shop> wrapper = new LambdaQueryWrapper<>();
-        // wrapper.eq(Shop::getMerchantId, merchantId);
-        List<Shop> shops = shopMapper.selectList(wrapper);
-        return shops.stream().map(Shop::getId).collect(Collectors.toList());
+        LambdaQueryWrapper<ShopDO> wrapper = new LambdaQueryWrapper<>();
+        // wrapper.eq(ShopDO::getMerchantId, merchantId);
+        List<ShopDO> shops = shopMapper.selectList(wrapper);
+        return shops.stream().map(ShopDO::getId).collect(Collectors.toList());
     }
     
-    private PageResult<NoteItemResponse> emptyPageResult(Integer pageNum, Integer pageSize) {
-        PageResult<NoteItemResponse> result = new PageResult<>();
+    private PageResult<NoteItemVO> emptyPageResult(Integer pageNum, Integer pageSize) {
+        PageResult<NoteItemVO> result = new PageResult<>();
         result.setList(new ArrayList<>());
         result.setTotal(0L);
         result.setPageNum(pageNum);
@@ -372,8 +372,8 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         return result;
     }
     
-    private NoteItemResponse convertToNoteItemResponse(Note note) {
-        NoteItemResponse response = new NoteItemResponse();
+    private NoteItemVO convertToNoteItemResponse(NoteDO note) {
+        NoteItemVO response = new NoteItemVO();
         response.setId(note.getId().toString());
         response.setTitle(note.getTitle());
         response.setContent(note.getContent());
@@ -391,7 +391,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         
         // 获取作者信息
         if (note.getUserId() != null) {
-            User user = userMapper.selectById(note.getUserId());
+            UserDO user = userMapper.selectById(note.getUserId());
             if (user != null) {
                 response.setAuthor(user.getUsername());
                 response.setAuthorAvatar(user.getAvatar());
@@ -401,7 +401,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         
         // 获取门店信息
         if (note.getShopId() != null) {
-            Shop shop = shopMapper.selectById(note.getShopId());
+            ShopDO shop = shopMapper.selectById(note.getShopId());
             if (shop != null) {
                 response.setShopId(shop.getId().toString());
                 response.setShopName(shop.getName());
@@ -411,8 +411,8 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         return response;
     }
     
-    private NoteDetailResponse convertToNoteDetailResponse(Note note) {
-        NoteDetailResponse response = new NoteDetailResponse();
+    private NoteDetailVO convertToNoteDetailResponse(NoteDO note) {
+        NoteDetailVO response = new NoteDetailVO();
         response.setId(note.getId());
         response.setTitle(note.getTitle());
         response.setContent(note.getContent());
@@ -430,10 +430,10 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         response.setSyncStatus(note.getSyncStatus());
         response.setNoteType(note.getNoteType());
         response.setCreatedAt(note.getCreatedAt());
-        response.setIsLiked(false);
-        response.setIsBookmarked(false);
-        response.setIsFollowing(false);
-        response.setIsAuthor(true);  // 商家查看自己的笔记
+        response.setLiked(false);
+        response.setBookmarked(false);
+        response.setFollowing(false);
+        response.setSelfAuthor(true);  // 商家查看自己的笔记
         
         // 处理图片列表
         if (note.getImages() != null && !note.getImages().isEmpty()) {
@@ -442,7 +442,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         
         // 获取作者信息
         if (note.getUserId() != null) {
-            User user = userMapper.selectById(note.getUserId());
+            UserDO user = userMapper.selectById(note.getUserId());
             if (user != null) {
                 response.setAuthorId(user.getId());
                 response.setAuthor(user.getUsername());
@@ -453,7 +453,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         
         // 获取门店信息
         if (note.getShopId() != null) {
-            Shop shop = shopMapper.selectById(note.getShopId());
+            ShopDO shop = shopMapper.selectById(note.getShopId());
             if (shop != null) {
                 response.setShopId(shop.getId());
                 response.setShopName(shop.getName());
@@ -470,20 +470,20 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         validateMerchant(merchantId);
         
         // 验证笔记存在
-        Note note = noteMapper.selectById(noteId);
+        NoteDO note = noteMapper.selectById(noteId);
         if (note == null) {
             throw new BusinessException(40404, "笔记不存在");
         }
         
         // 查询评论列表（只查询顶级评论）
-        LambdaQueryWrapper<NoteComment> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(NoteComment::getNoteId, noteId)
-               .isNull(NoteComment::getParentId)
-               .eq(NoteComment::getStatus, 1)
-               .orderByDesc(NoteComment::getCreatedAt);
+        LambdaQueryWrapper<NoteCommentDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteCommentDO::getNoteId, noteId)
+               .isNull(NoteCommentDO::getParentId)
+               .eq(NoteCommentDO::getStatus, 1)
+               .orderByDesc(NoteCommentDO::getCreatedAt);
         
-        Page<NoteComment> page = new Page<>(pageNum, pageSize);
-        Page<NoteComment> commentPage = noteCommentMapper.selectPage(page, wrapper);
+        Page<NoteCommentDO> page = new Page<>(pageNum, pageSize);
+        Page<NoteCommentDO> commentPage = noteCommentMapper.selectPage(page, wrapper);
         
         // 转换为响应格式
         List<Map<String, Object>> list = commentPage.getRecords().stream()
@@ -506,7 +506,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         validateMerchant(merchantId);
         
         // 验证笔记存在
-        Note note = noteMapper.selectById(noteId);
+        NoteDO note = noteMapper.selectById(noteId);
         if (note == null) {
             throw new BusinessException(40404, "笔记不存在");
         }
@@ -515,7 +515,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         Long userId = ensureMerchantUserExists(merchantId, operatorId);
         
         // 创建评论
-        NoteComment comment = new NoteComment();
+        NoteCommentDO comment = new NoteCommentDO();
         comment.setNoteId(noteId);
         comment.setUserId(userId);
         comment.setContent((String) request.get("content"));
@@ -541,7 +541,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         return comment.getId();
     }
 
-    private Map<String, Object> convertCommentToMap(NoteComment comment, Long noteId) {
+    private Map<String, Object> convertCommentToMap(NoteCommentDO comment, Long noteId) {
         Map<String, Object> map = new HashMap<>();
         map.put("id", comment.getId());
         map.put("noteId", comment.getNoteId());
@@ -551,7 +551,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         
         // 获取用户信息
         if (comment.getUserId() != null) {
-            User user = userMapper.selectById(comment.getUserId());
+            UserDO user = userMapper.selectById(comment.getUserId());
             if (user != null) {
                 map.put("userId", user.getId());
                 map.put("userName", user.getUsername());
@@ -560,14 +560,14 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         }
         
         // 获取子评论（回复）
-        LambdaQueryWrapper<NoteComment> replyWrapper = new LambdaQueryWrapper<>();
-        replyWrapper.eq(NoteComment::getNoteId, noteId)
-                   .eq(NoteComment::getParentId, comment.getId())
-                   .eq(NoteComment::getStatus, 1)
-                   .orderByAsc(NoteComment::getCreatedAt)
+        LambdaQueryWrapper<NoteCommentDO> replyWrapper = new LambdaQueryWrapper<>();
+        replyWrapper.eq(NoteCommentDO::getNoteId, noteId)
+                   .eq(NoteCommentDO::getParentId, comment.getId())
+                   .eq(NoteCommentDO::getStatus, 1)
+                   .orderByAsc(NoteCommentDO::getCreatedAt)
                    .last("LIMIT 3");  // 只显示前3条回复
         
-        List<NoteComment> replies = noteCommentMapper.selectList(replyWrapper);
+        List<NoteCommentDO> replies = noteCommentMapper.selectList(replyWrapper);
         List<Map<String, Object>> replyList = replies.stream()
                 .map(reply -> {
                     Map<String, Object> replyMap = new HashMap<>();
@@ -576,7 +576,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
                     replyMap.put("createdAt", reply.getCreatedAt() != null ? reply.getCreatedAt().toString() : null);
                     
                     if (reply.getUserId() != null) {
-                        User replyUser = userMapper.selectById(reply.getUserId());
+                        UserDO replyUser = userMapper.selectById(reply.getUserId());
                         if (replyUser != null) {
                             replyMap.put("userId", replyUser.getId());
                             replyMap.put("userName", replyUser.getUsername());
@@ -602,13 +602,13 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         }
         
         // 查询商家信息
-        Merchant merchant = merchantMapper.selectById(merchantId);
+        MerchantDO merchant = merchantMapper.selectById(merchantId);
         if (merchant == null || merchant.getContactPhone() == null) {
             return null;
         }
         
         // 通过手机号查找用户
-        User user = userMapper.selectByPhone(merchant.getContactPhone());
+        UserDO user = userMapper.selectByPhone(merchant.getContactPhone());
         if (user != null) {
             log.info("商家关联到用户: merchantId={}, userId={}, phone={}", merchantId, user.getId(), merchant.getContactPhone());
             return user.getId();

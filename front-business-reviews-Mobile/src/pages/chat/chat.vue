@@ -70,7 +70,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { onLoad, onShow as uniOnShow } from '@dcloudio/uni-app'
+import { onLoad, onShow as uniOnShow, onHide as uniOnHide } from '@dcloudio/uni-app'
 import { getConversationMessages, sendMessage as sendMessageApi, markAsRead } from '../../api/message'
 import { getUserInfo } from '../../api/user'
 import websocket from '../../utils/websocket'
@@ -88,6 +88,8 @@ const pageNum = ref(1)
 const hasMore = ref(true)
 const scrollToView = ref('')
 const conversationId = ref(null)
+const pollingTimer = ref(null)
+const lastMessageId = ref(null)
 
 onLoad((options) => {
 	otherUserId.value = parseInt(options.userId)
@@ -107,6 +109,9 @@ onLoad((options) => {
 	// 连接WebSocket
 	connectWebSocket()
 	
+	// 启动轮询（作为WebSocket的备用方案）
+	startPolling()
+	
 	// 标记消息为已读
 	markMessagesAsRead()
 })
@@ -115,11 +120,25 @@ uniOnShow(() => {
 	// 每次页面显示时标记消息为已读
 	console.log('聊天页面显示，标记消息为已读')
 	markMessagesAsRead()
+	// 重新启动轮询和WebSocket
+	startPolling()
+	connectWebSocket()
+})
+
+uniOnHide(() => {
+	// 页面隐藏时停止轮询和WebSocket，节省资源
+	console.log('聊天页面隐藏，停止轮询和WebSocket')
+	stopPolling()
+	websocket.disable()
 })
 
 onUnmounted(() => {
 	// 移除消息监听
 	websocket.offMessage(handleNewMessage)
+	// 禁用WebSocket（停止连接和重连）
+	websocket.disable()
+	// 停止轮询
+	stopPolling()
 })
 
 // 获取我的信息
@@ -266,6 +285,8 @@ const connectWebSocket = () => {
 	console.log('连接WebSocket, userId:', userId, 'token:', token ? '存在' : '不存在')
 	
 	if (token && userId) {
+		// 启用WebSocket并连接
+		websocket.enable()
 		websocket.connect(userId, token)
 		websocket.onMessage(handleNewMessage)
 		console.log('WebSocket消息处理器已注册')
@@ -336,6 +357,70 @@ const markMessagesAsRead = async () => {
 		console.log('标记已读成功')
 	} catch (e) {
 		console.error('标记已读失败:', e)
+	}
+}
+
+// 启动轮询
+const startPolling = () => {
+	// 先停止之前的轮询
+	stopPolling()
+	
+	// 每3秒轮询一次新消息
+	pollingTimer.value = setInterval(() => {
+		pollNewMessages()
+	}, 3000)
+	
+	console.log('消息轮询已启动')
+}
+
+// 停止轮询
+const stopPolling = () => {
+	if (pollingTimer.value) {
+		clearInterval(pollingTimer.value)
+		pollingTimer.value = null
+		console.log('消息轮询已停止')
+	}
+}
+
+// 轮询新消息
+const pollNewMessages = async () => {
+	if (!otherUserId.value) return
+	
+	try {
+		const result = await getConversationMessages(otherUserId.value, 1, 20)
+		
+		if (result && result.list && result.list.length > 0) {
+			// 获取当前用户ID
+			const userInfo = uni.getStorageSync('userInfo')
+			const myUserId = userInfo?.userId || userInfo?.id
+			
+			// 处理消息，添加 isMine 属性
+			const newMessages = result.list.map(msg => ({
+				...msg,
+				isMine: msg.senderId?.toString() === myUserId?.toString()
+			})).reverse()
+			
+			// 检查是否有新消息
+			const existingIds = new Set(messages.value.map(m => m.id?.toString()))
+			const reallyNewMessages = newMessages.filter(msg => !existingIds.has(msg.id?.toString()))
+			
+			if (reallyNewMessages.length > 0) {
+				console.log('轮询发现新消息:', reallyNewMessages.length, '条')
+				
+				// 添加新消息到列表
+				messages.value.push(...reallyNewMessages)
+				
+				// 滚动到底部
+				setTimeout(() => {
+					scrollToBottom()
+				}, 100)
+				
+				// 标记为已读
+				markMessagesAsRead()
+			}
+		}
+	} catch (e) {
+		console.error('轮询消息失败:', e)
 	}
 }
 

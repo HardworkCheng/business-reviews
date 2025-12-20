@@ -3,13 +3,13 @@ package com.businessreviews.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.businessreviews.common.PageResult;
-import com.businessreviews.dto.request.CreateCouponRequest;
-import com.businessreviews.dto.response.CouponDetailResponse;
-import com.businessreviews.dto.response.CouponItemResponse;
-import com.businessreviews.entity.Coupon;
-import com.businessreviews.entity.Merchant;
-import com.businessreviews.entity.Shop;
-import com.businessreviews.entity.UserCoupon;
+import com.businessreviews.model.dto.CreateCouponDTO;
+import com.businessreviews.model.vo.CouponDetailVO;
+import com.businessreviews.model.vo.CouponItemVO;
+import com.businessreviews.model.dataobject.CouponDO;
+import com.businessreviews.model.dataobject.MerchantDO;
+import com.businessreviews.model.dataobject.ShopDO;
+import com.businessreviews.model.dataobject.UserCouponDO;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.CouponMapper;
 import com.businessreviews.mapper.MerchantMapper;
@@ -42,7 +42,7 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
     private final ShopMapper shopMapper;
 
     @Override
-    public PageResult<CouponItemResponse> getCouponList(Long merchantId, Integer pageNum, Integer pageSize, 
+    public PageResult<CouponItemVO> getCouponList(Long merchantId, Integer pageNum, Integer pageSize, 
             Integer type, Integer status, Long shopId) {
         log.info("获取优惠券列表: merchantId={}, pageNum={}, pageSize={}, type={}, status={}", 
                 merchantId, pageNum, pageSize, type, status);
@@ -51,31 +51,31 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
         validateMerchant(merchantId);
         
         // 构建查询条件
-        LambdaQueryWrapper<Coupon> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Coupon::getMerchantId, merchantId);
+        LambdaQueryWrapper<CouponDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CouponDO::getMerchantId, merchantId);
         
         if (type != null) {
-            wrapper.eq(Coupon::getType, type);
+            wrapper.eq(CouponDO::getType, type);
         }
         if (status != null) {
-            wrapper.eq(Coupon::getStatus, status);
+            wrapper.eq(CouponDO::getStatus, status);
         }
         if (shopId != null) {
-            wrapper.eq(Coupon::getShopId, shopId);
+            wrapper.eq(CouponDO::getShopId, shopId);
         }
-        wrapper.orderByDesc(Coupon::getCreatedAt);
+        wrapper.orderByDesc(CouponDO::getCreatedAt);
 
         
         // 分页查询
-        Page<Coupon> page = new Page<>(pageNum, pageSize);
-        Page<Coupon> couponPage = couponMapper.selectPage(page, wrapper);
+        Page<CouponDO> page = new Page<>(pageNum, pageSize);
+        Page<CouponDO> couponPage = couponMapper.selectPage(page, wrapper);
         
         // 转换结果
-        List<CouponItemResponse> list = couponPage.getRecords().stream()
-                .map(this::convertToCouponItemResponse)
+        List<CouponItemVO> list = couponPage.getRecords().stream()
+                .map(this::convertToCouponItemVO)
                 .collect(Collectors.toList());
         
-        PageResult<CouponItemResponse> result = new PageResult<>();
+        PageResult<CouponItemVO> result = new PageResult<>();
         result.setList(list);
         result.setTotal(couponPage.getTotal());
         result.setPageNum(pageNum);
@@ -84,14 +84,14 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
     }
 
     @Override
-    public CouponDetailResponse getCouponDetail(Long merchantId, Long couponId) {
+    public CouponDetailVO getCouponDetail(Long merchantId, Long couponId) {
         log.info("获取优惠券详情: merchantId={}, couponId={}", merchantId, couponId);
         
         // 验证商家
         validateMerchant(merchantId);
         
         // 查询优惠券
-        Coupon coupon = couponMapper.selectById(couponId);
+        CouponDO coupon = couponMapper.selectById(couponId);
         if (coupon == null) {
             throw new BusinessException(40404, "优惠券不存在");
         }
@@ -101,19 +101,19 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
             throw new BusinessException(40300, "无权访问此优惠券");
         }
         
-        return convertToCouponDetailResponse(coupon);
+        return convertToCouponDetailVO(coupon);
     }
 
     @Override
     @Transactional
-    public Long createCoupon(Long merchantId, Long operatorId, CreateCouponRequest request) {
+    public Long createCoupon(Long merchantId, Long operatorId, CreateCouponDTO request) {
         log.info("创建优惠券: merchantId={}, operatorId={}", merchantId, operatorId);
         
         // 验证商家
         validateMerchant(merchantId);
         
         // 创建优惠券
-        Coupon coupon = new Coupon();
+        CouponDO coupon = new CouponDO();
         coupon.setMerchantId(merchantId);
         coupon.setTitle(request.getTitle());
         coupon.setDescription(request.getDescription());
@@ -167,14 +167,14 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
 
     @Override
     @Transactional
-    public void updateCoupon(Long merchantId, Long operatorId, Long couponId, CreateCouponRequest request) {
+    public void updateCoupon(Long merchantId, Long operatorId, Long couponId, CreateCouponDTO request) {
         log.info("更新优惠券: merchantId={}, couponId={}", merchantId, couponId);
         
         // 验证商家
         validateMerchant(merchantId);
         
         // 查询优惠券
-        Coupon coupon = couponMapper.selectById(couponId);
+        CouponDO coupon = couponMapper.selectById(couponId);
         if (coupon == null) {
             throw new BusinessException(40404, "优惠券不存在");
         }
@@ -234,7 +234,7 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
         validateMerchant(merchantId);
         
         // 查询优惠券
-        Coupon coupon = couponMapper.selectById(couponId);
+        CouponDO coupon = couponMapper.selectById(couponId);
         if (coupon == null) {
             throw new BusinessException(40404, "优惠券不存在");
         }
@@ -259,7 +259,7 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
         validateMerchant(merchantId);
         
         // 查询优惠券
-        Coupon coupon = couponMapper.selectById(couponId);
+        CouponDO coupon = couponMapper.selectById(couponId);
         if (coupon == null) {
             throw new BusinessException(40404, "优惠券不存在");
         }
@@ -270,14 +270,14 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
         }
         
         // 统计领取数量
-        LambdaQueryWrapper<UserCoupon> claimedWrapper = new LambdaQueryWrapper<>();
-        claimedWrapper.eq(UserCoupon::getCouponId, couponId);
+        LambdaQueryWrapper<UserCouponDO> claimedWrapper = new LambdaQueryWrapper<>();
+        claimedWrapper.eq(UserCouponDO::getCouponId, couponId);
         Long totalClaimed = userCouponMapper.selectCount(claimedWrapper);
         
         // 统计已使用数量
-        LambdaQueryWrapper<UserCoupon> usedWrapper = new LambdaQueryWrapper<>();
-        usedWrapper.eq(UserCoupon::getCouponId, couponId)
-                .eq(UserCoupon::getStatus, 2); // 已使用
+        LambdaQueryWrapper<UserCouponDO> usedWrapper = new LambdaQueryWrapper<>();
+        usedWrapper.eq(UserCouponDO::getCouponId, couponId)
+                .eq(UserCouponDO::getStatus, 2); // 已使用
         Long totalUsed = userCouponMapper.selectCount(usedWrapper);
         
         Map<String, Object> stats = new HashMap<>();
@@ -302,13 +302,13 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
         validateMerchant(merchantId);
         
         // 根据券码查询用户优惠券
-        UserCoupon userCoupon = userCouponMapper.selectByCode(code);
+        UserCouponDO userCoupon = userCouponMapper.selectByCode(code);
         if (userCoupon == null) {
             throw new BusinessException(40404, "券码无效");
         }
         
         // 验证优惠券归属
-        Coupon coupon = couponMapper.selectById(userCoupon.getCouponId());
+        CouponDO coupon = couponMapper.selectById(userCoupon.getCouponId());
         if (coupon == null || !coupon.getMerchantId().equals(merchantId)) {
             throw new BusinessException(40300, "无权核销此优惠券");
         }
@@ -347,7 +347,7 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
         Map<String, Object> result = new HashMap<>();
         
         // 根据券码查询用户优惠券
-        UserCoupon userCoupon = userCouponMapper.selectByCode(code);
+        UserCouponDO userCoupon = userCouponMapper.selectByCode(code);
         if (userCoupon == null) {
             result.put("valid", false);
             result.put("message", "券码无效");
@@ -355,7 +355,7 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
         }
         
         // 查询优惠券信息
-        Coupon coupon = couponMapper.selectById(userCoupon.getCouponId());
+        CouponDO coupon = couponMapper.selectById(userCoupon.getCouponId());
         if (coupon == null) {
             result.put("valid", false);
             result.put("message", "优惠券不存在");
@@ -407,7 +407,7 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
      * 验证商家是否存在
      */
     private void validateMerchant(Long merchantId) {
-        Merchant merchant = merchantMapper.selectById(merchantId);
+        MerchantDO merchant = merchantMapper.selectById(merchantId);
         if (merchant == null) {
             throw new BusinessException(40404, "商家不存在");
         }
@@ -419,8 +419,8 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
     /**
      * 转换为优惠券列表项响应
      */
-    private CouponItemResponse convertToCouponItemResponse(Coupon coupon) {
-        CouponItemResponse response = new CouponItemResponse();
+    private CouponItemVO convertToCouponItemVO(CouponDO coupon) {
+        CouponItemVO response = new CouponItemVO();
         response.setId(coupon.getId().toString());
         response.setType(coupon.getType());
         response.setTypeName(getCouponTypeName(coupon.getType()));
@@ -439,7 +439,7 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
         
         // 获取门店名称
         if (coupon.getShopId() != null) {
-            Shop shop = shopMapper.selectById(coupon.getShopId());
+            ShopDO shop = shopMapper.selectById(coupon.getShopId());
             if (shop != null) {
                 response.setShopName(shop.getName());
             }
@@ -451,8 +451,8 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
     /**
      * 转换为优惠券详情响应
      */
-    private CouponDetailResponse convertToCouponDetailResponse(Coupon coupon) {
-        CouponDetailResponse response = new CouponDetailResponse();
+    private CouponDetailVO convertToCouponDetailVO(CouponDO coupon) {
+        CouponDetailVO response = new CouponDetailVO();
         response.setId(coupon.getId().toString());
         response.setType(coupon.getType());
         response.setTypeName(getCouponTypeName(coupon.getType()));
@@ -478,7 +478,7 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
         
         // 获取门店名称
         if (coupon.getShopId() != null) {
-            Shop shop = shopMapper.selectById(coupon.getShopId());
+            ShopDO shop = shopMapper.selectById(coupon.getShopId());
             if (shop != null) {
                 response.setShopName(shop.getName());
             }

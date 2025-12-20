@@ -2,31 +2,31 @@ package com.businessreviews.service.mobile;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.businessreviews.common.PageResult;
-import com.businessreviews.dto.response.ConversationResponse;
-import com.businessreviews.dto.response.MessageResponse;
-import com.businessreviews.dto.response.NotificationResponse;
-import com.businessreviews.entity.Message;
+import com.businessreviews.model.vo.ConversationVO;
+import com.businessreviews.model.vo.MessageVO;
+import com.businessreviews.model.vo.NotificationVO;
+import com.businessreviews.model.dataobject.MessageDO;
 
 /**
  * 移动端消息服务接口
  * 提供UniApp移动端的私信、系统通知等功能
  */
-public interface MessageService extends IService<Message> {
+public interface MessageService extends IService<MessageDO> {
     
     /**
      * 获取会话列表
      */
-    PageResult<ConversationResponse> getConversations(Long userId, Integer pageNum, Integer pageSize);
+    PageResult<ConversationVO> getConversations(Long userId, Integer pageNum, Integer pageSize);
     
     /**
      * 获取聊天记录
      */
-    PageResult<MessageResponse> getChatHistory(Long userId, Long targetUserId, Integer pageNum, Integer pageSize);
+    PageResult<MessageVO> getChatHistory(Long userId, Long targetUserId, Integer pageNum, Integer pageSize);
     
     /**
      * 发送消息
      */
-    MessageResponse sendMessage(Long userId, Long targetUserId, String content, Integer type);
+    MessageVO sendMessage(Long userId, Long targetUserId, String content, Integer type);
     
     /**
      * 标记消息已读
@@ -36,7 +36,7 @@ public interface MessageService extends IService<Message> {
     /**
      * 获取系统通知列表
      */
-    PageResult<NotificationResponse> getNotifications(Long userId, Integer type, Integer pageNum, Integer pageSize);
+    PageResult<NotificationVO> getNotifications(Long userId, Integer type, Integer pageNum, Integer pageSize);
     
     /**
      * 标记通知已读

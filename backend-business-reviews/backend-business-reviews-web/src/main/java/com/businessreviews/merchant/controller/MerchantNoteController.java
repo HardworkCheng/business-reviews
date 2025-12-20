@@ -2,8 +2,8 @@ package com.businessreviews.merchant.controller;
 
 import com.businessreviews.common.PageResult;
 import com.businessreviews.common.Result;
-import com.businessreviews.dto.response.NoteDetailResponse;
-import com.businessreviews.dto.response.NoteItemResponse;
+import com.businessreviews.model.vo.NoteDetailVO;
+import com.businessreviews.model.vo.NoteItemVO;
 import com.businessreviews.merchant.context.MerchantContext;
 import com.businessreviews.service.MerchantNoteService;
 import lombok.RequiredArgsConstructor;
@@ -37,14 +37,14 @@ public class MerchantNoteController {
      * 获取笔记列表
      */
     @GetMapping
-    public Result<PageResult<NoteItemResponse>> getNoteList(
+    public Result<PageResult<NoteItemVO>> getNoteList(
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize,
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) Long shopId,
             @RequestParam(required = false) String keyword) {
         Long merchantId = MerchantContext.requireMerchantId();
-        PageResult<NoteItemResponse> result = merchantNoteService.getNoteList(
+        PageResult<NoteItemVO> result = merchantNoteService.getNoteList(
                 merchantId, pageNum, pageSize, status, shopId, keyword);
         return Result.success(result);
     }
@@ -53,9 +53,9 @@ public class MerchantNoteController {
      * 获取笔记详情
      */
     @GetMapping("/{id}")
-    public Result<NoteDetailResponse> getNoteDetail(@PathVariable Long id) {
+    public Result<NoteDetailVO> getNoteDetail(@PathVariable Long id) {
         Long merchantId = MerchantContext.requireMerchantId();
-        NoteDetailResponse response = merchantNoteService.getNoteDetail(merchantId, id);
+        NoteDetailVO response = merchantNoteService.getNoteDetail(merchantId, id);
         return Result.success(response);
     }
 

@@ -5,13 +5,13 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.businessreviews.constants.RedisKeyConstants;
 import com.businessreviews.common.PageResult;
-import com.businessreviews.dto.request.PublishNoteRequest;
-import com.businessreviews.dto.response.NoteDetailResponse;
-import com.businessreviews.dto.response.NoteItemResponse;
-import com.businessreviews.entity.*;
+import com.businessreviews.model.dto.PublishNoteDTO;
+import com.businessreviews.model.vo.NoteDetailVO;
+import com.businessreviews.model.vo.NoteDetailVO.TopicInfo;
+import com.businessreviews.model.vo.NoteItemVO;
+import com.businessreviews.model.dataobject.*;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.*;
-import com.businessreviews.dto.response.NoteDetailResponse.TopicInfo;
 import com.businessreviews.service.MessageService;
 import com.businessreviews.service.NoteService;
 import com.businessreviews.util.RedisUtil;
@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements NoteService {
+public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements NoteService {
 
     private final NoteMapper noteMapper;
     private final UserMapper userMapper;
@@ -51,21 +51,21 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     private final MessageService messageService;
 
     @Override
-    public PageResult<NoteItemResponse> getRecommendedNotes(Integer pageNum, Integer pageSize) {
+    public PageResult<NoteItemVO> getRecommendedNotes(Integer pageNum, Integer pageSize) {
         // 尝试从缓存获取
         String cacheKey = RedisKeyConstants.NOTES_RECOMMENDED + pageNum;
         
-        Page<Note> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Note::getStatus, 1)  // 只显示已发布的笔记
-               .in(Note::getNoteType, 1, 2)  // 包含用户笔记和商家笔记
-               .orderByDesc(Note::getIsRecommend)  // 推荐笔记优先
-               .orderByDesc(Note::getLikeCount)
-               .orderByDesc(Note::getCreatedAt);
+        Page<NoteDO> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteDO::getStatus, 1)  // 只显示已发布的笔记
+               .in(NoteDO::getNoteType, 1, 2)  // 包含用户笔记和商家笔记
+               .orderByDesc(NoteDO::getRecommend)  // 推荐笔记优先
+               .orderByDesc(NoteDO::getLikeCount)
+               .orderByDesc(NoteDO::getCreatedAt);
         
-        Page<Note> notePage = noteMapper.selectPage(page, wrapper);
+        Page<NoteDO> notePage = noteMapper.selectPage(page, wrapper);
         
-        List<NoteItemResponse> list = notePage.getRecords().stream()
+        List<NoteItemVO> list = notePage.getRecords().stream()
                 .map(this::convertToNoteItem)
                 .collect(Collectors.toList());
         
@@ -73,16 +73,16 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     }
 
     @Override
-    public PageResult<NoteItemResponse> getUserNotes(Long userId, Integer pageNum, Integer pageSize) {
-        Page<Note> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Note::getUserId, userId)
-               .eq(Note::getStatus, 1)
-               .orderByDesc(Note::getCreatedAt);
+    public PageResult<NoteItemVO> getUserNotes(Long userId, Integer pageNum, Integer pageSize) {
+        Page<NoteDO> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteDO::getUserId, userId)
+               .eq(NoteDO::getStatus, 1)
+               .orderByDesc(NoteDO::getCreatedAt);
         
-        Page<Note> notePage = noteMapper.selectPage(page, wrapper);
+        Page<NoteDO> notePage = noteMapper.selectPage(page, wrapper);
         
-        List<NoteItemResponse> list = notePage.getRecords().stream()
+        List<NoteItemVO> list = notePage.getRecords().stream()
                 .map(this::convertToNoteItem)
                 .collect(Collectors.toList());
         
@@ -90,11 +90,11 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     }
 
     @Override
-    public PageResult<NoteItemResponse> getLikedNotes(Long userId, Integer pageNum, Integer pageSize) {
+    public PageResult<NoteItemVO> getLikedNotes(Long userId, Integer pageNum, Integer pageSize) {
         // 获取用户点赞的笔记ID列表
-        LambdaQueryWrapper<UserNoteLike> likeWrapper = new LambdaQueryWrapper<>();
-        likeWrapper.eq(UserNoteLike::getUserId, userId)
-                   .orderByDesc(UserNoteLike::getCreatedAt);
+        LambdaQueryWrapper<UserNoteLikeDO> likeWrapper = new LambdaQueryWrapper<>();
+        likeWrapper.eq(UserNoteLikeDO::getUserId, userId)
+                   .orderByDesc(UserNoteLikeDO::getCreatedAt);
         
         // 先查询总数
         Long total = userNoteLikeMapper.selectCount(likeWrapper);
@@ -103,8 +103,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         }
         
         // 分页查询点赞记录
-        Page<UserNoteLike> likePage = new Page<>(pageNum, pageSize);
-        Page<UserNoteLike> resultPage = userNoteLikeMapper.selectPage(likePage, likeWrapper);
+        Page<UserNoteLikeDO> likePage = new Page<>(pageNum, pageSize);
+        Page<UserNoteLikeDO> resultPage = userNoteLikeMapper.selectPage(likePage, likeWrapper);
         
         if (resultPage.getRecords().isEmpty()) {
             return PageResult.empty(pageNum, pageSize);
@@ -112,20 +112,20 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         
         // 获取笔记ID列表
         List<Long> noteIds = resultPage.getRecords().stream()
-                .map(UserNoteLike::getNoteId)
+                .map(UserNoteLikeDO::getNoteId)
                 .collect(Collectors.toList());
         
         // 查询笔记详情
-        LambdaQueryWrapper<Note> noteWrapper = new LambdaQueryWrapper<>();
-        noteWrapper.in(Note::getId, noteIds)
-                   .eq(Note::getStatus, 1);
-        List<Note> notes = noteMapper.selectList(noteWrapper);
+        LambdaQueryWrapper<NoteDO> noteWrapper = new LambdaQueryWrapper<>();
+        noteWrapper.in(NoteDO::getId, noteIds)
+                   .eq(NoteDO::getStatus, 1);
+        List<NoteDO> notes = noteMapper.selectList(noteWrapper);
         
         // 按原有顺序排序笔记（按点赞时间）
-        Map<Long, Note> noteMap = notes.stream()
-                .collect(Collectors.toMap(Note::getId, note -> note));
+        Map<Long, NoteDO> noteMap = notes.stream()
+                .collect(Collectors.toMap(NoteDO::getId, note -> note));
         
-        List<NoteItemResponse> list = noteIds.stream()
+        List<NoteItemVO> list = noteIds.stream()
                 .map(noteMap::get)
                 .filter(note -> note != null)
                 .map(this::convertToNoteItem)
@@ -135,10 +135,10 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     }
 
     @Override
-    public PageResult<NoteItemResponse> getExploreNotes(Long categoryId, String sortBy, Integer pageNum, Integer pageSize) {
-        Page<Note> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Note::getStatus, 1);
+    public PageResult<NoteItemVO> getExploreNotes(Long categoryId, String sortBy, Integer pageNum, Integer pageSize) {
+        Page<NoteDO> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteDO::getStatus, 1);
         
         if (categoryId != null) {
             // 暂不支持按分类筛选
@@ -146,16 +146,16 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         
         // 排序
         if ("hot".equals(sortBy)) {
-            wrapper.orderByDesc(Note::getLikeCount);
+            wrapper.orderByDesc(NoteDO::getLikeCount);
         } else if ("new".equals(sortBy)) {
-            wrapper.orderByDesc(Note::getCreatedAt);
+            wrapper.orderByDesc(NoteDO::getCreatedAt);
         } else {
-            wrapper.orderByDesc(Note::getLikeCount).orderByDesc(Note::getCreatedAt);
+            wrapper.orderByDesc(NoteDO::getLikeCount).orderByDesc(NoteDO::getCreatedAt);
         }
         
-        Page<Note> notePage = noteMapper.selectPage(page, wrapper);
+        Page<NoteDO> notePage = noteMapper.selectPage(page, wrapper);
         
-        List<NoteItemResponse> list = notePage.getRecords().stream()
+        List<NoteItemVO> list = notePage.getRecords().stream()
                 .map(this::convertToNoteItem)
                 .collect(Collectors.toList());
         
@@ -163,18 +163,18 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     }
 
     @Override
-    public PageResult<NoteItemResponse> getNearbyNotes(Double latitude, Double longitude, Double distance, Integer pageNum, Integer pageSize) {
+    public PageResult<NoteItemVO> getNearbyNotes(Double latitude, Double longitude, Double distance, Integer pageNum, Integer pageSize) {
         // 简化实现，实际应使用地理位置查询
-        Page<Note> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Note::getStatus, 1)
-               .isNotNull(Note::getLatitude)
-               .isNotNull(Note::getLongitude)
-               .orderByDesc(Note::getCreatedAt);
+        Page<NoteDO> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteDO::getStatus, 1)
+               .isNotNull(NoteDO::getLatitude)
+               .isNotNull(NoteDO::getLongitude)
+               .orderByDesc(NoteDO::getCreatedAt);
         
-        Page<Note> notePage = noteMapper.selectPage(page, wrapper);
+        Page<NoteDO> notePage = noteMapper.selectPage(page, wrapper);
         
-        List<NoteItemResponse> list = notePage.getRecords().stream()
+        List<NoteItemVO> list = notePage.getRecords().stream()
                 .map(this::convertToNoteItem)
                 .collect(Collectors.toList());
         
@@ -182,29 +182,29 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     }
 
     @Override
-    public PageResult<NoteItemResponse> getFollowingNotes(Long userId, Integer pageNum, Integer pageSize) {
+    public PageResult<NoteItemVO> getFollowingNotes(Long userId, Integer pageNum, Integer pageSize) {
         // 获取关注的用户ID列表
-        LambdaQueryWrapper<UserFollow> followWrapper = new LambdaQueryWrapper<>();
-        followWrapper.eq(UserFollow::getUserId, userId);
-        List<UserFollow> follows = userFollowMapper.selectList(followWrapper);
+        LambdaQueryWrapper<UserFollowDO> followWrapper = new LambdaQueryWrapper<>();
+        followWrapper.eq(UserFollowDO::getUserId, userId);
+        List<UserFollowDO> follows = userFollowMapper.selectList(followWrapper);
         
         if (follows.isEmpty()) {
             return PageResult.empty(pageNum, pageSize);
         }
         
         List<Long> followingIds = follows.stream()
-                .map(UserFollow::getFollowUserId)
+                .map(UserFollowDO::getFollowUserId)
                 .collect(Collectors.toList());
         
-        Page<Note> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Note::getStatus, 1)
-               .in(Note::getUserId, followingIds)
-               .orderByDesc(Note::getCreatedAt);
+        Page<NoteDO> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteDO::getStatus, 1)
+               .in(NoteDO::getUserId, followingIds)
+               .orderByDesc(NoteDO::getCreatedAt);
         
-        Page<Note> notePage = noteMapper.selectPage(page, wrapper);
+        Page<NoteDO> notePage = noteMapper.selectPage(page, wrapper);
         
-        List<NoteItemResponse> list = notePage.getRecords().stream()
+        List<NoteItemVO> list = notePage.getRecords().stream()
                 .map(this::convertToNoteItem)
                 .collect(Collectors.toList());
         
@@ -212,20 +212,20 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     }
 
     @Override
-    public NoteDetailResponse getNoteDetail(Long noteId, Long userId) {
-        Note note = noteMapper.selectById(noteId);
+    public NoteDetailVO getNoteDetail(Long noteId, Long userId) {
+        NoteDO note = noteMapper.selectById(noteId);
         if (note == null || note.getStatus() != 1) {
             throw new BusinessException(40402, "笔记不存在");
         }
         
         // 查询作者信息
-        User author = userMapper.selectById(note.getUserId());
+        UserDO author = userMapper.selectById(note.getUserId());
         
         // 查询标签
         List<String> tags = getNoteTagNames(noteId);
         
         // 构建响应
-        NoteDetailResponse response = new NoteDetailResponse();
+        NoteDetailVO response = new NoteDetailVO();
         response.setId(note.getId());
         response.setImage(note.getCoverImage());
         response.setImages(parseImages(note.getImages()));
@@ -245,7 +245,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         
         // 查询关联商家
         if (note.getShopId() != null) {
-            Shop shop = shopMapper.selectById(note.getShopId());
+            ShopDO shop = shopMapper.selectById(note.getShopId());
             if (shop != null) {
                 response.setShopId(shop.getId());
                 response.setShopName(shop.getName());
@@ -269,15 +269,15 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
             log.info("笔记详情查询 - 用户ID: {}, 笔记ID: {}, 点赞: {}, 收藏: {}, 关注: {}", 
                     userId, noteId, liked, bookmarked, following);
             
-            response.setIsLiked(liked);
-            response.setIsBookmarked(bookmarked);
-            response.setIsFollowing(following);
-            response.setIsAuthor(userId.equals(note.getUserId()));
+            response.setLiked(liked);
+            response.setBookmarked(bookmarked);
+            response.setFollowing(following);
+            response.setSelfAuthor(userId.equals(note.getUserId()));
         } else {
-            response.setIsLiked(false);
-            response.setIsBookmarked(false);
-            response.setIsFollowing(false);
-            response.setIsAuthor(false);
+            response.setLiked(false);
+            response.setBookmarked(false);
+            response.setFollowing(false);
+            response.setSelfAuthor(false);
         }
         
         return response;
@@ -285,8 +285,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Long publishNote(Long userId, PublishNoteRequest request) {
-        Note note = new Note();
+    public Long publishNote(Long userId, PublishNoteDTO request) {
+        NoteDO note = new NoteDO();
         note.setUserId(userId);
         
         // 如果没有标题，使用内容前20个字作为标题
@@ -344,8 +344,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void updateNote(Long userId, Long noteId, PublishNoteRequest request) {
-        Note note = noteMapper.selectById(noteId);
+    public void updateNote(Long userId, Long noteId, PublishNoteDTO request) {
+        NoteDO note = noteMapper.selectById(noteId);
         if (note == null || !note.getUserId().equals(userId)) {
             throw new BusinessException(40300, "无权限操作");
         }
@@ -374,7 +374,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteNote(Long userId, Long noteId) {
-        Note note = noteMapper.selectById(noteId);
+        NoteDO note = noteMapper.selectById(noteId);
         if (note == null) {
             throw new BusinessException(40402, "笔记不存在");
         }
@@ -393,7 +393,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Integer likeNote(Long userId, Long noteId) {
-        Note note = noteMapper.selectById(noteId);
+        NoteDO note = noteMapper.selectById(noteId);
         if (note == null || note.getStatus() != 1) {
             throw new BusinessException(40402, "笔记不存在");
         }
@@ -405,7 +405,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         }
         
         // 插入点赞记录
-        UserNoteLike like = new UserNoteLike();
+        UserNoteLikeDO like = new UserNoteLikeDO();
         like.setUserId(userId);
         like.setNoteId(noteId);
         userNoteLikeMapper.insert(like);
@@ -418,7 +418,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         
         // 发送点赞通知
         if (!userId.equals(note.getUserId())) {
-            User user = userMapper.selectById(userId);
+            UserDO user = userMapper.selectById(userId);
             // 使用新的系统通知方法，包含发送者信息和笔记图片
             messageService.sendSystemNotice(note.getUserId(), userId, 1, noteId, 
                     user.getUsername() + " 赞了你的笔记", note.getCoverImage());
@@ -431,16 +431,16 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Integer unlikeNote(Long userId, Long noteId) {
-        Note note = noteMapper.selectById(noteId);
+        NoteDO note = noteMapper.selectById(noteId);
         if (note == null) {
             throw new BusinessException(40402, "笔记不存在");
         }
         
         // 检查是否已点赞
-        LambdaQueryWrapper<UserNoteLike> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserNoteLike::getUserId, userId)
-               .eq(UserNoteLike::getNoteId, noteId);
-        UserNoteLike like = userNoteLikeMapper.selectOne(wrapper);
+        LambdaQueryWrapper<UserNoteLikeDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserNoteLikeDO::getUserId, userId)
+               .eq(UserNoteLikeDO::getNoteId, noteId);
+        UserNoteLikeDO like = userNoteLikeMapper.selectOne(wrapper);
         
         if (like == null) {
             throw new BusinessException(40001, "未点赞");
@@ -461,7 +461,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void bookmarkNote(Long userId, Long noteId) {
-        Note note = noteMapper.selectById(noteId);
+        NoteDO note = noteMapper.selectById(noteId);
         if (note == null || note.getStatus() != 1) {
             throw new BusinessException(40402, "笔记不存在");
         }
@@ -474,7 +474,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         }
         
         // 插入收藏记录
-        UserFavorite favorite = new UserFavorite();
+        UserFavoriteDO favorite = new UserFavoriteDO();
         favorite.setUserId(userId);
         favorite.setType(1); // 笔记类型
         favorite.setTargetId(noteId);
@@ -493,11 +493,11 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     @Transactional(rollbackFor = Exception.class)
     public void unbookmarkNote(Long userId, Long noteId) {
         // 检查是否已收藏
-        LambdaQueryWrapper<UserFavorite> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserFavorite::getUserId, userId)
-               .eq(UserFavorite::getType, 1)
-               .eq(UserFavorite::getTargetId, noteId);
-        UserFavorite favorite = userFavoriteMapper.selectOne(wrapper);
+        LambdaQueryWrapper<UserFavoriteDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserFavoriteDO::getUserId, userId)
+               .eq(UserFavoriteDO::getType, 1)
+               .eq(UserFavoriteDO::getTargetId, noteId);
+        UserFavoriteDO favorite = userFavoriteMapper.selectOne(wrapper);
         
         if (favorite == null) {
             throw new BusinessException(40001, "未收藏");
@@ -525,11 +525,11 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
                 log.info("开始记录浏览历史 - 用户ID: {}, 笔记ID: {}", userId, noteId);
                 
                 // 检查是否已有相同的浏览记录（同一用户、同一笔记）
-                LambdaQueryWrapper<BrowseHistory> wrapper = new LambdaQueryWrapper<>();
-                wrapper.eq(BrowseHistory::getUserId, userId)
-                       .eq(BrowseHistory::getType, 1) // 1=笔记
-                       .eq(BrowseHistory::getTargetId, noteId);
-                BrowseHistory existing = browseHistoryMapper.selectOne(wrapper);
+                LambdaQueryWrapper<BrowseHistoryDO> wrapper = new LambdaQueryWrapper<>();
+                wrapper.eq(BrowseHistoryDO::getUserId, userId)
+                       .eq(BrowseHistoryDO::getType, 1) // 1=笔记
+                       .eq(BrowseHistoryDO::getTargetId, noteId);
+                BrowseHistoryDO existing = browseHistoryMapper.selectOne(wrapper);
                 
                 if (existing != null) {
                     // 更新浏览时间
@@ -539,7 +539,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
                 } else {
                     // 插入新记录
                     log.info("插入新浏览记录");
-                    BrowseHistory history = new BrowseHistory();
+                    BrowseHistoryDO history = new BrowseHistoryDO();
                     history.setUserId(userId);
                     history.setType(1); // 1=笔记
                     history.setTargetId(noteId);
@@ -559,9 +559,9 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     @Override
     public boolean isLiked(Long userId, Long noteId) {
         if (userId == null) return false;
-        LambdaQueryWrapper<UserNoteLike> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserNoteLike::getUserId, userId)
-               .eq(UserNoteLike::getNoteId, noteId);
+        LambdaQueryWrapper<UserNoteLikeDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserNoteLikeDO::getUserId, userId)
+               .eq(UserNoteLikeDO::getNoteId, noteId);
         long count = userNoteLikeMapper.selectCount(wrapper);
         boolean result = count > 0;
         log.debug("检查点赞状态 - 用户ID: {}, 笔记ID: {}, 记录数: {}, 结果: {}", userId, noteId, count, result);
@@ -571,10 +571,10 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     @Override
     public boolean isBookmarked(Long userId, Long noteId) {
         if (userId == null) return false;
-        LambdaQueryWrapper<UserFavorite> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserFavorite::getUserId, userId)
-               .eq(UserFavorite::getType, 1)
-               .eq(UserFavorite::getTargetId, noteId);
+        LambdaQueryWrapper<UserFavoriteDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserFavoriteDO::getUserId, userId)
+               .eq(UserFavoriteDO::getType, 1)
+               .eq(UserFavoriteDO::getTargetId, noteId);
         long count = userFavoriteMapper.selectCount(wrapper);
         boolean result = count > 0;
         log.debug("检查收藏状态 - 用户ID: {}, 笔记ID: {}, 记录数: {}, 结果: {}", userId, noteId, count, result);
@@ -582,26 +582,26 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     }
 
     @Override
-    public PageResult<NoteItemResponse> searchNotes(String keyword, Integer pageNum, Integer pageSize) {
-        Page<Note> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Note::getStatus, 1)
-               .and(w -> w.like(Note::getTitle, keyword)
+    public PageResult<NoteItemVO> searchNotes(String keyword, Integer pageNum, Integer pageSize) {
+        Page<NoteDO> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteDO::getStatus, 1)
+               .and(w -> w.like(NoteDO::getTitle, keyword)
                          .or()
-                         .like(Note::getContent, keyword))
-               .orderByDesc(Note::getCreatedAt);
+                         .like(NoteDO::getContent, keyword))
+               .orderByDesc(NoteDO::getCreatedAt);
         
-        Page<Note> notePage = noteMapper.selectPage(page, wrapper);
+        Page<NoteDO> notePage = noteMapper.selectPage(page, wrapper);
         
-        List<NoteItemResponse> list = notePage.getRecords().stream()
+        List<NoteItemVO> list = notePage.getRecords().stream()
                 .map(this::convertToNoteItem)
                 .collect(Collectors.toList());
         
         return PageResult.of(list, notePage.getTotal(), pageNum, pageSize);
     }
 
-    private NoteItemResponse convertToNoteItem(Note note) {
-        NoteItemResponse item = new NoteItemResponse();
+    private NoteItemVO convertToNoteItem(NoteDO note) {
+        NoteItemVO item = new NoteItemVO();
         item.setId(note.getId().toString());
         item.setImage(note.getCoverImage());
         item.setTitle(note.getTitle());
@@ -610,7 +610,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         item.setCreatedAt(note.getCreatedAt() != null ? note.getCreatedAt().toString() : null);
         
         // 查询作者信息
-        User author = userMapper.selectById(note.getUserId());
+        UserDO author = userMapper.selectById(note.getUserId());
         if (author != null) {
             item.setAuthor(author.getUsername());
             item.setAuthorAvatar(author.getAvatar());
@@ -628,7 +628,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
             
             // 如果有关联店铺，显示店铺信息
             if (note.getShopId() != null) {
-                Shop shop = shopMapper.selectById(note.getShopId());
+                ShopDO shop = shopMapper.selectById(note.getShopId());
                 if (shop != null) {
                     item.setShopId(shop.getId().toString());
                     item.setShopName(shop.getName());
@@ -650,12 +650,12 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     }
 
     private List<String> getNoteTagNames(Long noteId) {
-        LambdaQueryWrapper<NoteTag> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(NoteTag::getNoteId, noteId);
-        List<NoteTag> noteTags = noteTagMapper.selectList(wrapper);
+        LambdaQueryWrapper<NoteTagDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteTagDO::getNoteId, noteId);
+        List<NoteTagDO> noteTags = noteTagMapper.selectList(wrapper);
         
         return noteTags.stream()
-                .map(NoteTag::getTagName)
+                .map(NoteTagDO::getTagName)
                 .filter(name -> name != null)
                 .collect(Collectors.toList());
     }
@@ -670,7 +670,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     private void saveNoteTags(Long noteId, List<String> tags) {
         for (String tagName : tags) {
             // 创建关联
-            NoteTag noteTag = new NoteTag();
+            NoteTagDO noteTag = new NoteTagDO();
             noteTag.setNoteId(noteId);
             noteTag.setTagName(tagName);
             noteTagMapper.insert(noteTag);
@@ -679,7 +679,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
 
     private void saveNoteTopics(Long noteId, List<Long> topics) {
         for (Long topicId : topics) {
-            NoteTopic noteTopic = new NoteTopic();
+            NoteTopicDO noteTopic = new NoteTopicDO();
             noteTopic.setNoteId(noteId);
             noteTopic.setTopicId(topicId);
             noteTopicMapper.insert(noteTopic);
@@ -687,8 +687,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
     }
 
     private void deleteNoteTags(Long noteId) {
-        LambdaQueryWrapper<NoteTag> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(NoteTag::getNoteId, noteId);
+        LambdaQueryWrapper<NoteTagDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteTagDO::getNoteId, noteId);
         noteTagMapper.delete(wrapper);
     }
     
@@ -696,19 +696,19 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
      * 获取笔记关联的话题列表
      */
     private List<TopicInfo> getNoteTopics(Long noteId) {
-        LambdaQueryWrapper<NoteTopic> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(NoteTopic::getNoteId, noteId);
-        List<NoteTopic> noteTopics = noteTopicMapper.selectList(wrapper);
+        LambdaQueryWrapper<NoteTopicDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteTopicDO::getNoteId, noteId);
+        List<NoteTopicDO> noteTopics = noteTopicMapper.selectList(wrapper);
         
         if (noteTopics.isEmpty()) {
             return new ArrayList<>();
         }
         
         List<Long> topicIds = noteTopics.stream()
-                .map(NoteTopic::getTopicId)
+                .map(NoteTopicDO::getTopicId)
                 .collect(Collectors.toList());
         
-        List<Topic> topics = topicMapper.selectBatchIds(topicIds);
+        List<TopicDO> topics = topicMapper.selectBatchIds(topicIds);
         
         return topics.stream()
                 .map(topic -> {
@@ -728,9 +728,9 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
             return false;
         }
         
-        LambdaQueryWrapper<UserFollow> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserFollow::getUserId, userId)
-               .eq(UserFollow::getFollowUserId, targetUserId);
+        LambdaQueryWrapper<UserFollowDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserFollowDO::getUserId, userId)
+               .eq(UserFollowDO::getFollowUserId, targetUserId);
         long count = userFollowMapper.selectCount(wrapper);
         boolean result = count > 0;
         log.debug("检查关注状态 - 用户ID: {}, 目标用户ID: {}, 记录数: {}, 结果: {}", userId, targetUserId, count, result);
@@ -747,16 +747,16 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         }
         
         // 查询用户信息
-        User user = userMapper.selectById(userId);
+        UserDO user = userMapper.selectById(userId);
         if (user == null || user.getPhone() == null) {
             return null;
         }
         
         // 通过手机号查找商家
-        LambdaQueryWrapper<Merchant> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Merchant::getContactPhone, user.getPhone())
-               .eq(Merchant::getStatus, 1);  // 只查找正常状态的商家
-        Merchant merchant = merchantMapper.selectOne(wrapper);
+        LambdaQueryWrapper<MerchantDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(MerchantDO::getContactPhone, user.getPhone())
+               .eq(MerchantDO::getStatus, 1);  // 只查找正常状态的商家
+        MerchantDO merchant = merchantMapper.selectOne(wrapper);
         
         if (merchant != null) {
             log.info("用户{}关联到商家: merchantId={}, merchantName={}", userId, merchant.getId(), merchant.getName());

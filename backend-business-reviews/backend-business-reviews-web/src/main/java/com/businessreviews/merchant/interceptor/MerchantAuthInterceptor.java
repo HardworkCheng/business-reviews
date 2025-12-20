@@ -1,6 +1,6 @@
 package com.businessreviews.merchant.interceptor;
 
-import com.businessreviews.entity.Merchant;
+import com.businessreviews.model.dataobject.MerchantDO;
 import com.businessreviews.mapper.MerchantMapper;
 import com.businessreviews.merchant.context.MerchantContext;
 import com.businessreviews.util.JwtUtil;
@@ -39,7 +39,7 @@ public class MerchantAuthInterceptor implements HandlerInterceptor {
                     Long merchantId = jwtUtil.getUserIdFromToken(token);
                     
                     // 查询商家信息（直接使用merchants表）
-                    Merchant merchant = merchantMapper.selectById(merchantId);
+                    MerchantDO merchant = merchantMapper.selectById(merchantId);
                     if (merchant != null && merchant.getStatus() == 1) {
                         // 设置上下文（userId和merchantId现在相同）
                         MerchantContext.setUserId(merchantId);

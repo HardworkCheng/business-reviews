@@ -1,7 +1,7 @@
 package com.businessreviews.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.businessreviews.entity.Message;
+import com.businessreviews.model.dataobject.MessageDO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 @Mapper
-public interface MessageMapper extends BaseMapper<Message> {
+public interface MessageMapper extends BaseMapper<MessageDO> {
     
     /**
      * 获取会话列表 - 获取每个会话的最新消息

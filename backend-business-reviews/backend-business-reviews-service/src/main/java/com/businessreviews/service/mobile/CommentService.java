@@ -2,30 +2,30 @@ package com.businessreviews.service.mobile;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.businessreviews.common.PageResult;
-import com.businessreviews.dto.request.AddCommentRequest;
-import com.businessreviews.dto.response.CommentResponse;
-import com.businessreviews.entity.Comment;
+import com.businessreviews.model.dto.AddCommentDTO;
+import com.businessreviews.model.vo.CommentVO;
+import com.businessreviews.model.dataobject.CommentDO;
 
 /**
  * 移动端评论服务接口
  * 提供UniApp移动端的评论发布、点赞、回复等功能
  */
-public interface CommentService extends IService<Comment> {
+public interface CommentService extends IService<CommentDO> {
     
     /**
      * 获取笔记评论列表
      */
-    PageResult<CommentResponse> getNoteComments(Long noteId, Long userId, Integer pageNum, Integer pageSize);
+    PageResult<CommentVO> getNoteComments(Long noteId, Long userId, Integer pageNum, Integer pageSize);
     
     /**
      * 获取评论的回复列表
      */
-    PageResult<CommentResponse> getCommentReplies(Long commentId, Long userId, Integer pageNum, Integer pageSize);
+    PageResult<CommentVO> getCommentReplies(Long commentId, Long userId, Integer pageNum, Integer pageSize);
     
     /**
      * 添加评论
      */
-    CommentResponse addComment(Long userId, AddCommentRequest request);
+    CommentVO addComment(Long userId, AddCommentDTO request);
     
     /**
      * 删除评论

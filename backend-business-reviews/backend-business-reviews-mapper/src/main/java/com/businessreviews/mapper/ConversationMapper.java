@@ -1,7 +1,7 @@
 package com.businessreviews.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.businessreviews.entity.Conversation;
+import com.businessreviews.model.dataobject.ConversationDO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
@@ -10,7 +10,7 @@ import org.apache.ibatis.annotations.Update;
  * 会话Mapper
  */
 @Mapper
-public interface ConversationMapper extends BaseMapper<Conversation> {
+public interface ConversationMapper extends BaseMapper<ConversationDO> {
     
     /**
      * 增加未读消息数

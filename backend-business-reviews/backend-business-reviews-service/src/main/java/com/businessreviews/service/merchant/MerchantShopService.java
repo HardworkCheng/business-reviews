@@ -1,8 +1,8 @@
 package com.businessreviews.service.merchant;
 
 import com.businessreviews.common.PageResult;
-import com.businessreviews.dto.response.ShopDetailResponse;
-import com.businessreviews.dto.response.ShopItemResponse;
+import com.businessreviews.model.vo.ShopDetailVO;
+import com.businessreviews.model.vo.ShopItemVO;
 import java.util.Map;
 
 /**
@@ -14,12 +14,12 @@ public interface MerchantShopService {
     /**
      * 获取门店列表
      */
-    PageResult<ShopItemResponse> getShopList(Long merchantId, Integer pageNum, Integer pageSize, Integer status, String keyword);
+    PageResult<ShopItemVO> getShopList(Long merchantId, Integer pageNum, Integer pageSize, Integer status, String keyword);
     
     /**
      * 获取门店详情
      */
-    ShopDetailResponse getShopDetail(Long merchantId, Long shopId);
+    ShopDetailVO getShopDetail(Long merchantId, Long shopId);
     
     /**
      * 创建门店

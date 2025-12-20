@@ -1,11 +1,11 @@
 package com.businessreviews.merchant.controller;
 
 import com.businessreviews.common.Result;
-import com.businessreviews.dto.request.MerchantLoginRequest;
-import com.businessreviews.dto.request.MerchantRegisterRequest;
-import com.businessreviews.dto.request.SendCodeRequest;
-import com.businessreviews.dto.response.MerchantLoginResponse;
-import com.businessreviews.dto.response.MerchantUserInfoResponse;
+import com.businessreviews.model.dto.MerchantLoginDTO;
+import com.businessreviews.model.dto.MerchantRegisterDTO;
+import com.businessreviews.model.dto.SendCodeDTO;
+import com.businessreviews.model.vo.merchant.MerchantLoginVO;
+import com.businessreviews.model.vo.merchant.MerchantUserInfoVO;
 import com.businessreviews.merchant.context.MerchantContext;
 import com.businessreviews.service.MerchantAuthService;
 import jakarta.validation.Valid;
@@ -35,7 +35,7 @@ public class MerchantAuthController {
      * 发送验证码
      */
     @PostMapping("/send-code")
-    public Result<?> sendCode(@RequestBody @Valid SendCodeRequest request) {
+    public Result<?> sendCode(@RequestBody @Valid SendCodeDTO request) {
         merchantAuthService.sendCode(request.getPhone());
         return Result.success("验证码已发送");
     }
@@ -44,8 +44,8 @@ public class MerchantAuthController {
      * 登录（支持密码和验证码两种方式）
      */
     @PostMapping("/login")
-    public Result<MerchantLoginResponse> login(@RequestBody @Valid MerchantLoginRequest request) {
-        MerchantLoginResponse response;
+    public Result<MerchantLoginVO> login(@RequestBody @Valid MerchantLoginDTO request) {
+        MerchantLoginVO response;
         if ("code".equals(request.getLoginType())) {
             response = merchantAuthService.loginByCode(request.getPhone(), request.getCode());
         } else {
@@ -58,8 +58,8 @@ public class MerchantAuthController {
      * 商家入驻注册（完整信息）
      */
     @PostMapping("/register")
-    public Result<MerchantLoginResponse> register(@RequestBody @Valid MerchantRegisterRequest request) {
-        MerchantLoginResponse response = merchantAuthService.register(request);
+    public Result<MerchantLoginVO> register(@RequestBody @Valid MerchantRegisterDTO request) {
+        MerchantLoginVO response = merchantAuthService.register(request);
         return Result.success("入驻成功", response);
     }
 
@@ -67,9 +67,9 @@ public class MerchantAuthController {
      * 获取当前用户信息
      */
     @GetMapping("/profile")
-    public Result<MerchantUserInfoResponse> getProfile() {
+    public Result<MerchantUserInfoVO> getProfile() {
         Long userId = MerchantContext.requireUserId();
-        MerchantUserInfoResponse response = merchantAuthService.getCurrentUserInfo(userId);
+        MerchantUserInfoVO response = merchantAuthService.getCurrentUserInfo(userId);
         return Result.success(response);
     }
 

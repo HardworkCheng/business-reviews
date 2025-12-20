@@ -3,12 +3,12 @@ package com.businessreviews.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.businessreviews.common.PageResult;
-import com.businessreviews.dto.response.ShopDetailResponse;
-import com.businessreviews.dto.response.ShopItemResponse;
-import com.businessreviews.entity.Merchant;
-import com.businessreviews.entity.Note;
-import com.businessreviews.entity.Shop;
-import com.businessreviews.entity.ShopReview;
+import com.businessreviews.model.vo.ShopDetailVO;
+import com.businessreviews.model.vo.ShopItemVO;
+import com.businessreviews.model.dataobject.MerchantDO;
+import com.businessreviews.model.dataobject.NoteDO;
+import com.businessreviews.model.dataobject.ShopDO;
+import com.businessreviews.model.dataobject.ShopReviewDO;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.MerchantMapper;
 import com.businessreviews.mapper.NoteMapper;
@@ -43,7 +43,7 @@ public class MerchantShopServiceImpl implements MerchantShopService {
     private final ShopReviewMapper shopReviewMapper;
 
     @Override
-    public PageResult<ShopItemResponse> getShopList(Long merchantId, Integer pageNum, Integer pageSize, 
+    public PageResult<ShopItemVO> getShopList(Long merchantId, Integer pageNum, Integer pageSize, 
             Integer status, String keyword) {
         log.info("获取门店列表: merchantId={}, pageNum={}, pageSize={}, status={}, keyword={}", 
                 merchantId, pageNum, pageSize, status, keyword);
@@ -52,8 +52,8 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         validateMerchant(merchantId);
         
         // 构建查询条件 - 根据商家关联的门店查询
-        LambdaQueryWrapper<Shop> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Shop::getMerchantId, merchantId);
+        LambdaQueryWrapper<ShopDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ShopDO::getMerchantId, merchantId);
         
         // 检查是否有关联的店铺，如果没有则创建默认店铺
         long shopCount = shopMapper.selectCount(wrapper);
@@ -63,24 +63,24 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         }
         
         if (status != null) {
-            wrapper.eq(Shop::getStatus, status);
+            wrapper.eq(ShopDO::getStatus, status);
         }
         if (StringUtils.hasText(keyword)) {
-            wrapper.and(w -> w.like(Shop::getName, keyword)
-                    .or().like(Shop::getAddress, keyword));
+            wrapper.and(w -> w.like(ShopDO::getName, keyword)
+                    .or().like(ShopDO::getAddress, keyword));
         }
-        wrapper.orderByDesc(Shop::getCreatedAt);
+        wrapper.orderByDesc(ShopDO::getCreatedAt);
         
         // 分页查询
-        Page<Shop> page = new Page<>(pageNum, pageSize);
-        Page<Shop> shopPage = shopMapper.selectPage(page, wrapper);
+        Page<ShopDO> page = new Page<>(pageNum, pageSize);
+        Page<ShopDO> shopPage = shopMapper.selectPage(page, wrapper);
         
         // 转换结果
-        List<ShopItemResponse> list = shopPage.getRecords().stream()
-                .map(this::convertToShopItemResponse)
+        List<ShopItemVO> list = shopPage.getRecords().stream()
+                .map(this::convertToShopItemVO)
                 .collect(Collectors.toList());
         
-        PageResult<ShopItemResponse> result = new PageResult<>();
+        PageResult<ShopItemVO> result = new PageResult<>();
         result.setList(list);
         result.setTotal(shopPage.getTotal());
         result.setPageNum(pageNum);
@@ -94,14 +94,14 @@ public class MerchantShopServiceImpl implements MerchantShopService {
     private void createDefaultShop(Long merchantId) {
         try {
             // 获取商家信息
-            Merchant merchant = merchantMapper.selectById(merchantId);
+            MerchantDO merchant = merchantMapper.selectById(merchantId);
             if (merchant == null) {
                 log.error("商家不存在: merchantId={}", merchantId);
                 return;
             }
             
             // 创建默认店铺
-            Shop shop = new Shop();
+            ShopDO shop = new ShopDO();
             shop.setMerchantId(merchantId);
             shop.setName(merchant.getName() != null ? merchant.getName() : "我的店铺");
             shop.setDescription("欢迎来到我的店铺");
@@ -126,19 +126,19 @@ public class MerchantShopServiceImpl implements MerchantShopService {
 
 
     @Override
-    public ShopDetailResponse getShopDetail(Long merchantId, Long shopId) {
+    public ShopDetailVO getShopDetail(Long merchantId, Long shopId) {
         log.info("获取门店详情: merchantId={}, shopId={}", merchantId, shopId);
         
         // 验证商家
         validateMerchant(merchantId);
         
         // 查询门店
-        Shop shop = shopMapper.selectById(shopId);
+        ShopDO shop = shopMapper.selectById(shopId);
         if (shop == null) {
             throw new BusinessException(40404, "门店不存在");
         }
         
-        return convertToShopDetailResponse(shop);
+        return convertToShopDetailVO(shop);
     }
 
     @Override
@@ -150,7 +150,7 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         validateMerchant(merchantId);
         
         // 创建门店
-        Shop shop = new Shop();
+        ShopDO shop = new ShopDO();
         shop.setMerchantId(merchantId); // 关联商家ID
         shop.setName((String) request.get("name"));
         shop.setAddress((String) request.get("address"));
@@ -205,7 +205,7 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         validateMerchant(merchantId);
         
         // 查询门店
-        Shop shop = shopMapper.selectById(shopId);
+        ShopDO shop = shopMapper.selectById(shopId);
         if (shop == null) {
             throw new BusinessException(40404, "门店不存在");
         }
@@ -288,7 +288,7 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         validateMerchant(merchantId);
         
         // 查询门店
-        Shop shop = shopMapper.selectById(shopId);
+        ShopDO shop = shopMapper.selectById(shopId);
         if (shop == null) {
             throw new BusinessException(40404, "门店不存在");
         }
@@ -314,7 +314,7 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         validateMerchant(merchantId);
         
         // 查询门店
-        Shop shop = shopMapper.selectById(shopId);
+        ShopDO shop = shopMapper.selectById(shopId);
         if (shop == null) {
             throw new BusinessException(40404, "门店不存在");
         }
@@ -337,19 +337,19 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         validateMerchant(merchantId);
         
         // 查询门店
-        Shop shop = shopMapper.selectById(shopId);
+        ShopDO shop = shopMapper.selectById(shopId);
         if (shop == null) {
             throw new BusinessException(40404, "门店不存在");
         }
         
         // 统计笔记数量
-        LambdaQueryWrapper<Note> noteWrapper = new LambdaQueryWrapper<>();
-        noteWrapper.eq(Note::getShopId, shopId);
+        LambdaQueryWrapper<NoteDO> noteWrapper = new LambdaQueryWrapper<>();
+        noteWrapper.eq(NoteDO::getShopId, shopId);
         Long noteCount = noteMapper.selectCount(noteWrapper);
         
         // 统计评论数量
-        LambdaQueryWrapper<ShopReview> reviewWrapper = new LambdaQueryWrapper<>();
-        reviewWrapper.eq(ShopReview::getShopId, shopId);
+        LambdaQueryWrapper<ShopReviewDO> reviewWrapper = new LambdaQueryWrapper<>();
+        reviewWrapper.eq(ShopReviewDO::getShopId, shopId);
         Long reviewCount = shopReviewMapper.selectCount(reviewWrapper);
         
         Map<String, Object> stats = new HashMap<>();
@@ -368,7 +368,7 @@ public class MerchantShopServiceImpl implements MerchantShopService {
      * 验证商家是否存在
      */
     private void validateMerchant(Long merchantId) {
-        Merchant merchant = merchantMapper.selectById(merchantId);
+        MerchantDO merchant = merchantMapper.selectById(merchantId);
         if (merchant == null) {
             throw new BusinessException(40404, "商家不存在");
         }
@@ -380,8 +380,8 @@ public class MerchantShopServiceImpl implements MerchantShopService {
     /**
      * 转换为门店列表项响应
      */
-    private ShopItemResponse convertToShopItemResponse(Shop shop) {
-        ShopItemResponse response = new ShopItemResponse();
+    private ShopItemVO convertToShopItemVO(ShopDO shop) {
+        ShopItemVO response = new ShopItemVO();
         response.setId(shop.getId().toString());
         response.setMerchantId(shop.getMerchantId());
         response.setCategoryId(shop.getCategoryId());
@@ -408,8 +408,8 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         response.setUpdatedAt(shop.getUpdatedAt());
         
         // 统计笔记数量
-        LambdaQueryWrapper<Note> noteWrapper = new LambdaQueryWrapper<>();
-        noteWrapper.eq(Note::getShopId, shop.getId());
+        LambdaQueryWrapper<NoteDO> noteWrapper = new LambdaQueryWrapper<>();
+        noteWrapper.eq(NoteDO::getShopId, shop.getId());
         Long noteCount = noteMapper.selectCount(noteWrapper);
         response.setNoteCount(noteCount.intValue());
         
@@ -419,8 +419,8 @@ public class MerchantShopServiceImpl implements MerchantShopService {
     /**
      * 转换为门店详情响应
      */
-    private ShopDetailResponse convertToShopDetailResponse(Shop shop) {
-        ShopDetailResponse response = new ShopDetailResponse();
+    private ShopDetailVO convertToShopDetailVO(ShopDO shop) {
+        ShopDetailVO response = new ShopDetailVO();
         response.setId(shop.getId());
         response.setName(shop.getName());
         response.setHeaderImage(shop.getHeaderImage());
@@ -436,7 +436,7 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         response.setEnvironmentScore(shop.getEnvironmentScore());
         response.setServiceScore(shop.getServiceScore());
         response.setReviewCount(shop.getReviewCount());
-        response.setIsFavorited(false); // 商家端不需要收藏状态
+        response.setFavorited(false); // 商家端不需要收藏状态
         
         // 处理图片列表
         response.setImages(parseImages(shop.getImages()));

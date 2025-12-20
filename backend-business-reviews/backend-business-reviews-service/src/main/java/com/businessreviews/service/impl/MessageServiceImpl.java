@@ -4,13 +4,13 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.businessreviews.common.PageResult;
-import com.businessreviews.dto.response.ConversationResponse;
-import com.businessreviews.dto.response.MessageResponse;
-import com.businessreviews.dto.response.NotificationResponse;
-import com.businessreviews.dto.response.UnreadCountResponse;
-import com.businessreviews.entity.Message;
-import com.businessreviews.entity.Notification;
-import com.businessreviews.entity.User;
+import com.businessreviews.model.vo.ConversationVO;
+import com.businessreviews.model.vo.MessageVO;
+import com.businessreviews.model.vo.NotificationVO;
+import com.businessreviews.model.vo.UnreadCountVO;
+import com.businessreviews.model.dataobject.MessageDO;
+import com.businessreviews.model.dataobject.NotificationDO;
+import com.businessreviews.model.dataobject.UserDO;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.MessageMapper;
 import com.businessreviews.mapper.NoteMapper;
@@ -18,8 +18,8 @@ import com.businessreviews.mapper.NotificationMapper;
 import com.businessreviews.mapper.SystemNoticeMapper;
 import com.businessreviews.mapper.UserMapper;
 import com.businessreviews.service.MessageService;
-import com.businessreviews.entity.Note;
-import com.businessreviews.entity.SystemNotice;
+import com.businessreviews.model.dataobject.NoteDO;
+import com.businessreviews.model.dataobject.SystemNoticeDO;
 import com.businessreviews.util.TimeUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> implements MessageService {
+public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> implements MessageService {
 
     private final MessageMapper messageMapper;
     private final NotificationMapper notificationMapper;
@@ -45,7 +45,7 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
     private final com.businessreviews.handler.MessageWebSocketHandler webSocketHandler;
 
     @Override
-    public PageResult<ConversationResponse> getConversations(Long userId, Integer pageNum, Integer pageSize) {
+    public PageResult<ConversationVO> getConversations(Long userId, Integer pageNum, Integer pageSize) {
         log.info("获取会话列表: userId={}, pageNum={}, pageSize={}", userId, pageNum, pageSize);
         
         // 获取用户的所有会话（分组查询最新消息）
@@ -54,10 +54,10 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
         
         log.info("查询到会话数量: {}, 总数: {}", conversations.size(), total);
         
-        List<ConversationResponse> list = conversations.stream()
+        List<ConversationVO> list = conversations.stream()
                 .map(conv -> {
                     log.debug("处理会话数据: {}", conv);
-                    ConversationResponse response = new ConversationResponse();
+                    ConversationVO response = new ConversationVO();
                     
                     // 安全获取 other_user_id
                     Object otherUserIdObj = conv.get("other_user_id");
@@ -69,7 +69,7 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
                     }
                     
                     if (otherUserId != null) {
-                        User otherUser = userMapper.selectById(otherUserId);
+                        UserDO otherUser = userMapper.selectById(otherUserId);
                         if (otherUser != null) {
                             response.setUserId(otherUser.getId().toString());
                             response.setUsername(otherUser.getUsername());
@@ -105,19 +105,19 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
     }
 
     @Override
-    public PageResult<MessageResponse> getChatHistory(Long userId, Long targetUserId, Integer pageNum, Integer pageSize) {
-        Page<Message> page = new Page<>(pageNum, pageSize);
+    public PageResult<MessageVO> getChatHistory(Long userId, Long targetUserId, Integer pageNum, Integer pageSize) {
+        Page<MessageDO> page = new Page<>(pageNum, pageSize);
         
         // 查询两个用户之间的消息
-        LambdaQueryWrapper<Message> wrapper = new LambdaQueryWrapper<>();
-        wrapper.and(w -> w.eq(Message::getSenderId, userId).eq(Message::getReceiverId, targetUserId))
-               .or(w -> w.eq(Message::getSenderId, targetUserId).eq(Message::getReceiverId, userId))
-               .orderByDesc(Message::getCreatedAt);
+        LambdaQueryWrapper<MessageDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.and(w -> w.eq(MessageDO::getSenderId, userId).eq(MessageDO::getReceiverId, targetUserId))
+               .or(w -> w.eq(MessageDO::getSenderId, targetUserId).eq(MessageDO::getReceiverId, userId))
+               .orderByDesc(MessageDO::getCreatedAt);
         
-        Page<Message> messagePage = messageMapper.selectPage(page, wrapper);
+        Page<MessageDO> messagePage = messageMapper.selectPage(page, wrapper);
         
-        List<MessageResponse> list = messagePage.getRecords().stream()
-                .map(this::convertToMessageResponse)
+        List<MessageVO> list = messagePage.getRecords().stream()
+                .map(this::convertToMessageVO)
                 .collect(Collectors.toList());
         
         return PageResult.of(list, messagePage.getTotal(), pageNum, pageSize);
@@ -125,23 +125,23 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public MessageResponse sendMessage(Long userId, Long targetUserId, String content, Integer type) {
+    public MessageVO sendMessage(Long userId, Long targetUserId, String content, Integer type) {
         // 检查目标用户是否存在
-        User targetUser = userMapper.selectById(targetUserId);
+        UserDO targetUser = userMapper.selectById(targetUserId);
         if (targetUser == null) {
             throw new BusinessException(40401, "用户不存在");
         }
         
-        Message message = new Message();
+        MessageDO message = new MessageDO();
         message.setSenderId(userId);
         message.setReceiverId(targetUserId);
         message.setContent(content);
         message.setType(type != null ? type : 1);
-        message.setIsRead(false);
+        message.setReadStatus(false);
         
         messageMapper.insert(message);
         
-        MessageResponse response = convertToMessageResponse(message);
+        MessageVO response = convertToMessageVO(message);
         
         // 通过WebSocket实时推送消息给接收者
         try {
@@ -178,22 +178,22 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
     }
 
     @Override
-    public PageResult<NotificationResponse> getNotifications(Long userId, Integer type, Integer pageNum, Integer pageSize) {
+    public PageResult<NotificationVO> getNotifications(Long userId, Integer type, Integer pageNum, Integer pageSize) {
         // 使用 system_notices 表获取通知（包含发送者信息）
-        Page<SystemNotice> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<SystemNotice> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SystemNotice::getUserId, userId);
+        Page<SystemNoticeDO> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<SystemNoticeDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SystemNoticeDO::getUserId, userId);
         
         if (type != null) {
-            wrapper.eq(SystemNotice::getNoticeType, type);
+            wrapper.eq(SystemNoticeDO::getNoticeType, type);
         }
         
-        wrapper.orderByDesc(SystemNotice::getCreatedAt);
+        wrapper.orderByDesc(SystemNoticeDO::getCreatedAt);
         
-        Page<SystemNotice> noticePage = systemNoticeMapper.selectPage(page, wrapper);
+        Page<SystemNoticeDO> noticePage = systemNoticeMapper.selectPage(page, wrapper);
         
-        List<NotificationResponse> list = noticePage.getRecords().stream()
-                .map(this::convertSystemNoticeToResponse)
+        List<NotificationVO> list = noticePage.getRecords().stream()
+                .map(this::convertSystemNoticeToVO)
                 .collect(Collectors.toList());
         
         return PageResult.of(list, noticePage.getTotal(), pageNum, pageSize);
@@ -202,12 +202,12 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void markNotificationAsRead(Long userId, Long notificationId) {
-        Notification notification = notificationMapper.selectById(notificationId);
+        NotificationDO notification = notificationMapper.selectById(notificationId);
         if (notification == null || !notification.getUserId().equals(userId)) {
             throw new BusinessException(40402, "通知不存在");
         }
         
-        notification.setIsRead(true);
+        notification.setReadStatus(true);
         notificationMapper.updateById(notification);
     }
 
@@ -219,12 +219,12 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
 
     @Override
     public Object getUnreadCount(Long userId) {
-        UnreadCountResponse response = new UnreadCountResponse();
+        UnreadCountVO response = new UnreadCountVO();
         
         // 统计未读私信数
-        LambdaQueryWrapper<Message> messageWrapper = new LambdaQueryWrapper<>();
-        messageWrapper.eq(Message::getReceiverId, userId)
-                      .eq(Message::getIsRead, false);
+        LambdaQueryWrapper<MessageDO> messageWrapper = new LambdaQueryWrapper<>();
+        messageWrapper.eq(MessageDO::getReceiverId, userId)
+                      .eq(MessageDO::getReadStatus, false);
         response.setMessageCount(messageMapper.selectCount(messageWrapper).intValue());
         
         // 统计未读点赞通知数
@@ -250,13 +250,13 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void sendNotification(Long userId, String title, String content, Integer type, Long relatedId) {
-        Notification notification = new Notification();
+        NotificationDO notification = new NotificationDO();
         notification.setUserId(userId);
         notification.setTitle(title);
         notification.setContent(content);
         notification.setType(type);
         notification.setRelatedId(relatedId);
-        notification.setIsRead(false);
+        notification.setReadStatus(false);
         
         notificationMapper.insert(notification);
     }
@@ -264,40 +264,40 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void sendSystemNotice(Long userId, Long fromUserId, Integer type, Long targetId, String content, String imageUrl) {
-        SystemNotice notice = new SystemNotice();
+        SystemNoticeDO notice = new SystemNoticeDO();
         notice.setUserId(userId);
         notice.setFromUserId(fromUserId);
         notice.setNoticeType(type);
         notice.setTargetId(targetId);
         notice.setContent(content);
         notice.setImageUrl(imageUrl);
-        notice.setIsRead(0);
+        notice.setReadStatus(0);
         
         systemNoticeMapper.insert(notice);
         log.info("发送系统通知: userId={}, fromUserId={}, type={}, targetId={}", userId, fromUserId, type, targetId);
     }
 
     private int countUnreadNotifications(Long userId, Integer type) {
-        LambdaQueryWrapper<SystemNotice> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SystemNotice::getUserId, userId)
-               .eq(SystemNotice::getNoticeType, type)
-               .eq(SystemNotice::getIsRead, 0);
+        LambdaQueryWrapper<SystemNoticeDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SystemNoticeDO::getUserId, userId)
+               .eq(SystemNoticeDO::getNoticeType, type)
+               .eq(SystemNoticeDO::getReadStatus, 0);
         return systemNoticeMapper.selectCount(wrapper).intValue();
     }
 
-    private MessageResponse convertToMessageResponse(Message message) {
-        MessageResponse response = new MessageResponse();
+    private MessageVO convertToMessageVO(MessageDO message) {
+        MessageVO response = new MessageVO();
         response.setId(message.getId().toString());
         response.setSenderId(message.getSenderId().toString());
         response.setReceiverId(message.getReceiverId().toString());
         response.setContent(message.getContent());
         response.setType(message.getType());
-        response.setIsRead(message.getIsRead());
+        response.setReadStatus(message.getReadStatus());
         response.setCreatedAt(message.getCreatedAt().toString());
         response.setTimeAgo(TimeUtil.formatRelativeTime(message.getCreatedAt()));
         
         // 查询发送者信息
-        User sender = userMapper.selectById(message.getSenderId());
+        UserDO sender = userMapper.selectById(message.getSenderId());
         if (sender != null) {
             response.setSenderName(sender.getUsername());
             response.setSenderAvatar(sender.getAvatar());
@@ -306,33 +306,33 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
         return response;
     }
 
-    private NotificationResponse convertToNotificationResponse(Notification notification) {
-        NotificationResponse response = new NotificationResponse();
+    private NotificationVO convertToNotificationVO(NotificationDO notification) {
+        NotificationVO response = new NotificationVO();
         response.setId(notification.getId().toString());
         response.setTitle(notification.getTitle());
         response.setContent(notification.getContent());
         response.setType(notification.getType());
         response.setRelatedId(notification.getRelatedId() != null ? notification.getRelatedId().toString() : null);
-        response.setIsRead(notification.getIsRead());
+        response.setReadStatus(notification.getReadStatus());
         response.setCreatedAt(notification.getCreatedAt().toString());
         response.setTimeAgo(TimeUtil.formatRelativeTime(notification.getCreatedAt()));
         
         return response;
     }
     
-    private NotificationResponse convertSystemNoticeToResponse(SystemNotice notice) {
-        NotificationResponse response = new NotificationResponse();
+    private NotificationVO convertSystemNoticeToVO(SystemNoticeDO notice) {
+        NotificationVO response = new NotificationVO();
         response.setId(notice.getId().toString());
         response.setType(notice.getNoticeType());
         response.setContent(notice.getContent());
         response.setRelatedId(notice.getTargetId() != null ? notice.getTargetId().toString() : null);
-        response.setIsRead(notice.getIsRead() != null && notice.getIsRead() == 1);
+        response.setReadStatus(notice.getReadStatus() != null && notice.getReadStatus() == 1);
         response.setCreatedAt(notice.getCreatedAt() != null ? notice.getCreatedAt().toString() : "");
         response.setTimeAgo(notice.getCreatedAt() != null ? TimeUtil.formatRelativeTime(notice.getCreatedAt()) : "");
         
         // 获取发送者信息
         if (notice.getFromUserId() != null) {
-            User fromUser = userMapper.selectById(notice.getFromUserId());
+            UserDO fromUser = userMapper.selectById(notice.getFromUserId());
             if (fromUser != null) {
                 response.setFromUserId(fromUser.getId());
                 response.setFromUsername(fromUser.getUsername());
@@ -342,7 +342,7 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
         
         // 获取笔记信息（如果是点赞笔记或评论笔记类型）
         if (notice.getTargetId() != null && (notice.getNoticeType() == 1 || notice.getNoticeType() == 2)) {
-            Note note = noteMapper.selectById(notice.getTargetId());
+            NoteDO note = noteMapper.selectById(notice.getTargetId());
             if (note != null) {
                 response.setNoteId(note.getId());
                 response.setNoteTitle(note.getTitle());

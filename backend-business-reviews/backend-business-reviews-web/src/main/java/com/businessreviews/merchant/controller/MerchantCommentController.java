@@ -2,7 +2,7 @@ package com.businessreviews.merchant.controller;
 
 import com.businessreviews.common.PageResult;
 import com.businessreviews.common.Result;
-import com.businessreviews.dto.response.CommentResponse;
+import com.businessreviews.model.vo.CommentVO;
 import com.businessreviews.merchant.context.MerchantContext;
 import com.businessreviews.service.MerchantCommentService;
 import lombok.RequiredArgsConstructor;
@@ -24,13 +24,13 @@ public class MerchantCommentController {
      * 获取评论列表
      */
     @GetMapping
-    public Result<PageResult<CommentResponse>> getCommentList(
+    public Result<PageResult<CommentVO>> getCommentList(
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize,
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) String keyword) {
         Long merchantId = MerchantContext.requireMerchantId();
-        PageResult<CommentResponse> result = merchantCommentService.getCommentList(
+        PageResult<CommentVO> result = merchantCommentService.getCommentList(
                 merchantId, pageNum, pageSize, status, keyword);
         return Result.success(result);
     }

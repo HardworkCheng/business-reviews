@@ -1,7 +1,7 @@
 package com.businessreviews.service.merchant;
 
 import com.businessreviews.common.PageResult;
-import com.businessreviews.dto.response.CommentResponse;
+import com.businessreviews.model.vo.CommentVO;
 import java.util.Map;
 
 /**
@@ -13,7 +13,7 @@ public interface MerchantCommentService {
     /**
      * 获取评论列表
      */
-    PageResult<CommentResponse> getCommentList(Long merchantId, Integer pageNum, Integer pageSize, 
+    PageResult<CommentVO> getCommentList(Long merchantId, Integer pageNum, Integer pageSize, 
             Integer status, String keyword);
     
     /**

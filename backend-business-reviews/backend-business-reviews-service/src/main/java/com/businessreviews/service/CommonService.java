@@ -1,7 +1,7 @@
 package com.businessreviews.service;
 
-import com.businessreviews.dto.response.CategoryResponse;
-import com.businessreviews.dto.response.TopicResponse;
+import com.businessreviews.model.vo.CategoryVO;
+import com.businessreviews.model.vo.TopicVO;
 
 import java.util.List;
 
@@ -10,22 +10,22 @@ public interface CommonService {
     /**
      * 获取所有分类
      */
-    List<CategoryResponse> getAllCategories();
+    List<CategoryVO> getAllCategories();
     
     /**
      * 获取分类详情
      */
-    CategoryResponse getCategoryDetail(Long categoryId);
+    CategoryVO getCategoryDetail(Long categoryId);
     
     /**
      * 获取话题列表
      */
-    List<TopicResponse> getTopics(Long categoryId);
+    List<TopicVO> getTopics(Long categoryId);
     
     /**
      * 获取热门话题
      */
-    List<TopicResponse> getHotTopics(Integer limit);
+    List<TopicVO> getHotTopics(Integer limit);
     
     /**
      * 搜索建议

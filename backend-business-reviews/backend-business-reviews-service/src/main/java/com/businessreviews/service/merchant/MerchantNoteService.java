@@ -1,8 +1,8 @@
 package com.businessreviews.service.merchant;
 
 import com.businessreviews.common.PageResult;
-import com.businessreviews.dto.response.NoteItemResponse;
-import com.businessreviews.dto.response.NoteDetailResponse;
+import com.businessreviews.model.vo.NoteItemVO;
+import com.businessreviews.model.vo.NoteDetailVO;
 import java.util.Map;
 
 /**
@@ -14,13 +14,13 @@ public interface MerchantNoteService {
     /**
      * 获取笔记列表
      */
-    PageResult<NoteItemResponse> getNoteList(Long merchantId, Integer pageNum, Integer pageSize, 
+    PageResult<NoteItemVO> getNoteList(Long merchantId, Integer pageNum, Integer pageSize, 
             Integer status, Long shopId, String keyword);
     
     /**
      * 获取笔记详情
      */
-    NoteDetailResponse getNoteDetail(Long merchantId, Long noteId);
+    NoteDetailVO getNoteDetail(Long merchantId, Long noteId);
     
     /**
      * 创建笔记

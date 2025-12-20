@@ -3,15 +3,15 @@ package com.businessreviews.service.impl;
 import com.businessreviews.constants.RedisKeyConstants;
 import com.businessreviews.constants.SmsCodeConstants;
 import com.businessreviews.common.DefaultAvatar;
-import com.businessreviews.dto.request.LoginByCodeRequest;
-import com.businessreviews.dto.request.LoginByPasswordRequest;
-import com.businessreviews.dto.request.OAuthLoginRequest;
-import com.businessreviews.dto.request.SendCodeRequest;
-import com.businessreviews.dto.response.LoginResponse;
-import com.businessreviews.dto.response.UserInfoResponse;
-import com.businessreviews.entity.User;
-import com.businessreviews.entity.UserStats;
-import com.businessreviews.entity.VerificationCode;
+import com.businessreviews.model.dto.LoginByCodeDTO;
+import com.businessreviews.model.dto.LoginByPasswordDTO;
+import com.businessreviews.model.dto.OAuthLoginDTO;
+import com.businessreviews.model.dto.SendCodeDTO;
+import com.businessreviews.model.vo.LoginVO;
+import com.businessreviews.model.vo.UserInfoVO;
+import com.businessreviews.model.dataobject.UserDO;
+import com.businessreviews.model.dataobject.UserStatsDO;
+import com.businessreviews.model.dataobject.VerificationCodeDO;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.UserMapper;
 import com.businessreviews.mapper.UserStatsMapper;
@@ -44,7 +44,7 @@ public class AuthServiceImpl implements AuthService {
     private static final Pattern PHONE_PATTERN = Pattern.compile("^1[3-9]\\d{9}$");
 
     @Override
-    public void sendCode(SendCodeRequest request) {
+    public void sendCode(SendCodeDTO request) {
         String phone = request.getPhone();
         
         // 验证手机号格式
@@ -70,7 +70,7 @@ public class AuthServiceImpl implements AuthService {
         redisUtil.set(limitKey, "1", SmsCodeConstants.LIMIT_TIME);
         
         // 记录到数据库
-        VerificationCode verificationCode = new VerificationCode();
+        VerificationCodeDO verificationCode = new VerificationCodeDO();
         verificationCode.setPhone(phone);
         verificationCode.setCode(code);
         verificationCode.setType(request.getType());
@@ -81,7 +81,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public LoginResponse loginByCode(LoginByCodeRequest request) {
+    public LoginVO loginByCode(LoginByCodeDTO request) {
         String phone = request.getPhone();
         String code = request.getCode();
         
@@ -101,7 +101,7 @@ public class AuthServiceImpl implements AuthService {
         }
         
         // 查找或创建用户
-        User user = userMapper.selectByPhone(phone);
+        UserDO user = userMapper.selectByPhone(phone);
         if (user == null) {
             log.info("用户不存在，开始注册新用户: {}", phone);
             user = registerNewUser(phone);
@@ -131,7 +131,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public LoginResponse loginByPassword(LoginByPasswordRequest request) {
+    public LoginVO loginByPassword(LoginByPasswordDTO request) {
         String phone = request.getPhone();
         String password = request.getPassword();
         
@@ -143,7 +143,7 @@ public class AuthServiceImpl implements AuthService {
         }
         
         // 查找用户
-        User user = userMapper.selectByPhone(phone);
+        UserDO user = userMapper.selectByPhone(phone);
         if (user == null) {
             // 为了安全，不透露用户是否存在
             log.warn("密码登录失败，用户不存在: {}", phone);
@@ -179,7 +179,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public LoginResponse oauthLogin(OAuthLoginRequest request) {
+    public LoginVO oauthLogin(OAuthLoginDTO request) {
         // 第三方登录已禁用
         throw new BusinessException(50000, "暂不支持第三方登录");
     }
@@ -201,10 +201,10 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
-    private User registerNewUser(String phone) {
+    private UserDO registerNewUser(String phone) {
         log.info("开始注册新用户，手机号: {}", phone);
         
-        User user = new User();
+        UserDO user = new UserDO();
         user.setPhone(phone);
         user.setUsername("用户" + phone.substring(7));
         
@@ -218,7 +218,7 @@ public class AuthServiceImpl implements AuthService {
         log.info("用户插入结果: {}, 用户ID: {}", insertResult, user.getId());
         
         // 创建用户统计记录
-        UserStats stats = new UserStats();
+        UserStatsDO stats = new UserStatsDO();
         stats.setUserId(user.getId());
         stats.setFollowingCount(0);
         stats.setFollowerCount(0);
@@ -232,11 +232,11 @@ public class AuthServiceImpl implements AuthService {
         return user;
     }
 
-    private LoginResponse buildLoginResponse(User user, String token) {
-        LoginResponse response = new LoginResponse();
+    private LoginVO buildLoginResponse(UserDO user, String token) {
+        LoginVO response = new LoginVO();
         response.setToken(token);
         
-        UserInfoResponse userInfo = new UserInfoResponse();
+        UserInfoVO userInfo = new UserInfoVO();
         userInfo.setUserId(user.getId().toString());
         userInfo.setUsername(user.getUsername());
         userInfo.setAvatar(user.getAvatar());

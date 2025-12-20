@@ -1,6 +1,7 @@
 /**
  * WebSocket管理器
  * 用于实时消息推送
+ * 只在聊天页面使用，避免全局连接
  */
 
 class WebSocketManager {
@@ -12,6 +13,26 @@ class WebSocketManager {
     this.isConnecting = false
     this.userId = null
     this.token = null
+    this.reconnectAttempts = 0
+    this.maxReconnectAttempts = 3 // 最大重连次数
+    this.enabled = false // 是否启用WebSocket（只在聊天页面启用）
+    this.debugMode = false // 调试模式，控制日志输出
+  }
+  
+  /**
+   * 启用WebSocket（进入聊天页面时调用）
+   */
+  enable() {
+    this.enabled = true
+    this.reconnectAttempts = 0
+  }
+  
+  /**
+   * 禁用WebSocket（离开聊天页面时调用）
+   */
+  disable() {
+    this.enabled = false
+    this.disconnect()
   }
   
   /**
@@ -20,9 +41,15 @@ class WebSocketManager {
    * @param {String} token - 认证token
    */
   connect(userId, token) {
+    // 如果未启用，不进行连接
+    if (!this.enabled) {
+      if (this.debugMode) console.log('WebSocket未启用，跳过连接')
+      return
+    }
+    
     // 验证参数，防止undefined值
     if (!userId || !token) {
-      console.warn('WebSocket连接失败: userId或token为空', { userId, token: token ? '存在' : '不存在' })
+      if (this.debugMode) console.warn('WebSocket连接失败: userId或token为空')
       return
     }
     
@@ -32,54 +59,79 @@ class WebSocketManager {
     
     // #ifdef H5
     if (this.isConnecting || (this.ws && this.ws.readyState === WebSocket.OPEN)) {
-      console.log('WebSocket已连接或正在连接中')
+      if (this.debugMode) console.log('WebSocket已连接或正在连接中')
       return
     }
     // #endif
     
     // #ifndef H5
     if (this.isConnecting) {
-      console.log('WebSocket正在连接中')
+      if (this.debugMode) console.log('WebSocket正在连接中')
       return
     }
     // #endif
     
     this.isConnecting = true
     
-    // WebSocket端点需要包含context-path前缀 /api
-    const wsUrl = `ws://localhost:8080/api/ws?userId=${userId}&token=${encodeURIComponent(token)}`
+    // 根据环境构建WebSocket URL
+    let wsUrl
+    // #ifdef H5
+    // H5环境下，使用当前页面的host来构建WebSocket URL
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const host = window.location.host
+    // 如果是开发环境（通过vite代理），直接连接后端
+    if (host.includes('localhost') || host.includes('127.0.0.1')) {
+      wsUrl = `ws://localhost:8080/api/ws?userId=${userId}&token=${encodeURIComponent(token)}`
+    } else {
+      // 生产环境或其他情况
+      wsUrl = `${protocol}//${host}/api/ws?userId=${userId}&token=${encodeURIComponent(token)}`
+    }
+    // #endif
     
-    console.log('正在连接WebSocket:', wsUrl)
+    // #ifndef H5
+    // 非H5环境（小程序、App）
+    wsUrl = `ws://localhost:8080/api/ws?userId=${userId}&token=${encodeURIComponent(token)}`
+    // #endif
+    
+    if (this.debugMode) console.log('正在连接WebSocket:', wsUrl)
     
     // #ifdef H5
-    this.ws = new WebSocket(wsUrl)
-    
-    this.ws.onopen = () => {
-      console.log('WebSocket连接成功')
-      this.isConnecting = false
-      this.startHeartbeat()
-    }
-    
-    this.ws.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data)
-        console.log('收到WebSocket消息:', message)
-        this.messageHandlers.forEach(handler => handler(message))
-      } catch (e) {
-        console.error('解析WebSocket消息失败:', e)
+    try {
+      this.ws = new WebSocket(wsUrl)
+      
+      this.ws.onopen = () => {
+        if (this.debugMode) console.log('WebSocket连接成功')
+        this.isConnecting = false
+        this.reconnectAttempts = 0 // 连接成功，重置重连次数
+        this.startHeartbeat()
       }
-    }
-    
-    this.ws.onerror = (error) => {
-      console.error('WebSocket错误:', error)
+      
+      this.ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data)
+          if (this.debugMode) console.log('收到WebSocket消息:', message)
+          this.messageHandlers.forEach(handler => handler(message))
+        } catch (e) {
+          if (this.debugMode) console.error('解析WebSocket消息失败:', e)
+        }
+      }
+      
+      this.ws.onerror = () => {
+        // 静默处理错误，不输出到控制台
+        this.isConnecting = false
+      }
+      
+      this.ws.onclose = () => {
+        this.isConnecting = false
+        this.stopHeartbeat()
+        // 只有在启用状态下才尝试重连
+        if (this.enabled) {
+          this.reconnect()
+        }
+      }
+    } catch (e) {
       this.isConnecting = false
-    }
-    
-    this.ws.onclose = () => {
-      console.log('WebSocket连接关闭')
-      this.isConnecting = false
-      this.stopHeartbeat()
-      this.reconnect()
+      if (this.debugMode) console.error('WebSocket创建失败:', e)
     }
     // #endif
     
@@ -87,40 +139,42 @@ class WebSocketManager {
     uni.connectSocket({
       url: wsUrl,
       success: () => {
-        console.log('WebSocket连接请求已发送')
+        if (this.debugMode) console.log('WebSocket连接请求已发送')
       },
       fail: (err) => {
-        console.error('WebSocket连接失败:', err)
+        if (this.debugMode) console.error('WebSocket连接失败:', err)
         this.isConnecting = false
       }
     })
     
     uni.onSocketOpen(() => {
-      console.log('WebSocket连接成功')
+      if (this.debugMode) console.log('WebSocket连接成功')
       this.isConnecting = false
+      this.reconnectAttempts = 0
       this.startHeartbeat()
     })
     
     uni.onSocketMessage((res) => {
       try {
         const message = JSON.parse(res.data)
-        console.log('收到WebSocket消息:', message)
+        if (this.debugMode) console.log('收到WebSocket消息:', message)
         this.messageHandlers.forEach(handler => handler(message))
       } catch (e) {
-        console.error('解析WebSocket消息失败:', e)
+        if (this.debugMode) console.error('解析WebSocket消息失败:', e)
       }
     })
     
-    uni.onSocketError((error) => {
-      console.error('WebSocket错误:', error)
+    uni.onSocketError(() => {
+      // 静默处理错误
       this.isConnecting = false
     })
     
     uni.onSocketClose(() => {
-      console.log('WebSocket连接关闭')
       this.isConnecting = false
       this.stopHeartbeat()
-      this.reconnect()
+      if (this.enabled) {
+        this.reconnect()
+      }
     })
     // #endif
   }
@@ -194,14 +248,28 @@ class WebSocketManager {
   reconnect() {
     if (this.reconnectTimer) return
     
-    // 如果没有保存的用户信息，不进行重连
-    if (!this.userId || !this.token) {
-      console.log('没有用户信息，不进行重连')
+    // 如果未启用，不进行重连
+    if (!this.enabled) {
+      if (this.debugMode) console.log('WebSocket未启用，不进行重连')
       return
     }
     
+    // 如果没有保存的用户信息，不进行重连
+    if (!this.userId || !this.token) {
+      if (this.debugMode) console.log('没有用户信息，不进行重连')
+      return
+    }
+    
+    // 检查重连次数
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      if (this.debugMode) console.log('WebSocket重连次数已达上限，停止重连')
+      return
+    }
+    
+    this.reconnectAttempts++
+    
     this.reconnectTimer = setTimeout(() => {
-      console.log('尝试重新连接WebSocket')
+      if (this.debugMode) console.log(`尝试重新连接WebSocket (${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
       this.connect(this.userId, this.token)
       this.reconnectTimer = null
     }, 5000) // 5秒后重连
@@ -231,6 +299,20 @@ class WebSocketManager {
     this.isConnecting = false
     this.userId = null
     this.token = null
+    this.reconnectAttempts = 0
+  }
+  
+  /**
+   * 检查是否已连接
+   */
+  isConnected() {
+    // #ifdef H5
+    return this.ws && this.ws.readyState === WebSocket.OPEN
+    // #endif
+    
+    // #ifndef H5
+    return false // uni-app需要通过其他方式检查
+    // #endif
   }
 }
 

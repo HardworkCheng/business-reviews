@@ -23,8 +23,8 @@
         <module>backend-business-reviews-common</module>
         <module>backend-business-reviews-entity</module>
         <module>backend-business-reviews-mapper</module>
+        <module>backend-business-reviews-manager</module>
         <module>backend-business-reviews-service</module>
-        <module>backend-business-reviews-mobile</module>
         <module>backend-business-reviews-web</module>
     </modules>
     
@@ -61,6 +61,11 @@
             <dependency>
                 <groupId>com.businessreviews</groupId>
                 <artifactId>backend-business-reviews-service</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.businessreviews</groupId>
+                <artifactId>backend-business-reviews-manager</artifactId>
                 <version>${project.version}</version>
             </dependency>
             

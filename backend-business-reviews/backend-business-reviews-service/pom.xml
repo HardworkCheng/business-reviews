@@ -28,6 +28,12 @@
             <artifactId>backend-business-reviews-mapper</artifactId>
         </dependency>
         
+        <!-- Manager模块 -->
+        <dependency>
+            <groupId>com.businessreviews</groupId>
+            <artifactId>backend-business-reviews-manager</artifactId>
+        </dependency>
+        
         <!-- Spring Boot Starter Web (用于MultipartFile) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

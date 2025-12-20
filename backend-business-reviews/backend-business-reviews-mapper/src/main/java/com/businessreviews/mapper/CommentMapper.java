@@ -1,13 +1,13 @@
 package com.businessreviews.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.businessreviews.entity.Comment;
+import com.businessreviews.model.dataobject.CommentDO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
 
 @Mapper
-public interface CommentMapper extends BaseMapper<Comment> {
+public interface CommentMapper extends BaseMapper<CommentDO> {
     
     @Update("UPDATE comments SET like_count = like_count + 1 WHERE id = #{id}")
     int incrementLikeCount(@Param("id") Long id);

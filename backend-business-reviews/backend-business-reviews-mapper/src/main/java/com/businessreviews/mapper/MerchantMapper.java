@@ -1,7 +1,7 @@
 package com.businessreviews.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.businessreviews.entity.Merchant;
+import com.businessreviews.model.dataobject.MerchantDO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -10,13 +10,13 @@ import org.apache.ibatis.annotations.Select;
  * 商家Mapper接口
  */
 @Mapper
-public interface MerchantMapper extends BaseMapper<Merchant> {
+public interface MerchantMapper extends BaseMapper<MerchantDO> {
     
     /**
      * 根据手机号查询商家（用于登录）
      */
     @Select("SELECT * FROM merchants WHERE contact_phone = #{phone} AND status = 1")
-    Merchant selectByPhone(@Param("phone") String phone);
+    MerchantDO selectByPhone(@Param("phone") String phone);
     
     /**
      * 检查手机号是否已存在

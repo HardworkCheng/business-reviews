@@ -5,6 +5,13 @@ export default defineConfig({
   plugins: [uni()],
   server: {
     port: 5173,
-    open: true
+    host: '0.0.0.0', // 允许外部访问
+    open: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      }
+    }
   }
 })

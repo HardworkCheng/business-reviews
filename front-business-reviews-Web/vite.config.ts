@@ -11,13 +11,14 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    host: '0.0.0.0', // 允许外部访问
     proxy: {
       '/api': {
-        target: 'http://localhost:8081',
+        target: 'http://localhost:8080',
         changeOrigin: true
       },
       '/merchant': {
-        target: 'http://localhost:8081',
+        target: 'http://localhost:8080',
         changeOrigin: true
       }
     }

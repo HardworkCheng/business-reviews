@@ -4,10 +4,10 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.businessreviews.common.PageResult;
-import com.businessreviews.dto.response.NoteItemResponse;
-import com.businessreviews.dto.response.ShopDetailResponse;
-import com.businessreviews.dto.response.ShopItemResponse;
-import com.businessreviews.entity.*;
+import com.businessreviews.model.vo.NoteItemVO;
+import com.businessreviews.model.vo.ShopDetailVO;
+import com.businessreviews.model.vo.ShopItemVO;
+import com.businessreviews.model.dataobject.*;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.*;
 import com.businessreviews.service.ShopService;
@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements ShopService {
+public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements ShopService {
 
     private final ShopMapper shopMapper;
     private final CategoryMapper categoryMapper;
@@ -35,39 +35,39 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
     private final ShopReviewMapper shopReviewMapper;
 
     @Override
-    public PageResult<ShopItemResponse> getShopList(Long categoryId, String keyword, String sortBy, Integer pageNum, Integer pageSize) {
-        Page<Shop> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<Shop> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Shop::getStatus, 1);
+    public PageResult<ShopItemVO> getShopList(Long categoryId, String keyword, String sortBy, Integer pageNum, Integer pageSize) {
+        Page<ShopDO> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<ShopDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ShopDO::getStatus, 1);
         
         // 分类筛选
         if (categoryId != null) {
-            wrapper.eq(Shop::getCategoryId, categoryId);
+            wrapper.eq(ShopDO::getCategoryId, categoryId);
         }
         
         // 关键词搜索
         if (keyword != null && !keyword.trim().isEmpty()) {
-            wrapper.and(w -> w.like(Shop::getName, keyword.trim())
+            wrapper.and(w -> w.like(ShopDO::getName, keyword.trim())
                     .or()
-                    .like(Shop::getAddress, keyword.trim()));
+                    .like(ShopDO::getAddress, keyword.trim()));
         }
         
         // 排序
         if ("rating".equals(sortBy)) {
-            wrapper.orderByDesc(Shop::getRating);
+            wrapper.orderByDesc(ShopDO::getRating);
         } else if ("popular".equals(sortBy)) {
-            wrapper.orderByDesc(Shop::getPopularity);
+            wrapper.orderByDesc(ShopDO::getPopularity);
         } else if ("price_asc".equals(sortBy)) {
-            wrapper.orderByAsc(Shop::getAveragePrice);
+            wrapper.orderByAsc(ShopDO::getAveragePrice);
         } else if ("price_desc".equals(sortBy)) {
-            wrapper.orderByDesc(Shop::getAveragePrice);
+            wrapper.orderByDesc(ShopDO::getAveragePrice);
         } else {
-            wrapper.orderByDesc(Shop::getRating).orderByDesc(Shop::getPopularity);
+            wrapper.orderByDesc(ShopDO::getRating).orderByDesc(ShopDO::getPopularity);
         }
         
-        Page<Shop> shopPage = shopMapper.selectPage(page, wrapper);
+        Page<ShopDO> shopPage = shopMapper.selectPage(page, wrapper);
         
-        List<ShopItemResponse> list = shopPage.getRecords().stream()
+        List<ShopItemVO> list = shopPage.getRecords().stream()
                 .map(this::convertToShopItem)
                 .collect(Collectors.toList());
         
@@ -75,26 +75,26 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
     }
 
     @Override
-    public PageResult<ShopItemResponse> getNearbyShops(Double latitude, Double longitude, Double distance,
+    public PageResult<ShopItemVO> getNearbyShops(Double latitude, Double longitude, Double distance,
                                                         Long categoryId, Integer pageNum, Integer pageSize) {
         // 简化实现，实际应使用地理位置查询
-        Page<Shop> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<Shop> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Shop::getStatus, 1)
-               .isNotNull(Shop::getLatitude)
-               .isNotNull(Shop::getLongitude);
+        Page<ShopDO> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<ShopDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ShopDO::getStatus, 1)
+               .isNotNull(ShopDO::getLatitude)
+               .isNotNull(ShopDO::getLongitude);
         
         if (categoryId != null) {
-            wrapper.eq(Shop::getCategoryId, categoryId);
+            wrapper.eq(ShopDO::getCategoryId, categoryId);
         }
         
-        wrapper.orderByDesc(Shop::getRating);
+        wrapper.orderByDesc(ShopDO::getRating);
         
-        Page<Shop> shopPage = shopMapper.selectPage(page, wrapper);
+        Page<ShopDO> shopPage = shopMapper.selectPage(page, wrapper);
         
-        List<ShopItemResponse> list = shopPage.getRecords().stream()
+        List<ShopItemVO> list = shopPage.getRecords().stream()
                 .map(shop -> {
-                    ShopItemResponse item = convertToShopItem(shop);
+                    ShopItemVO item = convertToShopItem(shop);
                     // 计算距离（简化实现）
                     if (shop.getLatitude() != null && shop.getLongitude() != null) {
                         double dist = calculateDistance(latitude, longitude, 
@@ -109,18 +109,18 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
     }
 
     @Override
-    public PageResult<ShopItemResponse> searchShops(String keyword, Integer pageNum, Integer pageSize) {
-        Page<Shop> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<Shop> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Shop::getStatus, 1)
-               .and(w -> w.like(Shop::getName, keyword)
+    public PageResult<ShopItemVO> searchShops(String keyword, Integer pageNum, Integer pageSize) {
+        Page<ShopDO> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<ShopDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ShopDO::getStatus, 1)
+               .and(w -> w.like(ShopDO::getName, keyword)
                          .or()
-                         .like(Shop::getAddress, keyword))
-               .orderByDesc(Shop::getRating);
+                         .like(ShopDO::getAddress, keyword))
+               .orderByDesc(ShopDO::getRating);
         
-        Page<Shop> shopPage = shopMapper.selectPage(page, wrapper);
+        Page<ShopDO> shopPage = shopMapper.selectPage(page, wrapper);
         
-        List<ShopItemResponse> list = shopPage.getRecords().stream()
+        List<ShopItemVO> list = shopPage.getRecords().stream()
                 .map(this::convertToShopItem)
                 .collect(Collectors.toList());
         
@@ -128,8 +128,8 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
     }
 
     @Override
-    public ShopDetailResponse getShopDetail(Long shopId, Long userId) {
-        Shop shop = shopMapper.selectById(shopId);
+    public ShopDetailVO getShopDetail(Long shopId, Long userId) {
+        ShopDO shop = shopMapper.selectById(shopId);
         if (shop == null) {
             throw new BusinessException(40402, "商家不存在");
         }
@@ -138,7 +138,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
             throw new BusinessException(40402, "商家暂停营业");
         }
         
-        ShopDetailResponse response = new ShopDetailResponse();
+        ShopDetailVO response = new ShopDetailVO();
         response.setId(shop.getId());
         response.setName(shop.getName());
         response.setHeaderImage(shop.getHeaderImage());
@@ -158,9 +158,9 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
         
         // 检查是否已收藏
         if (userId != null) {
-            response.setIsFavorited(isShopBookmarked(userId, shopId));
+            response.setFavorited(isShopBookmarked(userId, shopId));
         } else {
-            response.setIsFavorited(false);
+            response.setFavorited(false);
         }
         
         return response;
@@ -168,17 +168,17 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
 
     @Override
     public PageResult<Object> getShopNotes(Long shopId, Integer pageNum, Integer pageSize) {
-        Page<Note> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Note::getShopId, shopId)
-               .eq(Note::getStatus, 1)
-               .orderByDesc(Note::getCreatedAt);
+        Page<NoteDO> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteDO::getShopId, shopId)
+               .eq(NoteDO::getStatus, 1)
+               .orderByDesc(NoteDO::getCreatedAt);
         
-        Page<Note> notePage = noteMapper.selectPage(page, wrapper);
+        Page<NoteDO> notePage = noteMapper.selectPage(page, wrapper);
         
         List<Object> list = notePage.getRecords().stream()
                 .map(note -> {
-                    NoteItemResponse item = new NoteItemResponse();
+                    NoteItemVO item = new NoteItemVO();
                     item.setId(note.getId().toString());
                     item.setImage(note.getCoverImage());
                     item.setTitle(note.getTitle());
@@ -186,7 +186,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
                     item.setViews(note.getViewCount());
                     item.setCreatedAt(note.getCreatedAt().toString());
                     
-                    User author = userMapper.selectById(note.getUserId());
+                    UserDO author = userMapper.selectById(note.getUserId());
                     if (author != null) {
                         item.setAuthor(author.getUsername());
                         item.setAuthorAvatar(author.getAvatar());
@@ -202,7 +202,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void bookmarkShop(Long userId, Long shopId) {
-        Shop shop = shopMapper.selectById(shopId);
+        ShopDO shop = shopMapper.selectById(shopId);
         if (shop == null || shop.getStatus() != 1) {
             throw new BusinessException(40402, "商家不存在");
         }
@@ -213,7 +213,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
         }
         
         // 插入收藏记录
-        UserFavorite favorite = new UserFavorite();
+        UserFavoriteDO favorite = new UserFavoriteDO();
         favorite.setUserId(userId);
         favorite.setType(2); // 商家类型
         favorite.setTargetId(shopId);
@@ -230,11 +230,11 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
     @Transactional(rollbackFor = Exception.class)
     public void unbookmarkShop(Long userId, Long shopId) {
         // 检查是否已收藏
-        LambdaQueryWrapper<UserFavorite> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserFavorite::getUserId, userId)
-               .eq(UserFavorite::getType, 2)
-               .eq(UserFavorite::getTargetId, shopId);
-        UserFavorite favorite = userFavoriteMapper.selectOne(wrapper);
+        LambdaQueryWrapper<UserFavoriteDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserFavoriteDO::getUserId, userId)
+               .eq(UserFavoriteDO::getType, 2)
+               .eq(UserFavoriteDO::getTargetId, shopId);
+        UserFavoriteDO favorite = userFavoriteMapper.selectOne(wrapper);
         
         if (favorite == null) {
             throw new BusinessException(40001, "未收藏");
@@ -253,27 +253,27 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
     @Override
     public boolean isShopBookmarked(Long userId, Long shopId) {
         if (userId == null) return false;
-        LambdaQueryWrapper<UserFavorite> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserFavorite::getUserId, userId)
-               .eq(UserFavorite::getType, 2)
-               .eq(UserFavorite::getTargetId, shopId);
+        LambdaQueryWrapper<UserFavoriteDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserFavoriteDO::getUserId, userId)
+               .eq(UserFavoriteDO::getType, 2)
+               .eq(UserFavoriteDO::getTargetId, shopId);
         return userFavoriteMapper.selectCount(wrapper) > 0;
     }
 
     @Override
     public PageResult<Object> getShopReviews(Long shopId, Integer pageNum, Integer pageSize, String sortBy) {
-        Page<ShopReview> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<ShopReview> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ShopReview::getShopId, shopId)
-               .eq(ShopReview::getStatus, 1);
+        Page<ShopReviewDO> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<ShopReviewDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ShopReviewDO::getShopId, shopId)
+               .eq(ShopReviewDO::getStatus, 1);
         
         if ("rating".equals(sortBy)) {
-            wrapper.orderByDesc(ShopReview::getRating);
+            wrapper.orderByDesc(ShopReviewDO::getRating);
         } else {
-            wrapper.orderByDesc(ShopReview::getCreatedAt);
+            wrapper.orderByDesc(ShopReviewDO::getCreatedAt);
         }
         
-        Page<ShopReview> reviewPage = shopReviewMapper.selectPage(page, wrapper);
+        Page<ShopReviewDO> reviewPage = shopReviewMapper.selectPage(page, wrapper);
         
         List<Object> list = reviewPage.getRecords().stream()
                 .map(review -> {
@@ -287,7 +287,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
                     item.put("createdAt", review.getCreatedAt() != null ? review.getCreatedAt().toString() : null);
                     
                     // 获取用户信息
-                    User user = userMapper.selectById(review.getUserId());
+                    UserDO user = userMapper.selectById(review.getUserId());
                     if (user != null) {
                         item.put("username", user.getUsername());
                         item.put("userAvatar", user.getAvatar());
@@ -303,13 +303,13 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void postShopReview(Long userId, Long shopId, Map<String, Object> request) {
-        Shop shop = shopMapper.selectById(shopId);
+        ShopDO shop = shopMapper.selectById(shopId);
         if (shop == null || shop.getStatus() != 1) {
             throw new BusinessException(40402, "商家不存在");
         }
         
         // 创建评价
-        ShopReview review = new ShopReview();
+        ShopReviewDO review = new ShopReviewDO();
         review.setShopId(shopId);
         review.setUserId(userId);
         
@@ -347,10 +347,10 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
      */
     private void updateShopRating(Long shopId) {
         // 计算平均评分
-        LambdaQueryWrapper<ShopReview> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ShopReview::getShopId, shopId)
-               .eq(ShopReview::getStatus, 1);
-        List<ShopReview> reviews = shopReviewMapper.selectList(wrapper);
+        LambdaQueryWrapper<ShopReviewDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ShopReviewDO::getShopId, shopId)
+               .eq(ShopReviewDO::getStatus, 1);
+        List<ShopReviewDO> reviews = shopReviewMapper.selectList(wrapper);
         
         if (!reviews.isEmpty()) {
             double avgRating = reviews.stream()
@@ -373,7 +373,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
                     .average()
                     .orElse(5.0);
             
-            Shop shop = shopMapper.selectById(shopId);
+            ShopDO shop = shopMapper.selectById(shopId);
             shop.setRating(BigDecimal.valueOf(avgRating));
             shop.setTasteScore(BigDecimal.valueOf(avgTaste));
             shop.setEnvironmentScore(BigDecimal.valueOf(avgEnvironment));
@@ -383,8 +383,8 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
         }
     }
 
-    private ShopItemResponse convertToShopItem(Shop shop) {
-        ShopItemResponse item = new ShopItemResponse();
+    private ShopItemVO convertToShopItem(ShopDO shop) {
+        ShopItemVO item = new ShopItemVO();
         item.setId(shop.getId().toString());
         item.setName(shop.getName());
         item.setImage(shop.getHeaderImage());
@@ -395,7 +395,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
         
         // 查询分类
         if (shop.getCategoryId() != null) {
-            Category category = categoryMapper.selectById(shop.getCategoryId());
+            CategoryDO category = categoryMapper.selectById(shop.getCategoryId());
             if (category != null) {
                 item.setCategory(category.getName());
             }
@@ -446,27 +446,27 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
     }
 
     @Override
-    public PageResult<ShopItemResponse> getRegisteredShops(String keyword, Integer pageNum, Integer pageSize) {
-        Page<Shop> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<Shop> wrapper = new LambdaQueryWrapper<>();
+    public PageResult<ShopItemVO> getRegisteredShops(String keyword, Integer pageNum, Integer pageSize) {
+        Page<ShopDO> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<ShopDO> wrapper = new LambdaQueryWrapper<>();
         
         // 查询条件：merchantId不为空且状态正常的商户
-        wrapper.eq(Shop::getStatus, 1)
-               .isNotNull(Shop::getMerchantId);
+        wrapper.eq(ShopDO::getStatus, 1)
+               .isNotNull(ShopDO::getMerchantId);
         
         // 关键词搜索
         if (keyword != null && !keyword.trim().isEmpty()) {
-            wrapper.and(w -> w.like(Shop::getName, keyword.trim())
+            wrapper.and(w -> w.like(ShopDO::getName, keyword.trim())
                     .or()
-                    .like(Shop::getAddress, keyword.trim()));
+                    .like(ShopDO::getAddress, keyword.trim()));
         }
         
         // 按评分和人气排序
-        wrapper.orderByDesc(Shop::getRating).orderByDesc(Shop::getPopularity);
+        wrapper.orderByDesc(ShopDO::getRating).orderByDesc(ShopDO::getPopularity);
         
-        Page<Shop> shopPage = shopMapper.selectPage(page, wrapper);
+        Page<ShopDO> shopPage = shopMapper.selectPage(page, wrapper);
         
-        List<ShopItemResponse> list = shopPage.getRecords().stream()
+        List<ShopItemVO> list = shopPage.getRecords().stream()
                 .map(this::convertToShopItem)
                 .collect(Collectors.toList());
         

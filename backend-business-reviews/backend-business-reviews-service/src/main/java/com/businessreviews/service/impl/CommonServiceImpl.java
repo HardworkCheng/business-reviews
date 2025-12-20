@@ -2,11 +2,11 @@ package com.businessreviews.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
-import com.businessreviews.dto.response.CategoryResponse;
-import com.businessreviews.dto.response.TopicResponse;
-import com.businessreviews.entity.Category;
-import com.businessreviews.entity.SearchHistory;
-import com.businessreviews.entity.Topic;
+import com.businessreviews.model.vo.CategoryVO;
+import com.businessreviews.model.vo.TopicVO;
+import com.businessreviews.model.dataobject.CategoryDO;
+import com.businessreviews.model.dataobject.SearchHistoryDO;
+import com.businessreviews.model.dataobject.TopicDO;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.CategoryMapper;
 import com.businessreviews.mapper.SearchHistoryMapper;
@@ -32,51 +32,51 @@ public class CommonServiceImpl implements CommonService {
     private final RedisUtil redisUtil;
 
     @Override
-    public List<CategoryResponse> getAllCategories() {
+    public List<CategoryVO> getAllCategories() {
         // 查询所有分类
-        LambdaQueryWrapper<Category> wrapper = new LambdaQueryWrapper<>();
-        wrapper.orderByAsc(Category::getSortOrder);
-        List<Category> categories = categoryMapper.selectList(wrapper);
+        LambdaQueryWrapper<CategoryDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.orderByAsc(CategoryDO::getSortOrder);
+        List<CategoryDO> categories = categoryMapper.selectList(wrapper);
         
         return categories.stream()
-                .map(this::convertToCategoryResponse)
+                .map(this::convertToCategoryVO)
                 .collect(Collectors.toList());
     }
 
     @Override
-    public CategoryResponse getCategoryDetail(Long categoryId) {
-        Category category = categoryMapper.selectById(categoryId);
+    public CategoryVO getCategoryDetail(Long categoryId) {
+        CategoryDO category = categoryMapper.selectById(categoryId);
         if (category == null) {
             throw new BusinessException(40402, "分类不存在");
         }
-        return convertToCategoryResponse(category);
+        return convertToCategoryVO(category);
     }
 
     @Override
-    public List<TopicResponse> getTopics(Long categoryId) {
-        LambdaQueryWrapper<Topic> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Topic::getStatus, 1)
-               .orderByDesc(Topic::getViewCount);
+    public List<TopicVO> getTopics(Long categoryId) {
+        LambdaQueryWrapper<TopicDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TopicDO::getStatus, 1)
+               .orderByDesc(TopicDO::getViewCount);
         
-        List<Topic> topics = topicMapper.selectList(wrapper);
+        List<TopicDO> topics = topicMapper.selectList(wrapper);
         
         return topics.stream()
-                .map(this::convertToTopicResponse)
+                .map(this::convertToTopicVO)
                 .collect(Collectors.toList());
     }
 
     @Override
-    public List<TopicResponse> getHotTopics(Integer limit) {
-        LambdaQueryWrapper<Topic> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Topic::getStatus, 1)
-               .eq(Topic::getIsHot, 1)
-               .orderByDesc(Topic::getViewCount)
+    public List<TopicVO> getHotTopics(Integer limit) {
+        LambdaQueryWrapper<TopicDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TopicDO::getStatus, 1)
+               .eq(TopicDO::getHot, 1)
+               .orderByDesc(TopicDO::getViewCount)
                .last("LIMIT " + (limit != null ? limit : 10));
         
-        List<Topic> topics = topicMapper.selectList(wrapper);
+        List<TopicDO> topics = topicMapper.selectList(wrapper);
         
         return topics.stream()
-                .map(this::convertToTopicResponse)
+                .map(this::convertToTopicVO)
                 .collect(Collectors.toList());
     }
 
@@ -87,16 +87,16 @@ public class CommonServiceImpl implements CommonService {
         }
         
         // 简单实现：从搜索历史中查找匹配的关键词
-        LambdaQueryWrapper<SearchHistory> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(SearchHistory::getKeyword, keyword)
-               .groupBy(SearchHistory::getKeyword)
-               .orderByDesc(SearchHistory::getSearchCount)
+        LambdaQueryWrapper<SearchHistoryDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.like(SearchHistoryDO::getKeyword, keyword)
+               .groupBy(SearchHistoryDO::getKeyword)
+               .orderByDesc(SearchHistoryDO::getSearchCount)
                .last("LIMIT 10");
         
-        List<SearchHistory> histories = searchHistoryMapper.selectList(wrapper);
+        List<SearchHistoryDO> histories = searchHistoryMapper.selectList(wrapper);
         
         return histories.stream()
-                .map(SearchHistory::getKeyword)
+                .map(SearchHistoryDO::getKeyword)
                 .collect(Collectors.toList());
     }
 
@@ -107,8 +107,8 @@ public class CommonServiceImpl implements CommonService {
         return hotSearches;
     }
 
-    private CategoryResponse convertToCategoryResponse(Category category) {
-        CategoryResponse response = new CategoryResponse();
+    private CategoryVO convertToCategoryVO(CategoryDO category) {
+        CategoryVO response = new CategoryVO();
         response.setId(category.getId().toString());
         response.setName(category.getName());
         response.setIcon(category.getIcon());
@@ -116,15 +116,15 @@ public class CommonServiceImpl implements CommonService {
         return response;
     }
 
-    private TopicResponse convertToTopicResponse(Topic topic) {
-        TopicResponse response = new TopicResponse();
+    private TopicVO convertToTopicVO(TopicDO topic) {
+        TopicVO response = new TopicVO();
         response.setId(topic.getId().toString());
         response.setName(topic.getName());
         response.setDescription(topic.getDescription());
         response.setCoverImage(topic.getCoverImage());
         response.setNoteCount(topic.getNoteCount());
         response.setViewCount(topic.getViewCount());
-        response.setIsHot(topic.getIsHot() != null && topic.getIsHot() == 1);
+        response.setHot(topic.getHot() != null && topic.getHot() == 1);
         return response;
     }
 }

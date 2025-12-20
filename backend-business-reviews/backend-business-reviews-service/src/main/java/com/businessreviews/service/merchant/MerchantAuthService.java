@@ -1,9 +1,9 @@
 package com.businessreviews.service.merchant;
 
-import com.businessreviews.dto.request.MerchantLoginRequest;
-import com.businessreviews.dto.request.MerchantRegisterRequest;
-import com.businessreviews.dto.response.MerchantLoginResponse;
-import com.businessreviews.dto.response.MerchantUserInfoResponse;
+import com.businessreviews.model.dto.MerchantLoginDTO;
+import com.businessreviews.model.dto.MerchantRegisterDTO;
+import com.businessreviews.model.vo.merchant.MerchantLoginVO;
+import com.businessreviews.model.vo.merchant.MerchantUserInfoVO;
 
 /**
  * 商家认证服务接口
@@ -20,17 +20,17 @@ public interface MerchantAuthService {
     /**
      * 验证码登录
      */
-    MerchantLoginResponse loginByCode(String phone, String code);
+    MerchantLoginVO loginByCode(String phone, String code);
     
     /**
      * 密码登录
      */
-    MerchantLoginResponse loginByPassword(MerchantLoginRequest request);
+    MerchantLoginVO loginByPassword(MerchantLoginDTO request);
     
     /**
      * 获取当前登录商家信息（使用商家ID）
      */
-    MerchantUserInfoResponse getCurrentUserInfo(Long merchantId);
+    MerchantUserInfoVO getCurrentUserInfo(Long merchantId);
     
     /**
      * 退出登录
@@ -40,5 +40,5 @@ public interface MerchantAuthService {
     /**
      * 商家入驻注册（完整信息）
      */
-    MerchantLoginResponse register(MerchantRegisterRequest request);
+    MerchantLoginVO register(MerchantRegisterDTO request);
 }

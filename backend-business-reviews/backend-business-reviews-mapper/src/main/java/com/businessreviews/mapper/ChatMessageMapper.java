@@ -1,9 +1,9 @@
 package com.businessreviews.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.businessreviews.entity.ChatMessage;
+import com.businessreviews.model.dataobject.ChatMessageDO;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface ChatMessageMapper extends BaseMapper<ChatMessage> {
+public interface ChatMessageMapper extends BaseMapper<ChatMessageDO> {
 }

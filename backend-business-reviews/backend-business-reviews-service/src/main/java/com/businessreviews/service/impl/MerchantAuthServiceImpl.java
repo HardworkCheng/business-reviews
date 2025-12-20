@@ -1,13 +1,13 @@
 package com.businessreviews.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.businessreviews.dto.request.MerchantLoginRequest;
-import com.businessreviews.dto.request.MerchantRegisterRequest;
-import com.businessreviews.dto.response.MerchantLoginResponse;
-import com.businessreviews.dto.response.MerchantUserInfoResponse;
-import com.businessreviews.entity.Merchant;
-import com.businessreviews.entity.Shop;
-import com.businessreviews.entity.User;
+import com.businessreviews.model.dto.MerchantLoginDTO;
+import com.businessreviews.model.dto.MerchantRegisterDTO;
+import com.businessreviews.model.vo.merchant.MerchantLoginVO;
+import com.businessreviews.model.vo.merchant.MerchantUserInfoVO;
+import com.businessreviews.model.dataobject.MerchantDO;
+import com.businessreviews.model.dataobject.ShopDO;
+import com.businessreviews.model.dataobject.UserDO;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.MerchantMapper;
 import com.businessreviews.mapper.ShopMapper;
@@ -63,7 +63,7 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
     }
 
     @Override
-    public MerchantLoginResponse loginByCode(String phone, String code) {
+    public MerchantLoginVO loginByCode(String phone, String code) {
         // 验证验证码
         String cacheCode = redisUtil.get(MERCHANT_SMS_CODE_PREFIX + phone);
         if (cacheCode == null || !cacheCode.equals(code)) {
@@ -71,7 +71,7 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         }
 
         // 查找商家（直接使用merchants表）
-        Merchant merchant = merchantMapper.selectByPhone(phone);
+        MerchantDO merchant = merchantMapper.selectByPhone(phone);
         if (merchant == null) {
             throw new BusinessException(40401, "账号不存在，请先入驻");
         }
@@ -88,9 +88,9 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
     }
 
     @Override
-    public MerchantLoginResponse loginByPassword(MerchantLoginRequest request) {
+    public MerchantLoginVO loginByPassword(MerchantLoginDTO request) {
         // 查找商家（直接使用merchants表）
-        Merchant merchant = merchantMapper.selectByPhone(request.getPhone());
+        MerchantDO merchant = merchantMapper.selectByPhone(request.getPhone());
         if (merchant == null) {
             throw new BusinessException(40401, "账号不存在");
         }
@@ -108,13 +108,13 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
     }
 
     @Override
-    public MerchantUserInfoResponse getCurrentUserInfo(Long merchantId) {
-        Merchant merchant = merchantMapper.selectById(merchantId);
+    public MerchantUserInfoVO getCurrentUserInfo(Long merchantId) {
+        MerchantDO merchant = merchantMapper.selectById(merchantId);
         if (merchant == null) {
             throw new BusinessException(40401, "商家不存在");
         }
 
-        MerchantUserInfoResponse response = new MerchantUserInfoResponse();
+        MerchantUserInfoVO response = new MerchantUserInfoVO();
         response.setUserId(merchant.getId().toString());
         response.setMerchantId(merchant.getId().toString());
         response.setMerchantName(merchant.getName());
@@ -142,7 +142,7 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public MerchantLoginResponse register(MerchantRegisterRequest request) {
+    public MerchantLoginVO register(MerchantRegisterDTO request) {
         // 验证验证码
         String cacheCode = redisUtil.get(MERCHANT_SMS_CODE_PREFIX + request.getPhone());
         if (cacheCode == null || !cacheCode.equals(request.getCode())) {
@@ -156,7 +156,7 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         }
 
         // 创建商家（整合了原merchant_users表的所有信息）
-        Merchant merchant = new Merchant();
+        MerchantDO merchant = new MerchantDO();
         
         // 基本信息
         merchant.setName(request.getMerchantName());
@@ -202,15 +202,15 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
      * - users.avatar = merchants.logo (或 avatar)
      * - users.password = merchants.password
      */
-    private void createUniAppUser(Merchant merchant, MerchantRegisterRequest request) {
+    private void createUniAppUser(MerchantDO merchant, MerchantRegisterDTO request) {
         // 检查手机号是否已在users表中存在
-        User existingUser = userMapper.selectByPhone(request.getPhone());
+        UserDO existingUser = userMapper.selectByPhone(request.getPhone());
         if (existingUser != null) {
             log.info("UniApp用户已存在，跳过创建: phone={}", request.getPhone());
             return;
         }
         
-        User user = new User();
+        UserDO user = new UserDO();
         user.setPhone(request.getPhone());
         user.setUsername(request.getMerchantName());
         // 优先使用avatar，如果没有则使用logo
@@ -231,8 +231,8 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
      * 自动创建默认门店，将商家注册信息注入到门店管理中
      * 避免商家二次填写重复信息
      */
-    private void createDefaultShop(Merchant merchant, MerchantRegisterRequest request) {
-        Shop shop = new Shop();
+    private void createDefaultShop(MerchantDO merchant, MerchantRegisterDTO request) {
+        ShopDO shop = new ShopDO();
         shop.setMerchantId(merchant.getId());
         shop.setName(request.getMerchantName()); // 商家名称 -> 门店名称
         shop.setHeaderImage(request.getLogo()); // 商家Logo -> 门店封面图
@@ -254,11 +254,11 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         log.info("自动创建默认门店成功: shopId={}, merchantId={}, name={}", shop.getId(), merchant.getId(), shop.getName());
     }
 
-    private MerchantLoginResponse buildLoginResponse(Merchant merchant) {
+    private MerchantLoginVO buildLoginResponse(MerchantDO merchant) {
         // 使用商家ID生成Token
         String token = jwtUtil.generateToken(merchant.getId());
 
-        MerchantLoginResponse response = new MerchantLoginResponse();
+        MerchantLoginVO response = new MerchantLoginVO();
         response.setToken(token);
         response.setUserInfo(getCurrentUserInfo(merchant.getId()));
 

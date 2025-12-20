@@ -2,8 +2,8 @@ package com.businessreviews.merchant.controller;
 
 import com.businessreviews.common.PageResult;
 import com.businessreviews.common.Result;
-import com.businessreviews.dto.response.ShopDetailResponse;
-import com.businessreviews.dto.response.ShopItemResponse;
+import com.businessreviews.model.vo.ShopDetailVO;
+import com.businessreviews.model.vo.ShopItemVO;
 import com.businessreviews.merchant.context.MerchantContext;
 import com.businessreviews.service.MerchantShopService;
 import jakarta.validation.Valid;
@@ -39,13 +39,13 @@ public class MerchantShopController {
      * 获取门店列表
      */
     @GetMapping
-    public Result<PageResult<ShopItemResponse>> getShopList(
+    public Result<PageResult<ShopItemVO>> getShopList(
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize,
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) String keyword) {
         Long merchantId = MerchantContext.requireMerchantId();
-        PageResult<ShopItemResponse> result = merchantShopService.getShopList(merchantId, pageNum, pageSize, status, keyword);
+        PageResult<ShopItemVO> result = merchantShopService.getShopList(merchantId, pageNum, pageSize, status, keyword);
         return Result.success(result);
     }
 
@@ -53,9 +53,9 @@ public class MerchantShopController {
      * 获取门店详情
      */
     @GetMapping("/{id}")
-    public Result<ShopDetailResponse> getShopDetail(@PathVariable Long id) {
+    public Result<ShopDetailVO> getShopDetail(@PathVariable Long id) {
         Long merchantId = MerchantContext.requireMerchantId();
-        ShopDetailResponse response = merchantShopService.getShopDetail(merchantId, id);
+        ShopDetailVO response = merchantShopService.getShopDetail(merchantId, id);
         return Result.success(response);
     }
 

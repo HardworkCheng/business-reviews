@@ -1,9 +1,9 @@
 package com.businessreviews.service;
 
 import com.businessreviews.common.PageResult;
-import com.businessreviews.dto.request.CreateCouponRequest;
-import com.businessreviews.dto.response.CouponDetailResponse;
-import com.businessreviews.dto.response.CouponItemResponse;
+import com.businessreviews.model.dto.CreateCouponDTO;
+import com.businessreviews.model.vo.CouponDetailVO;
+import com.businessreviews.model.vo.CouponItemVO;
 import java.util.Map;
 
 /**
@@ -14,22 +14,22 @@ public interface MerchantCouponService {
     /**
      * 获取优惠券列表
      */
-    PageResult<CouponItemResponse> getCouponList(Long merchantId, Integer pageNum, Integer pageSize, Integer type, Integer status, Long shopId);
+    PageResult<CouponItemVO> getCouponList(Long merchantId, Integer pageNum, Integer pageSize, Integer type, Integer status, Long shopId);
     
     /**
      * 获取优惠券详情
      */
-    CouponDetailResponse getCouponDetail(Long merchantId, Long couponId);
+    CouponDetailVO getCouponDetail(Long merchantId, Long couponId);
     
     /**
      * 创建优惠券
      */
-    Long createCoupon(Long merchantId, Long operatorId, CreateCouponRequest request);
+    Long createCoupon(Long merchantId, Long operatorId, CreateCouponDTO request);
     
     /**
      * 更新优惠券
      */
-    void updateCoupon(Long merchantId, Long operatorId, Long couponId, CreateCouponRequest request);
+    void updateCoupon(Long merchantId, Long operatorId, Long couponId, CreateCouponDTO request);
     
     /**
      * 更新优惠券状态

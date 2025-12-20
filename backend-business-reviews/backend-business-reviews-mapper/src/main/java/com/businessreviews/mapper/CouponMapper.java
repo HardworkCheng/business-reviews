@@ -1,7 +1,7 @@
 package com.businessreviews.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.businessreviews.entity.Coupon;
+import com.businessreviews.model.dataobject.CouponDO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
@@ -10,7 +10,7 @@ import org.apache.ibatis.annotations.Update;
  * 优惠券Mapper接口
  */
 @Mapper
-public interface CouponMapper extends BaseMapper<Coupon> {
+public interface CouponMapper extends BaseMapper<CouponDO> {
     
     /**
      * 扣减库存

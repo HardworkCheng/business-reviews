@@ -11,9 +11,15 @@ const BASE_URL = {
 
 // 获取当前环境的基础URL
 const getBaseUrl = () => {
-  // 可以根据环境变量或其他方式切换
-  // 目前默认使用开发环境
+  // H5环境下使用代理，避免跨域问题
+  // #ifdef H5
+  return '/api'
+  // #endif
+  
+  // 非H5环境（如小程序、App）使用完整URL
+  // #ifndef H5
   return BASE_URL.development
+  // #endif
 }
 
 /**

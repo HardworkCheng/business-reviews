@@ -2,59 +2,59 @@ package com.businessreviews.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.businessreviews.common.PageResult;
-import com.businessreviews.dto.request.PublishNoteRequest;
-import com.businessreviews.dto.response.NoteDetailResponse;
-import com.businessreviews.dto.response.NoteItemResponse;
-import com.businessreviews.entity.Note;
+import com.businessreviews.model.dto.PublishNoteDTO;
+import com.businessreviews.model.vo.NoteDetailVO;
+import com.businessreviews.model.vo.NoteItemVO;
+import com.businessreviews.model.dataobject.NoteDO;
 
 import java.util.List;
 
-public interface NoteService extends IService<Note> {
+public interface NoteService extends IService<NoteDO> {
     
     /**
      * 获取推荐笔记列表
      */
-    PageResult<NoteItemResponse> getRecommendedNotes(Integer pageNum, Integer pageSize);
+    PageResult<NoteItemVO> getRecommendedNotes(Integer pageNum, Integer pageSize);
     
     /**
      * 获取用户笔记列表
      */
-    PageResult<NoteItemResponse> getUserNotes(Long userId, Integer pageNum, Integer pageSize);
+    PageResult<NoteItemVO> getUserNotes(Long userId, Integer pageNum, Integer pageSize);
     
     /**
      * 获取用户点赞的笔记列表
      */
-    PageResult<NoteItemResponse> getLikedNotes(Long userId, Integer pageNum, Integer pageSize);
+    PageResult<NoteItemVO> getLikedNotes(Long userId, Integer pageNum, Integer pageSize);
     
     /**
      * 获取探索页笔记列表
      */
-    PageResult<NoteItemResponse> getExploreNotes(Long categoryId, String sortBy, Integer pageNum, Integer pageSize);
+    PageResult<NoteItemVO> getExploreNotes(Long categoryId, String sortBy, Integer pageNum, Integer pageSize);
     
     /**
      * 获取附近笔记列表
      */
-    PageResult<NoteItemResponse> getNearbyNotes(Double latitude, Double longitude, Double distance, Integer pageNum, Integer pageSize);
+    PageResult<NoteItemVO> getNearbyNotes(Double latitude, Double longitude, Double distance, Integer pageNum, Integer pageSize);
     
     /**
      * 获取关注用户的笔记列表
      */
-    PageResult<NoteItemResponse> getFollowingNotes(Long userId, Integer pageNum, Integer pageSize);
+    PageResult<NoteItemVO> getFollowingNotes(Long userId, Integer pageNum, Integer pageSize);
     
     /**
      * 获取笔记详情
      */
-    NoteDetailResponse getNoteDetail(Long noteId, Long userId);
+    NoteDetailVO getNoteDetail(Long noteId, Long userId);
     
     /**
      * 发布笔记
      */
-    Long publishNote(Long userId, PublishNoteRequest request);
+    Long publishNote(Long userId, PublishNoteDTO request);
     
     /**
      * 更新笔记
      */
-    void updateNote(Long userId, Long noteId, PublishNoteRequest request);
+    void updateNote(Long userId, Long noteId, PublishNoteDTO request);
     
     /**
      * 删除笔记
@@ -99,5 +99,5 @@ public interface NoteService extends IService<Note> {
     /**
      * 搜索笔记
      */
-    PageResult<NoteItemResponse> searchNotes(String keyword, Integer pageNum, Integer pageSize);
+    PageResult<NoteItemVO> searchNotes(String keyword, Integer pageNum, Integer pageSize);
 }

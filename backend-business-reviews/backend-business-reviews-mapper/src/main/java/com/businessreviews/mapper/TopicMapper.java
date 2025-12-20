@@ -1,9 +1,9 @@
 package com.businessreviews.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.businessreviews.entity.Topic;
+import com.businessreviews.model.dataobject.TopicDO;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface TopicMapper extends BaseMapper<Topic> {
+public interface TopicMapper extends BaseMapper<TopicDO> {
 }
