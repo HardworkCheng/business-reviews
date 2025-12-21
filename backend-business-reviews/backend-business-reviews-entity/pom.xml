@@ -41,5 +41,13 @@
             <version>1.8.2</version>
             <scope>test</scope>
         </dependency>
+        
+        <!-- Reflections for runtime class scanning -->
+        <dependency>
+            <groupId>org.reflections</groupId>
+            <artifactId>reflections</artifactId>
+            <version>0.10.2</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

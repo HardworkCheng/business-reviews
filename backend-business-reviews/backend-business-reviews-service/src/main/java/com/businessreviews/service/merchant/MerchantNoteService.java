@@ -51,4 +51,14 @@ public interface MerchantNoteService {
      * 获取笔记统计
      */
     Map<String, Object> getNoteStats(Long merchantId, Long noteId);
+    
+    /**
+     * 获取笔记评论列表
+     */
+    PageResult<Map<String, Object>> getNoteComments(Long merchantId, Long noteId, Integer pageNum, Integer pageSize);
+    
+    /**
+     * 创建笔记评论
+     */
+    Long createNoteComment(Long merchantId, Long operatorId, Long noteId, Map<String, Object> request);
 }

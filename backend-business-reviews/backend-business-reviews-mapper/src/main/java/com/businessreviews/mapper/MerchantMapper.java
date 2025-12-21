@@ -8,19 +8,37 @@ import org.apache.ibatis.annotations.Select;
 
 /**
  * 商家Mapper接口
+ * 合并自 MerchantMapper 和 MerchantDOMapper
+ * 
+ * @author businessreviews
  */
 @Mapper
 public interface MerchantMapper extends BaseMapper<MerchantDO> {
     
     /**
      * 根据手机号查询商家（用于登录）
+     * 
+     * @param phone 手机号
+     * @return 商家DO
      */
     @Select("SELECT * FROM merchants WHERE contact_phone = #{phone} AND status = 1")
     MerchantDO selectByPhone(@Param("phone") String phone);
     
     /**
      * 检查手机号是否已存在
+     * 
+     * @param phone 手机号
+     * @return 数量
      */
     @Select("SELECT COUNT(*) FROM merchants WHERE contact_phone = #{phone}")
     int countByPhone(@Param("phone") String phone);
+    
+    /**
+     * 根据联系电话查询商家
+     * 
+     * @param contactPhone 联系电话
+     * @return 商家DO
+     */
+    @Select("SELECT * FROM merchants WHERE contact_phone = #{contactPhone}")
+    MerchantDO selectByContactPhone(@Param("contactPhone") String contactPhone);
 }

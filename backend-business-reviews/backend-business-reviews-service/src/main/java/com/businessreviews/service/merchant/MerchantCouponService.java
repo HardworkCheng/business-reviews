@@ -1,7 +1,7 @@
 package com.businessreviews.service.merchant;
 
 import com.businessreviews.common.PageResult;
-import com.businessreviews.model.dto.CreateCouponDTO;
+import com.businessreviews.model.dto.merchant.CreateCouponDTO;
 import com.businessreviews.model.vo.CouponDetailVO;
 import com.businessreviews.model.vo.CouponItemVO;
 import java.util.Map;

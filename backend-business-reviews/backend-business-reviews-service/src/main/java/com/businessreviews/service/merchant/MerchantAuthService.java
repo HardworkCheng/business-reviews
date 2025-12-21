@@ -1,7 +1,7 @@
 package com.businessreviews.service.merchant;
 
-import com.businessreviews.model.dto.MerchantLoginDTO;
-import com.businessreviews.model.dto.MerchantRegisterDTO;
+import com.businessreviews.model.dto.merchant.MerchantLoginDTO;
+import com.businessreviews.model.dto.merchant.MerchantRegisterDTO;
 import com.businessreviews.model.vo.merchant.MerchantLoginVO;
 import com.businessreviews.model.vo.merchant.MerchantUserInfoVO;
 

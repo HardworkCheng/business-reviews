@@ -331,32 +331,42 @@
 
   - [x] 11.1 删除空的 entity 包
 
+
+
     - 确认所有类已迁移
     - 删除 entity 包
     - _Requirements: 1.1_
 
 
+
   - [x] 11.2 删除空的 dto.request 包
+
 
     - 确认所有类已迁移
     - 删除 dto/request 包
     - _Requirements: 2.1_
 
 
+
   - [x] 11.3 删除空的 dto.response 包
+
 
     - 确认所有类已迁移
     - 删除 dto/response 包
     - _Requirements: 3.1_
 
 
+
   - [x] 11.4 删除空的 dto.merchant 和 dto.mobile 包
+
 
     - 确认所有类已迁移
     - 删除相关包
     - _Requirements: 2.2, 2.3, 3.2, 3.3_
 
 - [x] 12. Final Checkpoint - 确保所有测试通过
+
+
 
 
 
