@@ -25,11 +25,11 @@
 			<image v-else :src="noteData.image" class="note-image" mode="aspectFill"></image>
 			
 			<view class="action-btns">
-				<view class="action-btn clay-icon" :class="{ liked: isLiked }" @click="toggleLike">
-					<text>❤️</text>
+				<view class="action-btn" @click="toggleLike">
+					<image :src="isLiked ? '/static/icons/like-active.png' : '/static/icons/like.png'" class="action-icon" mode="aspectFit"></image>
 				</view>
-				<view class="action-btn clay-icon" :class="{ bookmarked: isBookmarked }" @click="toggleBookmark">
-					<text>🔖</text>
+				<view class="action-btn" @click="toggleBookmark">
+					<image :src="isBookmarked ? '/static/icons/bookmark-active.png' : '/static/icons/bookmark.png'" class="action-icon" mode="aspectFit"></image>
 				</view>
 			</view>
 		</view>
@@ -43,8 +43,8 @@
 					<text class="author-name">{{ noteData.author }}</text>
 					<text class="publish-time">{{ noteData.publishTime }}</text>
 				</view>
-				<view v-if="!noteData.isAuthor" class="follow-btn clay-icon" :class="{ following: isFollowing }" @click.stop="followAuthor">
-					<text>{{ isFollowing ? '✓' : '➕' }}</text>
+				<view v-if="!noteData.isAuthor" class="follow-btn" @click.stop="followAuthor">
+					<image :src="isFollowing ? '/static/icons/follow-active.png' : '/static/icons/follow.png'" class="follow-icon" mode="aspectFit"></image>
 				</view>
 			</view>
 
@@ -52,6 +52,9 @@
 			<view class="note-content">
 				<text class="note-title">{{ noteData.title }}</text>
 				<text class="note-text">{{ noteData.content }}</text>
+				<view class="note-publish-time">
+					<text class="publish-time-text">{{ formatTime(noteData.createdAt) }}</text>
+				</view>
 			</view>
 
 			<!-- 话题标签 -->
@@ -153,6 +156,30 @@ import { getNoteComments, postComment as postCommentAPI, likeComment as likeComm
 
 const noteId = ref('')
 
+// 时间格式化函数
+const formatTime = (timeStr) => {
+	if (!timeStr) return ''
+	
+	try {
+		const date = new Date(timeStr)
+		const now = new Date()
+		const diff = now - date
+		const minutes = Math.floor(diff / 60000)
+		const hours = Math.floor(diff / 3600000)
+		const days = Math.floor(diff / 86400000)
+		
+		if (minutes < 1) return '刚刚'
+		if (minutes < 60) return `${minutes}分钟前`
+		if (hours < 24) return `${hours}小时前`
+		if (days < 7) return `${days}天前`
+		if (days < 30) return `${Math.floor(days / 7)}周前`
+		if (days < 365) return `${Math.floor(days / 30)}个月前`
+		return `${Math.floor(days / 365)}年前`
+	} catch (e) {
+		return ''
+	}
+}
+
 // 笔记数据（从后端获取）
 const noteData = ref({
 	image: '',
@@ -162,6 +189,7 @@ const noteData = ref({
 	authorAvatar: '',
 	authorId: null,
 	publishTime: '',
+	createdAt: '',
 	tags: [],
 	comments: 0,
 	views: 0
@@ -210,6 +238,7 @@ const fetchNoteDetail = async (id) => {
 				authorId: result.authorId,
 				isAuthor: result.isAuthor || false,
 				publishTime: result.publishTime || '',
+				createdAt: result.createdAt || '',
 				tags: result.tags || [],
 				topics: result.topics || [], // 话题列表
 				comments: result.commentCount || 0,
@@ -525,27 +554,17 @@ const goToMap = () => {
 }
 
 .action-btn {
-	width: 80rpx;
-	height: 80rpx;
-	background: white;
-	border: 2rpx solid #000;
-	font-size: 36rpx;
+	width: 60rpx;
+	height: 60rpx;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	transition: all 0.3s ease;
 }
 
-.action-btn.liked {
-	background: #EF476F !important;
-	border-color: #EF476F !important;
-	color: white !important;
-}
-
-.action-btn.bookmarked {
-	background: #FF9E64 !important;
-	border-color: #FF9E64 !important;
-	color: white !important;
+.action-icon {
+	width: 50rpx;
+	height: 50rpx;
 }
 
 .content-section {
@@ -584,23 +603,17 @@ const goToMap = () => {
 }
 
 .follow-btn {
-	width: 70rpx;
-	height: 70rpx;
-	background: linear-gradient(135deg, #FF9E64 0%, #FF7A45 100%);
-	color: white;
-	font-size: 28rpx;
+	width: 50rpx;
+	height: 50rpx;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	border-radius: 50%;
 	transition: all 0.3s ease;
-	box-shadow: 0 4rpx 10rpx rgba(255, 158, 100, 0.3);
 }
 
-.follow-btn.following {
-	background: #E8E8E8 !important;
-	color: #666 !important;
-	box-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.1) !important;
+.follow-icon {
+	width: 50rpx;
+	height: 50rpx;
 }
 
 .note-content {
@@ -619,6 +632,17 @@ const goToMap = () => {
 	font-size: 28rpx;
 	line-height: 1.6;
 	color: #666;
+}
+
+.note-publish-time {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 20rpx;
+}
+
+.publish-time-text {
+	font-size: 24rpx;
+	color: #999;
 }
 
 .tags {

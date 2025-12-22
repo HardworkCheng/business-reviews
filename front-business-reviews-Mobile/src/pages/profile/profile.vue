@@ -69,6 +69,7 @@
 		</view>
 
 		<view class="content">
+			<!-- 我的笔记 -->
 			<view v-if="currentTab === 0" class="notes-grid">
 				<view 
 					class="note-card clay-shadow" 
@@ -76,12 +77,22 @@
 					:key="index"
 					@click="goToNoteDetail(note.id)"
 				>
-					<image :src="note.image" class="note-image" mode="aspectFill"></image>
+					<view class="note-image-wrapper">
+						<image :src="note.image" class="note-image" mode="aspectFill"></image>
+					</view>
 					<view class="note-info">
 						<text class="note-title line-clamp-2">{{ note.title }}</text>
-						<view class="like-count">
-							<text class="like-icon">❤️</text>
-							<text>{{ note.likes }}</text>
+						<view class="note-meta">
+							<view class="author-info">
+								<text class="author">@{{ note.author }}</text>
+							</view>
+							<view class="like-info">
+								<text class="like-icon">❤️</text>
+								<text class="like-count">{{ note.likes }}</text>
+							</view>
+						</view>
+						<view class="note-time">
+							<text class="time-text">{{ note.createTime }}</text>
 						</view>
 					</view>
 				</view>
@@ -91,6 +102,7 @@
 				</view>
 			</view>
 
+			<!-- 点赞 -->
 			<view v-if="currentTab === 1" class="notes-grid">
 				<view 
 					class="note-card clay-shadow" 
@@ -98,12 +110,22 @@
 					:key="index"
 					@click="goToNoteDetail(item.id)"
 				>
-					<image :src="item.image" class="note-image" mode="aspectFill"></image>
+					<view class="note-image-wrapper">
+						<image :src="item.image" class="note-image" mode="aspectFill"></image>
+					</view>
 					<view class="note-info">
 						<text class="note-title line-clamp-2">{{ item.title }}</text>
-						<view class="like-count">
-							<text class="like-icon">❤️</text>
-							<text>{{ item.likes }}</text>
+						<view class="note-meta">
+							<view class="author-info">
+								<text class="author">@{{ item.author }}</text>
+							</view>
+							<view class="like-info">
+								<text class="like-icon">❤️</text>
+								<text class="like-count">{{ item.likes }}</text>
+							</view>
+						</view>
+						<view class="note-time">
+							<text class="time-text">{{ item.createTime }}</text>
 						</view>
 					</view>
 				</view>
@@ -113,6 +135,7 @@
 				</view>
 			</view>
 
+			<!-- 收藏 -->
 			<view v-if="currentTab === 2" class="notes-grid">
 				<view 
 					class="note-card clay-shadow" 
@@ -120,12 +143,22 @@
 					:key="index"
 					@click="goToNoteDetail(item.id)"
 				>
-					<image :src="item.image" class="note-image" mode="aspectFill"></image>
+					<view class="note-image-wrapper">
+						<image :src="item.image" class="note-image" mode="aspectFill"></image>
+					</view>
 					<view class="note-info">
 						<text class="note-title line-clamp-2">{{ item.title }}</text>
-						<view class="like-count">
-							<text class="like-icon">❤️</text>
-							<text>{{ item.likes }}</text>
+						<view class="note-meta">
+							<view class="author-info">
+								<text class="author">@{{ item.author }}</text>
+							</view>
+							<view class="like-info">
+								<text class="like-icon">❤️</text>
+								<text class="like-count">{{ item.likes }}</text>
+							</view>
+						</view>
+						<view class="note-time">
+							<text class="time-text">{{ item.createTime }}</text>
 						</view>
 					</view>
 				</view>
@@ -135,17 +168,31 @@
 				</view>
 			</view>
 
-			<view v-if="currentTab === 3" class="history-list">
+			<!-- 足迹 -->
+			<view v-if="currentTab === 3" class="notes-grid">
 				<view 
-					class="history-item clay-shadow" 
+					class="note-card clay-shadow" 
 					v-for="(item, index) in historyList" 
 					:key="index"
 					@click="goToNoteDetail(item.id)"
 				>
-					<image :src="item.image" class="history-image" mode="aspectFill"></image>
-					<view class="history-info">
-						<text class="history-title line-clamp-2">{{ item.title }}</text>
-						<text class="history-time">{{ item.time }}</text>
+					<view class="note-image-wrapper">
+						<image :src="item.image" class="note-image" mode="aspectFill"></image>
+					</view>
+					<view class="note-info">
+						<text class="note-title line-clamp-2">{{ item.title }}</text>
+						<view class="note-meta">
+							<view class="author-info">
+								<text class="author">@{{ item.author }}</text>
+							</view>
+							<view class="like-info">
+								<text class="like-icon">❤️</text>
+								<text class="like-count">{{ item.likes }}</text>
+							</view>
+						</view>
+						<view class="note-time">
+							<text class="time-text">{{ item.createTime }}</text>
+						</view>
 					</view>
 				</view>
 				
@@ -181,6 +228,30 @@ const favoriteList = ref([])
 const historyList = ref([])
 
 const loading = ref(false)
+
+// 时间格式化函数
+const formatTime = (timeStr) => {
+	if (!timeStr) return ''
+	
+	try {
+		const date = new Date(timeStr)
+		const now = new Date()
+		const diff = now - date
+		const minutes = Math.floor(diff / 60000)
+		const hours = Math.floor(diff / 3600000)
+		const days = Math.floor(diff / 86400000)
+		
+		if (minutes < 1) return '刚刚'
+		if (minutes < 60) return `${minutes}分钟前`
+		if (hours < 24) return `${hours}小时前`
+		if (days < 7) return `${days}天前`
+		if (days < 30) return `${Math.floor(days / 7)}周前`
+		if (days < 365) return `${Math.floor(days / 30)}个月前`
+		return `${Math.floor(days / 365)}年前`
+	} catch (e) {
+		return ''
+	}
+}
 
 // 计算属性 - 确保头像响应式更新
 const avatarUrl = computed(() => {
@@ -277,7 +348,9 @@ const fetchMyNotes = async () => {
 				id: note.id,
 				title: note.title,
 				image: note.image || '',
-				likes: note.likes || 0
+				author: note.author || '匿名用户',
+				likes: note.likes || 0,
+				createTime: formatTime(note.createdAt)
 			}))
 			console.log('我的笔记已更新:', myNotes.value.length, myNotes.value)
 		}
@@ -302,7 +375,9 @@ const fetchFavorites = async () => {
 				id: item.targetId || item.id,
 				title: item.title || '未命名笔记',
 				image: item.image || '',
-				likes: item.likes || 0
+				author: item.author || '匿名用户',
+				likes: item.likes || 0,
+				createTime: formatTime(item.createdAt)
 			}))
 			console.log('收藏列表已更新:', favoriteList.value.length)
 		}
@@ -327,7 +402,9 @@ const fetchHistory = async () => {
 				id: item.noteId || item.targetId || item.id,
 				title: item.title || '未命名笔记',
 				image: item.image || '',
-				time: item.viewTime || item.createdAt || ''
+				author: item.author || '匿名用户',
+				likes: item.likes || 0,
+				createTime: item.viewTime || formatTime(item.createdAt)  // 直接使用后端格式化的viewTime
 			}))
 			console.log('足迹列表已更新:', historyList.value.length)
 		}
@@ -353,7 +430,9 @@ const fetchLikedNotes = async () => {
 				id: item.id,
 				title: item.title || '未命名笔记',
 				image: item.image || '',
-				likes: item.likes || 0
+				author: item.author || '匿名用户',
+				likes: item.likes || 0,
+				createTime: formatTime(item.createdAt)
 			}))
 			console.log('点赞列表已更新:', likedList.value.length)
 		}
@@ -553,11 +632,18 @@ const getAvatarUrl = (avatar) => {
 	background: white;
 	border-radius: 30rpx;
 	overflow: hidden;
+	transition: all 0.3s;
+}
+
+.note-image-wrapper {
+	position: relative;
+	width: 100%;
+	height: 350rpx;
 }
 
 .note-image {
 	width: 100%;
-	height: 350rpx;
+	height: 100%;
 }
 
 .note-info {
@@ -569,17 +655,50 @@ const getAvatarUrl = (avatar) => {
 	font-size: 28rpx;
 	font-weight: 500;
 	margin-bottom: 15rpx;
+	line-height: 1.4;
+}
+
+.note-meta {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.author-info {
+	display: flex;
+	flex-direction: column;
+	gap: 4rpx;
+}
+
+.author {
+	font-size: 24rpx;
+	color: #999;
+}
+
+.like-info {
+	display: flex;
+	align-items: center;
+}
+
+.like-icon {
+	font-size: 24rpx;
+	margin-right: 5rpx;
 }
 
 .like-count {
-	display: flex;
-	align-items: center;
 	font-size: 24rpx;
 	color: #EF476F;
 }
 
-.like-icon {
-	margin-right: 5rpx;
+.note-time {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 10rpx;
+}
+
+.time-text {
+	font-size: 22rpx;
+	color: #999;
 }
 
 .empty {
@@ -587,45 +706,5 @@ const getAvatarUrl = (avatar) => {
 	padding: 100rpx 0;
 	color: #999;
 	font-size: 28rpx;
-}
-
-.history-list {
-	display: flex;
-	flex-direction: column;
-	gap: 20rpx;
-}
-
-.history-item {
-	background: white;
-	border-radius: 20rpx;
-	padding: 20rpx;
-	display: flex;
-	gap: 20rpx;
-}
-
-.history-image {
-	width: 160rpx;
-	height: 160rpx;
-	border-radius: 15rpx;
-	flex-shrink: 0;
-}
-
-.history-info {
-	flex: 1;
-	display: flex;
-	flex-direction: column;
-	justify-content: space-between;
-}
-
-.history-title {
-	font-size: 28rpx;
-	font-weight: 500;
-	color: #333;
-	line-height: 1.4;
-}
-
-.history-time {
-	font-size: 24rpx;
-	color: #999;
 }
 </style>

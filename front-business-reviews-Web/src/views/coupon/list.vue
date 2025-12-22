@@ -97,7 +97,7 @@ const couponList = ref<any[]>([])
 const loading = ref(false)
 const statistics = reactive({ total: 0, issued: 0, used: 0, redeemRate: 0 })
 
-const getTypeName = (type: number) => ({ 1: '现金券', 2: '折扣券', 3: '专属券', 4: '新人券' }[type] || '未知')
+const getTypeName = (type: number) => ({ 1: '满减券', 2: '折扣券', 3: '代金券' }[type] || '未知')
 const getTypeClass = (type: number) => ({ 1: 'cash', 2: 'discount', 3: 'exclusive', 4: 'newuser' }[type] || '')
 const getStatusClass = (status: number) => ({ 0: 'upcoming', 1: 'active', 2: 'expired' }[status] || '')
 const getStatusText = (status: number) => ({ 0: '未开始', 1: '进行中', 2: '已结束' }[status] || '未知')
@@ -112,9 +112,12 @@ const searchCoupons = async () => {
     const res = await getCouponList({ title: searchKeyword.value, status: statusMap[currentFilter.value], pageNum: pagination.value.currentPage, pageSize: pagination.value.pageSize })
     couponList.value = (res.list || res.records || []).map((c: any) => ({ ...c, syncedToApp: Math.random() > 0.2 }))
     pagination.value.total = res.total || 0
+    // 统计数据：total应该是所有优惠券的总数，不是当前筛选的数量
+    // 计算已发放数量（所有优惠券的 totalCount - remainCount 之和）
+    const allCoupons = couponList.value
     statistics.total = pagination.value.total
-    statistics.issued = couponList.value.reduce((sum, c) => sum + (c.totalCount - c.remainCount), 0)
-    statistics.used = couponList.value.reduce((sum, c) => sum + (c.usedCount || 0), 0)
+    statistics.issued = allCoupons.reduce((sum, c) => sum + (c.totalCount - c.remainCount), 0)
+    statistics.used = allCoupons.reduce((sum, c) => sum + (c.usedCount || 0), 0)
     statistics.redeemRate = statistics.issued > 0 ? Math.round((statistics.used / statistics.issued) * 100) : 0
   } catch { ElMessage.error('获取优惠券列表失败') }
   finally { loading.value = false }

@@ -5,8 +5,8 @@ $accent: #06D6A0;
 $pink: #EF476F;
 $light: #F7F9FC;
 
-/* 通用样式 */
-* {
+/* 通用样式 - 移除通配符选择器，改为具体元素 */
+view, text, image, button, input, textarea {
   box-sizing: border-box;
 }
 

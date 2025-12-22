@@ -4,12 +4,13 @@
 			<view class="search-bar">
 				<button class="back-btn" @click="goBack">←</button>
 				<view class="location" @click="goToCitySelect">
-					<text class="location-icon">📍</text>
+					<image src="/static/icons/location.png" class="location-icon-img" mode="aspectFit"></image>
 					<text class="location-text">{{ currentCity }}</text>
+					<image src="/static/icons/arrow-down.png" class="location-arrow-img" mode="aspectFit"></image>
 				</view>
 				<view class="search-input-wrapper">
 					<view class="search-input">
-						<text class="search-icon">🔍</text>
+						<image src="/static/icons/search.png" class="search-icon-img" mode="aspectFit"></image>
 						<input 
 							type="text" 
 							placeholder="搜索商户名或地点" 
@@ -91,7 +92,7 @@
 					@click="selectCategory(item.name)"
 					:class="{ 'active': selectedCategory === item.name }"
 				>
-					<text class="category-icon-small">{{ item.icon }}</text>
+					<image :src="item.icon" class="category-icon-small" mode="aspectFit"></image>
 					<text class="dropdown-text">{{ item.name }}</text>
 					<text v-if="selectedCategory === item.name" class="check-icon">✓</text>
 				</view>
@@ -130,20 +131,20 @@
 				<image :src="shop.image" class="shop-image" mode="aspectFill"></image>
 				<view class="shop-info">
 					<text class="shop-name">{{ shop.name }}</text>
-					<view class="rating">
-						<view class="rating-stars">
-							<text class="star">⭐</text>
-							<text class="score">{{ shop.rating }}</text>
+					<view class="shop-score-row">
+						<view class="stars">
+							<text class="star-icon" v-for="n in 5" :key="n">⭐</text>
 						</view>
-						<text class="reviews">({{ shop.reviews }}条评价)</text>
+						<text class="score-num">{{ shop.rating || 5.0 }}</text>
+						<text class="review-count">({{ shop.reviews }}条评价)</text>
 					</view>
-					<view class="tags">
-						<text class="tag" v-for="(tag, idx) in shop.tags" :key="idx">{{ tag }}</text>
-						<text class="tag price-tag">人均 ¥{{ shop.avgPrice || 85 }}</text>
+					<view class="shop-price-row">
+						<text class="category-tag">{{ shop.tags[0] || '美食' }}</text>
+						<text class="price-text">人均 ¥{{ shop.avgPrice || 85 }}</text>
 					</view>
-					<view class="location-info">
-						<text class="location-icon">📍</text>
-						<text class="distance">{{ shop.location }}{{ shop.distance ? '，' + shop.distance : '' }}</text>
+					<view class="shop-loc-row">
+						<text class="address">{{ shop.location }}</text>
+						<text class="distance" v-if="shop.distance">{{ shop.distance }}</text>
 					</view>
 				</view>
 			</view>
@@ -163,14 +164,14 @@ const userAvatar = ref('')
 
 // 分类数据
 const categories = ref([
-	{ name: '美食', icon: '🍜', id: 1 },
-	{ name: 'KTV', icon: '🎤', id: 2 },
-	{ name: '丽人·美发', icon: '💇', id: 3 },
-	{ name: '美睫·美甲', icon: '💅', id: 4 },
-	{ name: '按摩·足疗', icon: '💆', id: 5 },
-	{ name: '美容SPA', icon: '🛁', id: 6 },
-	{ name: '亲子游乐', icon: '👶', id: 7 },
-	{ name: '酒吧', icon: '🍷', id: 8 }
+	{ name: '美食', icon: '/static/icons/food.png', id: 1 },
+	{ name: 'KTV', icon: '/static/icons/ktv.png', id: 2 },
+	{ name: '美发', icon: '/static/icons/beauty.png', id: 3 },
+	{ name: '美甲', icon: '/static/icons/nail.png', id: 4 },
+	{ name: '足疗', icon: '/static/icons/massage.png', id: 5 },
+	{ name: '美容', icon: '/static/icons/spa.png', id: 6 },
+	{ name: '游乐', icon: '/static/icons/entertainment.png', id: 7 },
+	{ name: '酒吧', icon: '/static/icons/bar.png', id: 8 }
 ])
 
 // 筛选和排序状态
@@ -889,9 +890,16 @@ const goToShopDetail = (id) => {
 	opacity: 0.7;
 }
 
-.location-icon {
-	font-size: 32rpx;
-	color: #FF9E64;
+.location-icon-img {
+	width: 28rpx;
+	height: 28rpx;
+	margin-right: 8rpx;
+}
+
+.location-arrow-img {
+	width: 20rpx;
+	height: 20rpx;
+	margin-left: 8rpx;
 }
 
 .location-text {
@@ -908,22 +916,22 @@ const goToShopDetail = (id) => {
 .search-input {
 	display: flex;
 	align-items: center;
-	padding: 16rpx 32rpx;
+	padding: 12rpx 24rpx;
 	gap: 12rpx;
 	background: white;
-	border-radius: 50rpx;
-	border: 6rpx solid #000;
+	border-radius: 40rpx;
+	border: 3rpx solid #000;
 }
 
-.search-icon {
-	font-size: 32rpx;
-	color: #666;
+.search-icon-img {
+	width: 32rpx;
+	height: 32rpx;
 	flex-shrink: 0;
 }
 
 .search-input input {
 	flex: 1;
-	font-size: 28rpx;
+	font-size: 26rpx;
 	background: transparent;
 	min-width: 0;
 	color: #333;
@@ -974,44 +982,45 @@ const goToShopDetail = (id) => {
 	align-items: center;
 	justify-content: center;
 	gap: 6rpx;
-	padding: 10rpx 28rpx;
-	background: #F5F5F5;
-	border-radius: 50rpx;
-	font-size: 28rpx;
+	padding: 10rpx 24rpx;
+	background: transparent;
+	border-radius: 30rpx;
+	font-size: 26rpx;
 	white-space: nowrap;
-	transition: all 0.3s;
-	color: #333;
+	transition: all 0.2s;
+	color: #222;
 	font-weight: 400;
 	border: none;
 	flex-shrink: 0;
 }
 
 .filter-item:first-child {
-	background: #FF9E64;
-	color: white;
-	font-weight: 500;
+	background: #fff0e6;
+	color: #ff6b00;
+	font-weight: 600;
 }
 
 .filter-item.active {
-	background: #FF9E64;
-	color: white;
-	font-weight: 500;
+	background: #fff0e6;
+	color: #ff6b00;
+	font-weight: 600;
 }
 
 .arrow {
-	font-size: 18rpx;
+	font-size: 16rpx;
 	color: #666;
 	transition: transform 0.3s;
 	margin-left: 4rpx;
+	transform: scale(0.8);
 }
 
 .filter-item:first-child .arrow,
 .filter-item.active .arrow {
-	color: white;
+	color: #ff6b00;
 }
 
 .arrow-up {
-	transform: rotate(180deg);
+	transform: scale(0.8) rotate(180deg);
 }
 
 /* 下拉菜单 */
@@ -1062,7 +1071,8 @@ const goToShopDetail = (id) => {
 }
 
 .category-icon-small {
-	font-size: 36rpx;
+	width: 36rpx;
+	height: 36rpx;
 	margin-right: 15rpx;
 }
 
@@ -1117,21 +1127,22 @@ const goToShopDetail = (id) => {
 .shop-item {
 	display: flex;
 	background: white;
-	padding: 30rpx;
+	padding: 24rpx 24rpx;
 	border-bottom: 1rpx solid #F0F0F0;
-	transition: background 0.3s;
+	transition: background 0.2s;
 }
 
 .shop-item:active {
-	background: #F7F9FC;
+	background: #FAFAFA;
 }
 
 .shop-image {
-	width: 180rpx;
-	height: 180rpx;
-	border-radius: 16rpx;
-	margin-right: 30rpx;
+	width: 160rpx;
+	height: 160rpx;
+	border-radius: 12rpx;
+	margin-right: 24rpx;
 	flex-shrink: 0;
+	background: #eee;
 }
 
 .shop-info {
@@ -1144,74 +1155,84 @@ const goToShopDetail = (id) => {
 
 .shop-name {
 	font-size: 32rpx;
-	font-weight: 500;
+	font-weight: 700;
+	color: #222;
 	margin-bottom: 8rpx;
 	line-height: 1.4;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	display: -webkit-box;
-	-webkit-line-clamp: 1;
-	-webkit-box-orient: vertical;
+	white-space: nowrap;
 }
 
-.rating {
+.shop-score-row {
 	display: flex;
 	align-items: center;
-	margin-bottom: 8rpx;
-	gap: 8rpx;
-}
-
-.rating-stars {
-	display: flex;
-	align-items: center;
-	gap: 4rpx;
-}
-
-.star {
-	font-size: 26rpx;
-}
-
-.score {
-	font-size: 28rpx;
-	font-weight: 600;
-	color: #333;
-}
-
-.reviews {
-	font-size: 26rpx;
-	color: #999;
-}
-
-.price-tag {
-	background: #FFF5ED !important;
-	color: #FF9E64 !important;
-}
-
-.tags {
-	display: flex;
-	gap: 8rpx;
-	margin-bottom: 8rpx;
-	flex-wrap: wrap;
-}
-
-.tag {
-	padding: 4rpx 16rpx;
-	background: #F5F5F5;
-	border-radius: 30rpx;
 	font-size: 24rpx;
+	margin-bottom: 12rpx;
+}
+
+.stars {
+	display: flex;
+	gap: 2rpx;
+	margin-right: 8rpx;
+}
+
+.star-icon {
+	font-size: 20rpx;
+	color: #ff6b00;
+}
+
+.score-num {
+	color: #ff6b00;
+	font-weight: 700;
+	margin-right: 12rpx;
+	font-size: 24rpx;
+}
+
+.review-count {
+	color: #999;
+	font-size: 24rpx;
+}
+
+.shop-price-row {
+	display: flex;
+	align-items: center;
+	gap: 12rpx;
+	margin-bottom: 12rpx;
+}
+
+.category-tag {
+	font-size: 22rpx;
 	color: #666;
+	background: #f5f5f5;
+	padding: 4rpx 10rpx;
+	border-radius: 8rpx;
 }
 
-.location-info {
-	display: flex;
-	align-items: center;
+.price-text {
 	font-size: 24rpx;
+	color: #222;
+}
+
+.shop-loc-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	font-size: 22rpx;
 	color: #999;
 }
 
-.location-icon {
-	font-size: 24rpx;
-	color: #FF9E64;
-	margin-right: 6rpx;
+.address {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 360rpx;
+}
+
+.distance {
+	color: #666;
+	font-weight: 500;
+	flex-shrink: 0;
+	margin-left: 12rpx;
 }
 </style>

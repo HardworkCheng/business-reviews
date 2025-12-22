@@ -279,12 +279,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
                 if (note != null) {
                     item.setImage(note.getCoverImage());
                     item.setTitle(note.getTitle());
+                    // 获取作者信息
+                    if (note.getUserId() != null) {
+                        UserDO author = userMapper.selectById(note.getUserId());
+                        if (author != null) {
+                            item.setAuthor(author.getUsername());
+                            item.setAuthorId(author.getId());
+                        }
+                    }
                 }
             } else if (history.getType() == 2) {
                 ShopDO shop = shopMapper.selectById(history.getTargetId());
                 if (shop != null) {
                     item.setImage(shop.getHeaderImage());
                     item.setTitle(shop.getName());
+                    item.setAuthor(shop.getName()); // 商家名称作为作者
                 }
             }
             list.add(item);

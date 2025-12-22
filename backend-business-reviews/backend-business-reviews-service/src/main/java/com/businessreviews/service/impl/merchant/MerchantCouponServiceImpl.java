@@ -107,10 +107,13 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
     @Override
     @Transactional
     public Long createCoupon(Long merchantId, Long operatorId, CreateCouponDTO request) {
-        log.info("创建优惠券: merchantId={}, operatorId={}", merchantId, operatorId);
+        log.info("创建优惠券: merchantId={}, operatorId={}, type={}", merchantId, operatorId, request.getType());
         
         // 验证商家
         validateMerchant(merchantId);
+        
+        // 验证优惠券类型和必填字段
+        validateCouponTypeFields(request);
         
         // 创建优惠券
         CouponDO coupon = new CouponDO();
@@ -120,30 +123,30 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
         coupon.setType(request.getType());
         
         // 根据类型设置金额或折扣
-        if (request.getType() == 1 || request.getType() == 3 || request.getType() == 4) {
-            // 现金券、专属券、新人券
+        // type=1 满减券：需要 amount 和 minAmount
+        // type=2 折扣券：需要 discount 和 minAmount
+        // type=3 代金券：需要 amount，minAmount=0
+        if (request.getType() == 1) {
+            // 满减券
             coupon.setAmount(request.getAmount());
-            // 优先使用threshold，如果没有则使用minAmount
-            coupon.setMinAmount(request.getThreshold() != null ? request.getThreshold() : request.getMinAmount());
+            coupon.setMinAmount(request.getMinAmount() != null ? request.getMinAmount() : BigDecimal.ZERO);
+            coupon.setDiscount(null);
         } else if (request.getType() == 2) {
             // 折扣券
-            if (request.getDiscountRate() != null) {
-                coupon.setDiscount(BigDecimal.valueOf(request.getDiscountRate() / 100.0));
-            } else if (request.getDiscount() != null) {
-                coupon.setDiscount(request.getDiscount());
-            }
-            if (request.getMaxDiscount() != null) {
-                coupon.setAmount(request.getMaxDiscount());
-            }
+            coupon.setDiscount(request.getDiscount());
+            coupon.setMinAmount(request.getMinAmount() != null ? request.getMinAmount() : BigDecimal.ZERO);
+            coupon.setAmount(null);
+        } else if (request.getType() == 3) {
+            // 代金券
+            coupon.setAmount(request.getAmount());
+            coupon.setMinAmount(BigDecimal.ZERO);
+            coupon.setDiscount(null);
         }
         
-        // 设置适用门店
-        if (request.getApplicableShops() != null && !request.getApplicableShops().isEmpty()) {
-            coupon.setShopId(request.getApplicableShops().get(0));
-        } else if (request.getShopId() != null) {
-            coupon.setShopId(request.getShopId());
-        }
+        // 设置适用门店（null表示全部门店可用）
+        coupon.setShopId(request.getShopId());
         
+        // 设置数量：remainCount 初始化为 totalCount
         coupon.setTotalCount(request.getTotalCount());
         coupon.setRemainCount(request.getTotalCount());
         coupon.setPerUserLimit(request.getPerUserLimit() != null ? request.getPerUserLimit() : 1);
@@ -160,15 +163,44 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
         coupon.setUpdatedAt(LocalDateTime.now());
         
         couponMapper.insert(coupon);
-        log.info("优惠券创建成功: couponId={}", coupon.getId());
+        log.info("优惠券创建成功: couponId={}, title={}", coupon.getId(), coupon.getTitle());
         
         return coupon.getId();
+    }
+    
+    /**
+     * 验证优惠券类型和必填字段
+     */
+    private void validateCouponTypeFields(CreateCouponDTO request) {
+        Integer type = request.getType();
+        if (type == null || type < 1 || type > 3) {
+            throw new BusinessException(40001, "无效的优惠券类型，支持：1满减券，2折扣券，3代金券");
+        }
+        
+        if (type == 1) {
+            // 满减券需要 amount
+            if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new BusinessException(40002, "满减券的优惠金额必须大于0");
+            }
+        } else if (type == 2) {
+            // 折扣券需要 discount
+            if (request.getDiscount() == null || 
+                request.getDiscount().compareTo(BigDecimal.ZERO) <= 0 ||
+                request.getDiscount().compareTo(BigDecimal.ONE) >= 0) {
+                throw new BusinessException(40003, "折扣券的折扣必须在0.01-0.99之间");
+            }
+        } else if (type == 3) {
+            // 代金券需要 amount
+            if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new BusinessException(40004, "代金券的金额必须大于0");
+            }
+        }
     }
 
     @Override
     @Transactional
     public void updateCoupon(Long merchantId, Long operatorId, Long couponId, CreateCouponDTO request) {
-        log.info("更新优惠券: merchantId={}, couponId={}", merchantId, couponId);
+        log.info("更新优惠券: merchantId={}, couponId={}, type={}", merchantId, couponId, request.getType());
         
         // 验证商家
         validateMerchant(merchantId);
@@ -184,6 +216,11 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
             throw new BusinessException(40300, "无权修改此优惠券");
         }
         
+        // 验证优惠券类型和必填字段
+        if (request.getType() != null) {
+            validateCouponTypeFields(request);
+        }
+        
         // 更新优惠券信息
         if (request.getTitle() != null) {
             coupon.setTitle(request.getTitle());
@@ -193,13 +230,42 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
         }
         if (request.getType() != null) {
             coupon.setType(request.getType());
+            
+            // 根据类型更新对应字段
+            if (request.getType() == 1) {
+                // 满减券
+                coupon.setAmount(request.getAmount());
+                coupon.setMinAmount(request.getMinAmount() != null ? request.getMinAmount() : BigDecimal.ZERO);
+                coupon.setDiscount(null);
+            } else if (request.getType() == 2) {
+                // 折扣券
+                coupon.setDiscount(request.getDiscount());
+                coupon.setMinAmount(request.getMinAmount() != null ? request.getMinAmount() : BigDecimal.ZERO);
+                coupon.setAmount(null);
+            } else if (request.getType() == 3) {
+                // 代金券
+                coupon.setAmount(request.getAmount());
+                coupon.setMinAmount(BigDecimal.ZERO);
+                coupon.setDiscount(null);
+            }
+        } else {
+            // 类型未变，单独更新字段
+            if (request.getAmount() != null) {
+                coupon.setAmount(request.getAmount());
+            }
+            if (request.getDiscount() != null) {
+                coupon.setDiscount(request.getDiscount());
+            }
+            if (request.getMinAmount() != null) {
+                coupon.setMinAmount(request.getMinAmount());
+            }
         }
-        if (request.getAmount() != null) {
-            coupon.setAmount(request.getAmount());
+        
+        // 设置适用门店
+        if (request.getShopId() != null) {
+            coupon.setShopId(request.getShopId());
         }
-        if (request.getThreshold() != null) {
-            coupon.setMinAmount(request.getThreshold());
-        }
+        
         if (request.getTotalCount() != null) {
             int diff = request.getTotalCount() - coupon.getTotalCount();
             coupon.setTotalCount(request.getTotalCount());
@@ -470,11 +536,14 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
         response.setStackable(coupon.getStackable() != null && coupon.getStackable() == 1);
         response.setStatus(coupon.getStatus());
         response.setStatusName(getCouponStatusName(coupon.getStatus()));
-        response.setStartTime(coupon.getStartTime() != null ? coupon.getStartTime().toString() : null);
-        response.setEndTime(coupon.getEndTime() != null ? coupon.getEndTime().toString() : null);
-        response.setUseStartTime(coupon.getUseStartTime() != null ? coupon.getUseStartTime().toString() : null);
-        response.setUseEndTime(coupon.getUseEndTime() != null ? coupon.getUseEndTime().toString() : null);
-        response.setCreatedAt(coupon.getCreatedAt() != null ? coupon.getCreatedAt().toString() : null);
+        
+        // 格式化时间为 "yyyy-MM-dd HH:mm:ss" 格式
+        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        response.setStartTime(coupon.getStartTime() != null ? coupon.getStartTime().format(formatter) : null);
+        response.setEndTime(coupon.getEndTime() != null ? coupon.getEndTime().format(formatter) : null);
+        response.setUseStartTime(coupon.getUseStartTime() != null ? coupon.getUseStartTime().format(formatter) : null);
+        response.setUseEndTime(coupon.getUseEndTime() != null ? coupon.getUseEndTime().format(formatter) : null);
+        response.setCreatedAt(coupon.getCreatedAt() != null ? coupon.getCreatedAt().format(formatter) : null);
         
         // 获取门店名称
         if (coupon.getShopId() != null) {
@@ -493,10 +562,9 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
     private String getCouponTypeName(Integer type) {
         if (type == null) return "未知";
         switch (type) {
-            case 1: return "现金券";
+            case 1: return "满减券";
             case 2: return "折扣券";
-            case 3: return "专属券";
-            case 4: return "新人券";
+            case 3: return "代金券";
             default: return "未知";
         }
     }

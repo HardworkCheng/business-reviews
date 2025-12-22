@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>发布笔记</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* --- 核心变量 --- */
+        :root {
+            --primary-orange: #ff9f43; /* 更柔和的高级橙 */
+            --primary-gradient: linear-gradient(135deg, #ffaf40, #ff9f43);
+            --bg-page: #f8f9fa;
+            --text-main: #2d3436;
+            --text-sub: #b2bec3;
+            --divider: #f1f2f6;
+            --shadow-soft: 0 10px 25px rgba(0,0,0,0.05);
+        }
+
+        /* --- 基础重置 --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #2d3436; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+
+        /* --- 手机容器模拟 --- */
+        .mobile-shell {
+            width: 375px;
+            height: 812px;
+            background-color: #fff;
+            border-radius: 40px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 0 10px #1a1a1a, 0 20px 50px rgba(0,0,0,0.5); /* 模拟手机边框 */
+        }
+
+        /* --- 1. 顶部导航 --- */
+        .navbar {
+            height: 54px;
+            padding: 0 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            position: sticky;
+            top: 0;
+            border-bottom: 0.5px solid rgba(0,0,0,0.03);
+        }
+
+        .nav-cancel {
+            font-size: 16px;
+            color: var(--text-main);
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .publish-btn {
+            background: var(--primary-gradient);
+            color: #fff;
+            border: none;
+            padding: 6px 18px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(255, 159, 67, 0.3);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .publish-btn:active { transform: scale(0.96); box-shadow: 0 2px 6px rgba(255, 159, 67, 0.2); }
+
+        /* --- 2. 内容滚动区 --- */
+        .scroll-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 20px 40px 20px;
+            scrollbar-width: none;
+        }
+        .scroll-area::-webkit-scrollbar { display: none; }
+
+        /* 标题输入 */
+        .input-title-wrapper {
+            padding: 20px 0 10px 0;
+            border-bottom: 0.5px solid var(--divider);
+        }
+        .input-title {
+            width: 100%;
+            border: none;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-main);
+            outline: none;
+            line-height: 1.4;
+        }
+        .input-title::placeholder { color: #cfd6e0; font-weight: 600; }
+
+        /* 正文输入 */
+        .input-content-wrapper {
+            padding: 15px 0;
+            position: relative;
+        }
+        .input-content {
+            width: 100%;
+            border: none;
+            font-size: 15px;
+            color: var(--text-main);
+            outline: none;
+            resize: none;
+            min-height: 120px;
+            line-height: 1.6;
+        }
+        .input-content::placeholder { color: #cfd6e0; }
+        
+        .char-count {
+            text-align: right;
+            font-size: 11px;
+            color: #dfe6e9;
+            margin-bottom: 10px;
+        }
+
+        /* 图片九宫格 */
+        .media-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 30px;
+        }
+        .media-item {
+            aspect-ratio: 1/1;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            background-color: #f1f2f6;
+        }
+        .media-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        /* 删除小按钮 */
+        .btn-delete {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 20px;
+            height: 20px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff;
+            font-size: 10px;
+            backdrop-filter: blur(2px);
+            cursor: pointer;
+        }
+        /* 上传按钮 */
+        .btn-upload {
+            border: 1.5px dashed #d1d8e0;
+            background: #fafbfc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-upload:active { background: #f1f2f6; border-color: #a4b0be; }
+        .upload-icon { font-size: 24px; color: #b2bec3; margin-bottom: 4px; }
+        .upload-text { font-size: 11px; color: #b2bec3; font-weight: 500; }
+
+        /* --- 3. 选项列表 --- */
+        .options-group {
+            border-top: 0.5px solid var(--divider);
+            padding-top: 10px;
+        }
+        
+        .cell-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 4px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .cell-item:active { opacity: 0.6; }
+        
+        /* 增加分割线，除了最后一项 */
+        .cell-item:not(:last-child) { border-bottom: 0.5px solid #fcfcfc; }
+
+        .cell-left { display: flex; align-items: center; gap: 12px; }
+        
+        /* 图标美化 */
+        .icon-container {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px;
+        }
+        .theme-yellow { background: #fff5e6; color: #ff9f43; }
+        .theme-blue { background: #e7f5ff; color: #54a0ff; }
+        .theme-red { background: #ffebec; color: #ff6b6b; }
+        
+        .cell-title { font-size: 15px; color: #2d3436; font-weight: 500; }
+        
+        .cell-right { display: flex; align-items: center; gap: 6px; }
+        .cell-value { font-size: 13px; color: #636e72; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .cell-arrow { font-size: 12px; color: #d1d8e0; }
+
+        /* --- 4. 底部 TabBar --- */
+        .tabbar {
+            height: 70px; /* 增加高度以容纳浮动按钮 */
+            background: #fff;
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end; /* 底部对齐 */
+            padding-bottom: 10px;
+            border-top: 0.5px solid var(--divider);
+            position: relative;
+        }
+        
+        .tab-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            cursor: pointer;
+            color: #b2bec3;
+            transition: 0.2s;
+            padding-bottom: 8px;
+        }
+        .tab-item i { font-size: 22px; }
+        .tab-item span { font-size: 10px; font-weight: 500; }
+        
+        .tab-item.active { color: var(--primary-orange); }
+
+        /* 凸起的发布按钮 */
+        .tab-center {
+            width: 56px;
+            height: 56px;
+            background: var(--primary-gradient);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 12px; /* 向上浮动 */
+            box-shadow: 0 8px 20px rgba(255, 159, 67, 0.4);
+            color: #fff;
+            font-size: 24px;
+            transition: transform 0.2s;
+        }
+        .tab-center:active { transform: scale(0.9); }
+
+    </style>
+</head>
+<body>
+
+    <div class="mobile-shell">
+        <nav class="navbar">
+            <div class="nav-cancel">取消</div>
+            <button class="publish-btn">发布</button>
+        </nav>
+
+        <main class="scroll-area">
+            
+            <div class="input-title-wrapper">
+                <input type="text" class="input-title" placeholder="填写标题更容易上首页哦~">
+            </div>
+
+            <div class="input-content-wrapper">
+                <textarea class="input-content" placeholder="分享你的美好体验吧" oninput="updateCount(this)"></textarea>
+                <div class="char-count"><span id="current">0</span>/1000</div>
+            </div>
+
+            <div class="media-grid">
+                <div class="media-item">
+                    <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?ixlib=rb-1.2.1&auto=format&fit=crop&w=400&q=80" class="media-img">
+                    <div class="btn-delete"><i class="fa-solid fa-xmark"></i></div>
+                </div>
+                <div class="media-item">
+                    <img src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?ixlib=rb-1.2.1&auto=format&fit=crop&w=400&q=80" class="media-img">
+                    <div class="btn-delete"><i class="fa-solid fa-xmark"></i></div>
+                </div>
+                <div class="media-item btn-upload">
+                    <i class="fa-solid fa-camera upload-icon"></i>
+                    <span class="upload-text">添加照片</span>
+                </div>
+            </div>
+
+            <div class="options-group">
+                <div class="cell-item">
+                    <div class="cell-left">
+                        <div class="icon-container theme-yellow">
+                            <i class="fa-solid fa-hashtag"></i>
+                        </div>
+                        <span class="cell-title">添加话题</span>
+                    </div>
+                    <div class="cell-right">
+                        <span class="cell-value">#美食探店</span> <i class="fa-solid fa-chevron-right cell-arrow"></i>
+                    </div>
+                </div>
+
+                <div class="cell-item">
+                    <div class="cell-left">
+                        <div class="icon-container theme-blue">
+                            <i class="fa-solid fa-store"></i>
+                        </div>
+                        <span class="cell-title">关联商户</span>
+                    </div>
+                    <div class="cell-right">
+                        <span class="cell-value" style="color: #2d3436; font-weight: 500;">米线王子</span>
+                        <i class="fa-solid fa-chevron-right cell-arrow"></i>
+                    </div>
+                </div>
+
+                <div class="cell-item">
+                    <div class="cell-left">
+                        <div class="icon-container theme-red">
+                            <i class="fa-solid fa-location-dot"></i>
+                        </div>
+                        <span class="cell-title">添加位置</span>
+                    </div>
+                    <div class="cell-right">
+                        <span class="cell-value">普洱学院1735美食城</span>
+                        <i class="fa-solid fa-chevron-right cell-arrow"></i>
+                    </div>
+                </div>
+            </div>
+            
+        </main>
+
+        <footer class="tabbar">
+            <div class="tab-item">
+                <i class="fa-solid fa-house"></i>
+                <span>首页</span>
+            </div>
+            <div class="tab-item">
+                <i class="fa-solid fa-ticket"></i>
+                <span>优惠</span>
+            </div>
+            <div class="tab-center">
+                <i class="fa-solid fa-plus"></i>
+            </div>
+            <div class="tab-item">
+                <i class="fa-regular fa-comment-dots"></i>
+                <span>消息</span>
+            </div>
+            <div class="tab-item">
+                <i class="fa-regular fa-user"></i>
+                <span>我的</span>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        function updateCount(el) {
+            document.getElementById('current').innerText = el.value.length;
+        }
+    </script>
+</body>
+</html>

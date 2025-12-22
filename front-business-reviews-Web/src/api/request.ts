@@ -71,9 +71,13 @@ service.interceptors.response.use(
       return data
     } else if (code === 401) {
       // token过期，清除本地存储并跳转到登录页
-      console.warn('🔐 Token过期，跳转登录页')
-      localStorage.removeItem('merchant_token')
-      window.location.href = '/login'
+      // 但不要在登录接口返回401时清除（可能是密码错误等）
+      const isLoginApi = response.config.url?.includes('/auth/login')
+      if (!isLoginApi) {
+        console.warn('🔐 Token过期，跳转登录页')
+        localStorage.removeItem('merchant_token')
+        window.location.href = '/login'
+      }
       return Promise.reject(new Error(msg || '登录已过期'))
     } else {
       console.error('❌ 业务错误:', { code, msg })
@@ -87,6 +91,17 @@ service.interceptors.response.use(
       url: error.config?.url,
       method: error.config?.method
     })
+    
+    // 如果是401错误，检查是否需要清除token
+    if (error.response?.status === 401) {
+      const isLoginApi = error.config?.url?.includes('/auth/login')
+      if (!isLoginApi) {
+        console.warn('🔐 HTTP 401错误，跳转登录页')
+        localStorage.removeItem('merchant_token')
+        window.location.href = '/login'
+      }
+      return Promise.reject(new Error('登录已过期'))
+    }
     
     // 网络错误处理
     let errorMessage = '请求失败'

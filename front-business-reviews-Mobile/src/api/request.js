@@ -54,8 +54,10 @@ export const request = (options) => {
     let requestData = {}
     
     if (options.method === 'GET' && options.data && Object.keys(options.data).length > 0) {
-      // GET请求，将参数拼接到URL
-      const params = new URLSearchParams(options.data).toString()
+      // GET请求，将参数拼接到URL（兼容小程序，不使用URLSearchParams）
+      const params = Object.keys(options.data)
+        .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(options.data[key])}`)
+        .join('&')
       finalUrl = finalUrl + (finalUrl.includes('?') ? '&' : '?') + params
       console.log('Request - GET URL with params:', finalUrl)
     } else {
@@ -86,6 +88,13 @@ export const request = (options) => {
         // Token过期或未登录或用户不存在
         else if (data.code === 401 || data.code === 40401) {
           console.warn('认证失败或用户信息失效:', data)
+          
+          // 如果是不需要认证的接口，直接返回空数据，不跳转登录页
+          if (options.noAuth) {
+            console.log('noAuth接口认证失败，返回空数据')
+            resolve(null)
+            return
+          }
           
           uni.showToast({
             title: data.message || '登录已过期,请重新登录',

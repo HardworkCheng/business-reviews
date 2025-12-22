@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
@@ -44,8 +45,11 @@ public class OssServiceImpl implements OssService {
             String fileName = generateFileName(file.getOriginalFilename());
             String objectKey = buildObjectKey(folder, fileName);
             
-            // 直接上传到OSS
-            return uploadToOss(file.getInputStream(), objectKey);
+            // 将文件内容读取到字节数组，避免 InputStream 重置问题
+            byte[] fileBytes = file.getBytes();
+            
+            // 使用字节数组创建新的 InputStream 上传到 OSS
+            return uploadToOss(new ByteArrayInputStream(fileBytes), objectKey, fileBytes.length);
         } catch (IOException e) {
             log.error("文件上传失败", e);
             throw new BusinessException(50000, "文件上传失败");
@@ -54,9 +58,18 @@ public class OssServiceImpl implements OssService {
     
     @Override
     public String uploadStream(InputStream inputStream, String fileName, String folder) {
-        String objectKey = buildObjectKey(folder, fileName);
-        // 直接上传到OSS
-        return uploadToOss(inputStream, objectKey);
+        try {
+            String objectKey = buildObjectKey(folder, fileName);
+            
+            // 将输入流读取到字节数组，避免重置问题
+            byte[] bytes = inputStream.readAllBytes();
+            
+            // 使用字节数组创建新的 InputStream 上传到 OSS
+            return uploadToOss(new ByteArrayInputStream(bytes), objectKey, bytes.length);
+        } catch (IOException e) {
+            log.error("流上传失败", e);
+            throw new BusinessException(50000, "流上传失败");
+        }
     }
     
     @Override
@@ -72,7 +85,7 @@ public class OssServiceImpl implements OssService {
     /**
      * 上传到阿里云OSS
      */
-    private String uploadToOss(InputStream inputStream, String objectKey) {
+    private String uploadToOss(InputStream inputStream, String objectKey, long contentLength) {
         OSS ossClient = null;
         try {
             // 创建OSSClient实例
@@ -82,12 +95,19 @@ public class OssServiceImpl implements OssService {
                 ossConfig.getAccessKeySecret()
             );
             
-            // 上传文件
+            // 创建上传请求，设置内容长度
             PutObjectRequest putObjectRequest = new PutObjectRequest(
                 ossConfig.getBucketName(),
                 objectKey,
                 inputStream
             );
+            
+            // 设置元数据，指定内容长度
+            com.aliyun.oss.model.ObjectMetadata metadata = new com.aliyun.oss.model.ObjectMetadata();
+            metadata.setContentLength(contentLength);
+            putObjectRequest.setMetadata(metadata);
+            
+            // 上传文件
             ossClient.putObject(putObjectRequest);
             
             // 返回文件URL
@@ -101,6 +121,14 @@ public class OssServiceImpl implements OssService {
         } finally {
             if (ossClient != null) {
                 ossClient.shutdown();
+            }
+            // 关闭输入流
+            try {
+                if (inputStream != null) {
+                    inputStream.close();
+                }
+            } catch (IOException e) {
+                log.warn("关闭输入流失败", e);
             }
         }
     }

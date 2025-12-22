@@ -45,41 +45,34 @@ const router = createRouter({
 })
 
 /**
- * 验证token是否有效（简单检查格式和是否过期）
+ * 验证token是否有效（简单检查格式）
+ * 不再在前端验证过期时间，让后端来验证
  */
 const isValidToken = (token: string | null): boolean => {
+  console.log('[isValidToken] 检查token:', token ? `${token.substring(0, 20)}...` : 'null')
+  
   if (!token || token.trim() === '') {
+    console.log('[isValidToken] token为空')
     return false
   }
   
   // JWT token 格式检查: header.payload.signature
   const parts = token.split('.')
   if (parts.length !== 3) {
+    console.log('[isValidToken] token格式错误，不是3部分')
     return false
   }
   
-  try {
-    // 解析payload部分检查是否过期
-    const payload = JSON.parse(atob(parts[1]))
-    if (payload.exp) {
-      // exp是秒级时间戳
-      const expTime = payload.exp * 1000
-      if (Date.now() >= expTime) {
-        // token已过期，清除它
-        localStorage.removeItem('merchant_token')
-        return false
-      }
-    }
-    return true
-  } catch {
-    // 解析失败，token无效
-    return false
-  }
+  // 只检查格式，不检查过期时间，让后端验证
+  console.log('[isValidToken] token格式正确')
+  return true
 }
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('merchant_token')
+  console.log('[Router Guard] localStorage中的token:', token ? `存在(${token.length}字符)` : '不存在')
+  
   const hasValidToken = isValidToken(token)
   
   console.log('[Router Guard] 路径:', to.path, '| Token有效:', hasValidToken)

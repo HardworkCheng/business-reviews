@@ -5,11 +5,12 @@
 			<view class="location-search">
 				<!-- 简洁的城市显示 -->
 				<view class="location-simple" @click="goToCitySelect">
+					<image src="/static/icons/location.png" class="location-icon-img" mode="aspectFit"></image>
 					<text class="city-name">{{ currentCity }}</text>
-					<text class="arrow-icon">▼</text>
+					<image src="/static/icons/arrow-down.png" class="arrow-icon-img" mode="aspectFit"></image>
 				</view>
 				<view class="search-box clay-border" @click="goToSearch">
-					<text class="search-icon">🔍</text>
+					<image src="/static/icons/search.png" class="search-icon-img" mode="aspectFit"></image>
 					<text class="search-placeholder">搜索商户名或地点</text>
 				</view>
 				<view class="user-avatar" @click="goToProfile">
@@ -33,8 +34,8 @@
 					:key="index"
 					@click="goToCategory(item.name)"
 				>
-					<view class="category-icon clay-icon" :style="{ backgroundColor: item.color }">
-						<text class="icon-emoji">{{ item.icon }}</text>
+					<view class="category-icon">
+						<image :src="item.icon" class="icon-image" mode="aspectFit"></image>
 					</view>
 					<text class="category-name">{{ item.name }}</text>
 				</view>
@@ -60,16 +61,15 @@
 						<text class="note-title line-clamp-2">{{ note.title }}</text>
 						<view class="note-meta">
 							<view class="author-info">
-								<!-- 商家笔记显示"@商家名称官方" -->
-								<text v-if="note.noteType === 2" class="author merchant-author">@{{ note.author }}</text>
-								<text v-else class="author">@{{ note.author }}</text>
-								<!-- 商家笔记显示店铺名称 -->
-								<text v-if="note.noteType === 2 && note.shopName" class="shop-info">{{ note.shopName }}</text>
+								<text class="author">@{{ note.author }}</text>
 							</view>
 							<view class="like-info">
 								<text class="like-icon">❤️</text>
 								<text class="like-count">{{ note.likes }}</text>
 							</view>
+						</view>
+						<view class="note-time">
+							<text class="time-text">{{ note.createTime }}</text>
 						</view>
 					</view>
 				</view>
@@ -89,16 +89,40 @@ const currentCity = ref('定位中...')
 // 用户头像
 const userAvatar = ref('')
 
+// 时间格式化函数
+const formatTime = (timeStr) => {
+	if (!timeStr) return ''
+	
+	try {
+		const date = new Date(timeStr)
+		const now = new Date()
+		const diff = now - date
+		const minutes = Math.floor(diff / 60000)
+		const hours = Math.floor(diff / 3600000)
+		const days = Math.floor(diff / 86400000)
+		
+		if (minutes < 1) return '刚刚'
+		if (minutes < 60) return `${minutes}分钟前`
+		if (hours < 24) return `${hours}小时前`
+		if (days < 7) return `${days}天前`
+		if (days < 30) return `${Math.floor(days / 7)}周前`
+		if (days < 365) return `${Math.floor(days / 30)}个月前`
+		return `${Math.floor(days / 365)}年前`
+	} catch (e) {
+		return ''
+	}
+}
+
 // 分类数据
 const categories = ref([
-	{ name: '美食', icon: '🍜', color: '#FFD166' },
-	{ name: 'KTV', icon: '🎤', color: '#EF476F' },
-	{ name: '丽人·美发', icon: '💇', color: '#FF9E64' },
-	{ name: '美睫·美甲', icon: '💅', color: '#06D6A0' },
-	{ name: '按摩·足疗', icon: '💆', color: '#FFD166' },
-	{ name: '美容SPA', icon: '🛁', color: '#EF476F' },
-	{ name: '亲子游乐', icon: '👶', color: '#06D6A0' },
-	{ name: '酒吧', icon: '🍷', color: '#FF9E64' }
+	{ name: '美食', icon: '/static/icons/food.png' },
+	{ name: 'KTV', icon: '/static/icons/ktv.png' },
+	{ name: '美发', icon: '/static/icons/beauty.png' },
+	{ name: '美甲', icon: '/static/icons/nail.png' },
+	{ name: '足疗', icon: '/static/icons/massage.png' },
+	{ name: '美容', icon: '/static/icons/spa.png' },
+	{ name: '游乐', icon: '/static/icons/entertainment.png' },
+	{ name: '酒吧', icon: '/static/icons/bar.png' }
 ])
 
 // 笔记列表（从后端获取）
@@ -388,7 +412,7 @@ const fetchNoteList = async () => {
 		console.log('获取笔记列表:', result)
 		
 		if (result && result.list) {
-			// 转换数据格式，支持商家笔记
+			// 转换数据格式
 			noteList.value = result.list.map(note => ({
 				id: note.id,
 				title: note.title,
@@ -397,11 +421,9 @@ const fetchNoteList = async () => {
 				likes: note.likes || 0,
 				tag: note.tag || null,
 				tagClass: note.tagClass || '',
-				noteType: note.noteType || 1, // 笔记类型：1用户笔记，2商家笔记
-				shopId: note.shopId || null,
-				shopName: note.shopName || null
+				createTime: formatTime(note.createdAt)
 			}))
-			console.log('笔记列表已更新:', noteList.value.length, '条，包含商家笔记')
+			console.log('笔记列表已更新:', noteList.value.length, '条')
 		}
 	} catch (e) {
 		console.error('获取笔记列表失败:', e)
@@ -470,6 +492,7 @@ const goToNoteDetail = (id) => {
 	align-items: center;
 	padding: 20rpx 30rpx;
 	gap: 20rpx;
+	justify-content: space-between;
 }
 
 // 简洁的城市显示（类似小红书）
@@ -501,18 +524,38 @@ const goToNoteDetail = (id) => {
 	flex: 1;
 	display: flex;
 	align-items: center;
-	padding: 15rpx 30rpx;
+	padding: 12rpx 24rpx;
 	background: white;
+	max-width: 400rpx;
+	height: 64rpx;
+	margin: 0 15rpx;
 }
 
 .search-icon {
-	font-size: 32rpx;
-	margin-right: 15rpx;
+	font-size: 28rpx;
+	margin-right: 12rpx;
 }
 
 .search-placeholder {
-	font-size: 28rpx;
+	font-size: 26rpx;
 	color: #999;
+}
+
+.search-icon-img {
+	width: 32rpx;
+	height: 32rpx;
+	margin-right: 12rpx;
+}
+
+.arrow-icon-img {
+	width: 20rpx;
+	height: 20rpx;
+}
+
+.location-icon-img {
+	width: 28rpx;
+	height: 28rpx;
+	margin-right: 8rpx;
 }
 
 .user-avatar {
@@ -564,10 +607,15 @@ const goToNoteDetail = (id) => {
 	width: 100rpx;
 	height: 100rpx;
 	margin-bottom: 10rpx;
+	background: transparent;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
-.icon-emoji {
-	font-size: 48rpx;
+.icon-image {
+	width: 60rpx;
+	height: 60rpx;
 }
 
 .category-name {
@@ -661,23 +709,6 @@ const goToNoteDetail = (id) => {
 	color: #999;
 }
 
-/* 商家作者样式 - 带蓝色边框 */
-.merchant-author {
-	font-size: 24rpx;
-	color: #667eea;
-	font-weight: 500;
-	padding: 4rpx 12rpx;
-	border: 2rpx solid #667eea;
-	border-radius: 20rpx;
-	background: rgba(102, 126, 234, 0.1);
-}
-
-.shop-info {
-	font-size: 22rpx;
-	color: #667eea;
-	font-weight: 500;
-}
-
 .like-info {
 	display: flex;
 	align-items: center;
@@ -691,5 +722,16 @@ const goToNoteDetail = (id) => {
 .like-count {
 	font-size: 24rpx;
 	color: #EF476F;
+}
+
+.note-time {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 10rpx;
+}
+
+.time-text {
+	font-size: 22rpx;
+	color: #999;
 }
 </style>

@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @RestController
-@RequestMapping("/coupons")
+@RequestMapping("/app/coupons")
 @RequiredArgsConstructor
 public class CouponController {
 
@@ -47,6 +47,45 @@ public class CouponController {
                .gt(CouponDO::getEndTime, LocalDateTime.now())
                .gt(CouponDO::getRemainCount, 0)
                .orderByDesc(CouponDO::getCreatedAt);
+        
+        Page<CouponDO> couponPage = couponMapper.selectPage(page, wrapper);
+        
+        Long userId = UserContext.getUserId();
+        List<Map<String, Object>> list = couponPage.getRecords().stream()
+                .map(c -> convertToCouponResponse(c, userId))
+                .collect(Collectors.toList());
+        
+        return Result.success(PageResult.of(list, couponPage.getTotal(), pageNum, pageSize));
+    }
+
+    /**
+     * 获取可领取的优惠券列表（领券中心）
+     * 显示所有状态为启用、未过期、有剩余数量的优惠券
+     */
+    @GetMapping("/available")
+    public Result<PageResult<Map<String, Object>>> getAvailableCoupons(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "20") Integer pageSize,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer type) {
+        
+        Page<CouponDO> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<CouponDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CouponDO::getStatus, 1)
+               .gt(CouponDO::getEndTime, LocalDateTime.now())
+               .gt(CouponDO::getRemainCount, 0);
+        
+        // 关键词搜索
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            wrapper.like(CouponDO::getTitle, keyword.trim());
+        }
+        
+        // 类型筛选
+        if (type != null) {
+            wrapper.eq(CouponDO::getType, type);
+        }
+        
+        wrapper.orderByDesc(CouponDO::getCreatedAt);
         
         Page<CouponDO> couponPage = couponMapper.selectPage(page, wrapper);
         
@@ -83,7 +122,7 @@ public class CouponController {
             wrapper.eq(UserCouponDO::getStatus, 3);
         }
         
-        wrapper.orderByDesc(UserCouponDO::getCreatedAt);
+        wrapper.orderByDesc(UserCouponDO::getReceiveTime);
         
         Page<UserCouponDO> userCouponPage = userCouponMapper.selectPage(page, wrapper);
         
@@ -98,8 +137,8 @@ public class CouponController {
     /**
      * 领取优惠券
      */
-    @PostMapping("/{couponId}/receive")
-    public Result<?> receiveCoupon(@PathVariable Long couponId) {
+    @PostMapping("/{couponId}/claim")
+    public Result<?> claimCoupon(@PathVariable Long couponId) {
         Long userId = UserContext.requireUserId();
         
         // 查询优惠券
@@ -111,6 +150,11 @@ public class CouponController {
         // 检查优惠券状态
         if (coupon.getStatus() != 1) {
             throw new BusinessException(40001, "优惠券已停用");
+        }
+        
+        // 检查是否已开始
+        if (coupon.getStartTime() != null && coupon.getStartTime().isAfter(LocalDateTime.now())) {
+            throw new BusinessException(40001, "优惠券活动尚未开始");
         }
         
         // 检查是否过期
@@ -140,7 +184,6 @@ public class CouponController {
         userCoupon.setCode(generateCouponCode());
         userCoupon.setStatus(1);
         userCoupon.setReceiveTime(LocalDateTime.now());
-        userCoupon.setCreatedAt(LocalDateTime.now());
         userCouponMapper.insert(userCoupon);
         
         // 减少剩余数量
@@ -149,6 +192,14 @@ public class CouponController {
         
         log.info("用户{}领取优惠券{}成功", userId, couponId);
         return Result.success("领取成功");
+    }
+
+    /**
+     * 领取优惠券（兼容旧接口）
+     */
+    @PostMapping("/{couponId}/receive")
+    public Result<?> receiveCoupon(@PathVariable Long couponId) {
+        return claimCoupon(couponId);
     }
 
     /**
@@ -177,16 +228,34 @@ public class CouponController {
         map.put("amount", coupon.getAmount());
         map.put("discount", coupon.getDiscount());
         map.put("minAmount", coupon.getMinAmount());
+        map.put("totalCount", coupon.getTotalCount());
         map.put("remainCount", coupon.getRemainCount());
+        map.put("perUserLimit", coupon.getPerUserLimit());
         map.put("startTime", coupon.getStartTime());
         map.put("endTime", coupon.getEndTime());
+        map.put("stackable", coupon.getStackable());
         map.put("shopId", coupon.getShopId());
         
-        // 获取商家名称
+        // 根据类型格式化使用条件
+        String condition = formatCouponCondition(coupon);
+        map.put("condition", condition);
+        
+        // 计算优惠券状态
+        String status = "available";
+        LocalDateTime now = LocalDateTime.now();
+        
+        if (coupon.getRemainCount() <= 0) {
+            status = "sold_out";
+        } else if (coupon.getStartTime() != null && coupon.getStartTime().isAfter(now)) {
+            status = "not_started";
+        }
+        
+        // 获取商家名称和图片
         if (coupon.getShopId() != null) {
             ShopDO shop = shopMapper.selectById(coupon.getShopId());
             if (shop != null) {
                 map.put("shopName", shop.getName());
+                map.put("shopLogo", shop.getHeaderImage());
             }
         }
         
@@ -197,11 +266,32 @@ public class CouponController {
                    .eq(UserCouponDO::getCouponId, coupon.getId());
             Long count = userCouponMapper.selectCount(wrapper);
             map.put("isReceived", count > 0);
+            if (count > 0 && !"sold_out".equals(status)) {
+                status = "claimed";
+            }
         } else {
             map.put("isReceived", false);
         }
         
+        map.put("status", status);
+        
         return map;
+    }
+    
+    /**
+     * 格式化优惠券使用条件
+     */
+    private String formatCouponCondition(CouponDO coupon) {
+        Integer type = coupon.getType();
+        java.math.BigDecimal minAmount = coupon.getMinAmount();
+        
+        if (type == 3) {
+            return "无门槛";
+        } else if (minAmount != null && minAmount.compareTo(java.math.BigDecimal.ZERO) > 0) {
+            return "满" + minAmount.intValue() + "可用";
+        } else {
+            return "无门槛";
+        }
     }
 
     /**
@@ -222,27 +312,35 @@ public class CouponController {
         map.put("minAmount", coupon.getMinAmount());
         map.put("startTime", coupon.getStartTime());
         map.put("endTime", coupon.getEndTime());
+        map.put("expireTime", coupon.getEndTime());
         map.put("shopId", coupon.getShopId());
         map.put("code", userCoupon.getCode());
         map.put("receiveTime", userCoupon.getReceiveTime());
         
-        // 状态转换
+        // 格式化使用条件
+        map.put("condition", formatCouponCondition(coupon));
+        
+        // 状态转换: unused/used/expired
         String status;
         if (userCoupon.getStatus() == 2) {
             status = "used";
         } else if (userCoupon.getStatus() == 3 || coupon.getEndTime().isBefore(LocalDateTime.now())) {
             status = "expired";
         } else {
-            status = "received";
+            status = "unused";
         }
+        map.put("status", status);
         map.put("userStatus", status);
         
-        // 获取商家名称
+        // 获取商家名称和图片
         if (coupon.getShopId() != null) {
             ShopDO shop = shopMapper.selectById(coupon.getShopId());
             if (shop != null) {
                 map.put("shopName", shop.getName());
+                map.put("shopLogo", shop.getHeaderImage());
             }
+        } else {
+            map.put("shopName", "全部商家");
         }
         
         return map;

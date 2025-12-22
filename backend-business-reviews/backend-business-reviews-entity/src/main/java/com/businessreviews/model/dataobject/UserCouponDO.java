@@ -42,5 +42,7 @@ public class UserCouponDO implements Serializable {
     /** 核销操作员ID */
     private Long operatorId;
     
+    /** 创建时间（数据库中不存在此字段，使用receiveTime代替） */
+    @TableField(exist = false)
     private LocalDateTime createdAt;
 }

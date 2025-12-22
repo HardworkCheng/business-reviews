@@ -1,0 +1,25 @@
+需要创建的 PNG 图标文件（12个）：
+
+底部导航栏图标：
+□ home.png
+□ home-active.png
+□ map.png
+□ map-active.png
+□ add.png
+□ add-active.png
+□ message.png
+□ message-active.png
+□ profile.png
+□ profile-active.png
+
+页面功能图标：
+□ arrow-down.png
+□ search.png
+
+规格要求：
+- 尺寸：64x64 像素
+- 格式：PNG
+- 背景：透明
+- 颜色：普通状态 #999999，激活状态 #FF9E64
+
+完成后请删除此文件。

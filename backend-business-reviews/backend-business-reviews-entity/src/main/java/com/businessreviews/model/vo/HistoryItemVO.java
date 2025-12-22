@@ -17,6 +17,8 @@ public class HistoryItemVO implements Serializable {
     private String targetId;
     private String image;
     private String title;
+    private String author;  // 作者名称
+    private Long authorId;  // 作者ID
     private String viewTime;  // 浏览时间
     private String createdAt;
 }

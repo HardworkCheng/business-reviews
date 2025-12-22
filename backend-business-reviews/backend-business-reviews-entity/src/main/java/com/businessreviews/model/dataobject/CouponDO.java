@@ -73,8 +73,9 @@ public class CouponDO implements Serializable {
     private Integer remainCount;
     
     /**
-     * 每日领取限制
+     * 每日领取限制（数据库中不存在此字段）
      */
+    @TableField(exist = false)
     private Integer dailyLimit;
     
     /**
@@ -93,18 +94,21 @@ public class CouponDO implements Serializable {
     private LocalDateTime endTime;
     
     /**
-     * 可使用开始时间
+     * 可使用开始时间（数据库中不存在此字段，仅用于业务逻辑）
      */
+    @TableField(exist = false)
     private LocalDateTime useStartTime;
     
     /**
-     * 可使用结束时间
+     * 可使用结束时间（数据库中不存在此字段，仅用于业务逻辑）
      */
+    @TableField(exist = false)
     private LocalDateTime useEndTime;
     
     /**
-     * 适用品类（JSON）
+     * 适用品类（JSON）（数据库中不存在此字段）
      */
+    @TableField(exist = false)
     private String applicableCategories;
     
     /**

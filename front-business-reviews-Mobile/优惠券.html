@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>优惠券二合一页面美化版</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* --- 全局变量 --- */
+        :root {
+            --primary: #ff6b00; /* 活力橙 */
+            /* 新增一个偏红的橙色用于秒杀强调 */
+            --danger: #ff4757;
+            --primary-grad: linear-gradient(135deg, #ff8f00, #ff6b00);
+            --danger-grad: linear-gradient(135deg, #ff6b81, #ff4757);
+            --bg-body: #f5f7fa;
+            --text-main: #333;
+            --text-sub: #999;
+            --white: #fff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #333; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+
+        /* 手机容器 */
+        .mobile-shell {
+            width: 375px; height: 812px; background: var(--bg-body); border-radius: 30px;
+            position: relative; overflow: hidden; display: flex; flex-direction: column;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+
+        /* --- 1. 顶部自定义导航栏 (核心切换区) [美化重点] --- */
+        .custom-navbar {
+            background: var(--white);
+            padding: 40px 15px 15px 15px; /* 增加底部内边距让呼吸感更强 */
+            display: flex; justify-content: center; align-items: center;
+            position: relative;
+            z-index: 100;
+            /* 增加一个极淡的底部阴影用于分隔 */
+            box-shadow: 0 1px 0 rgba(0,0,0,0.05);
+        }
+        
+        /* 顶部切换开关容器 [美化] */
+        .segment-control {
+            /* 背景色调淡，加一个细微边框 */
+            background: #f8f9fb;
+            border: 0.5px solid rgba(0,0,0,0.08);
+            border-radius: 24px; /* 更圆润 */
+            padding: 4px;
+            display: flex;
+            position: relative;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.03); /* 内阴影增加凹陷感 */
+        }
+        .segment-btn {
+            padding: 8px 24px; /* 加大点击区域 */
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-sub);
+            border-radius: 20px;
+            cursor: pointer;
+            z-index: 2;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        /* 激活状态文字颜色变品牌色 */
+        .segment-btn.active { color: var(--primary); font-weight: 700; }
+        
+        /* 滑块动画 [美化] */
+        .segment-slider {
+            position: absolute;
+            top: 4px; left: 4px;
+            width: calc(50% - 4px); height: calc(100% - 8px);
+            background: var(--white);
+            border-radius: 20px;
+            /* 更柔和、多层次的投影，营造悬浮感 */
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            z-index: 1;
+        }
+
+        /* --- 2. 主内容区域 --- */
+        .main-container { flex: 1; overflow-y: auto; position: relative; scrollbar-width: none; }
+        .main-container::-webkit-scrollbar { display: none; }
+
+        .view-page {
+            display: none; padding-bottom: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+        .view-page.show { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+
+        /* ========== 视图 A: 领券中心 ========== */
+        
+        .search-box-wrapper { padding: 15px; background: #fff; }
+        .search-box { background: #f5f5f5; height: 38px; border-radius: 19px; display: flex; align-items: center; padding: 0 15px; color: #999; font-size: 14px; }
+
+        /* 秒杀专区容器 [美化] */
+        .seckill-zone {
+            margin: 15px; padding: 20px 15px; border-radius: 16px;
+            /* 使用更通透的渐变背景 */
+            background: linear-gradient(180deg, rgba(255, 71, 87, 0.08) 0%, rgba(255,255,255,0) 100%), #fff;
+            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.06); /* 添加微弱的红色光晕 */
+            position: relative; overflow: hidden;
+        }
+        /* 增加一个装饰背景角标 */
+        .seckill-zone::before {
+            content: 'HOT'; position: absolute; top: -10px; right: -25px; background: var(--danger-grad); color:#fff; font-size:10px; padding: 15px 30px 5px; transform: rotate(45deg); font-weight: bold; opacity: 0.9;
+        }
+
+        .zone-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+        .zone-title { font-size: 18px; font-weight: 800; color: #333; display: flex; align-items: center; gap: 8px; }
+        /* 标题增加图标 */
+        .zone-title i { color: var(--danger); font-size: 20px; filter: drop-shadow(0 2px 3px rgba(255,71,87,0.3)); }
+        
+        /* 倒计时美化 */
+        .timer { display: flex; align-items: center; gap: 4px; font-weight: bold; color: #333; }
+        .timer span {
+            background: #333; color: #f0e6d2; /* 黑金配色更显高级 */
+            padding: 3px 5px; border-radius: 6px; font-size: 13px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2); font-family: monospace;
+        }
+
+        /* 秒杀卡片滚动 */
+        .seckill-scroll { display: flex; overflow-x: auto; gap: 12px; padding: 5px 5px 15px 5px; /* 增加底部padding用于显示投影 */ scrollbar-width: none; }
+        .seckill-scroll::-webkit-scrollbar { display: none; }
+        
+        /* 秒杀卡片 [美化重点] */
+        .seckill-card {
+            flex: 0 0 110px;
+            background: #fff;
+            /* 去掉边框，改用投影 */
+            border: none;
+            border-radius: 12px;
+            padding: 15px 10px;
+            display: flex; flex-direction: column; align-items: center;
+            /* 增加卡片浮起感 */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+            position: relative;
+            transition: transform 0.2s;
+        }
+        .seckill-card:active { transform: scale(0.98); }
+        
+        /* 价格美化 */
+        .sk-price {
+            color: var(--danger); font-weight: 900; font-size: 18px; margin: 6px 0;
+            text-shadow: 0 2px 5px rgba(255, 71, 87, 0.15); /* 价格文字光晕 */
+        }
+        .sk-price span { font-size: 12px; font-weight: bold; }
+        
+        /* 进度条美化 */
+        .sk-progress { width: 100%; height: 8px; background: #f0f0f0; border-radius: 4px; margin: 8px 0 10px 0; overflow: hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); }
+        .sk-fill { height: 100%; background: var(--danger-grad); border-radius: 4px; }
+        
+        /* 按钮美化 */
+        .btn-grab {
+            font-size: 12px; font-weight: 600;
+            background: var(--danger-grad); /* 渐变背景 */
+            color: #fff; border: none;
+            padding: 6px 18px; border-radius: 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(255, 71, 87, 0.3); /* 按钮发光投影 */
+        }
+        .btn-grab.disabled { background: #e0e0e0; color:#999; box-shadow: none; pointer-events: none;}
+
+        /* 普通商家券列表 (保持原样或微调) */
+        .shop-coupon-list { padding: 0 15px; }
+        .list-title { font-size: 17px; font-weight: bold; margin: 15px 0; border-left: 4px solid var(--primary); padding-left: 12px; }
+        
+        .coupon-row {
+            display: flex; background: #fff; height: 90px; border-radius: 12px; margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03); overflow: hidden; position: relative;
+        }
+        .coupon-row::before {
+            content: ''; position: absolute; top: 50%; left: -8px; transform: translateY(-50%);
+            width: 16px; height: 16px; background: var(--bg-body); border-radius: 50%;
+        }
+
+        .cr-left { width: 90px; background: linear-gradient(180deg, #fffbf0 0%, #fff 100%); display: flex; flex-direction: column; justify-content: center; align-items: center; border-right: 1px dashed #ffe0b2; }
+        .cr-logo { width: 36px; height: 36px; border-radius: 50%; background: #eee; margin-bottom: 5px; object-fit: cover; border:1px solid #f0f0f0;}
+        .cr-name { font-size: 12px; color: #666; font-weight: 500; }
+        
+        .cr-right { flex: 1; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; }
+        .cr-info h4 { font-size: 15px; font-weight: bold; color: #333; margin-bottom: 6px; }
+        .cr-info p { font-size: 11px; color: #999; background: #f5f5f5; padding: 2px 6px; border-radius: 4px; display: inline-block;}
+        .cr-action { text-align: right; }
+        .price-big { color: var(--primary); font-size: 24px; font-weight: 900; line-height: 1;}
+        .btn-get { border: none; color: #fff; background: var(--primary-grad); padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: bold; cursor: pointer; margin-top: 6px; box-shadow: 0 2px 6px rgba(255,107,0,0.2);}
+
+
+        /* ========== 视图 B: 我的卡包 ========== */
+        .wallet-tabs {
+            display: flex; justify-content: space-around; background: #fff; padding: 12px 0 0 0;
+            border-bottom: 1px solid #f0f0f0; position: sticky; top: 0; z-index: 10;
+        }
+        .w-tab { font-size: 15px; color: #666; padding: 8px 0 12px 0; position: relative; cursor: pointer; font-weight: 500; }
+        .w-tab.active { color: var(--primary); font-weight: 700; }
+        .w-tab.active::after {
+            content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 24px; height: 3px; background: var(--primary); border-radius: 3px;
+        }
+
+        .my-coupon-list { padding: 20px 15px; min-height: 300px; }
+
+        .my-card {
+            display: flex; background: #fff; border-radius: 16px; overflow: hidden; margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); position: relative; transition: transform 0.2s;
+        }
+        .my-card:active { transform: scale(0.99); }
+        .mc-left {
+            width: 105px; background: var(--primary-grad); color: #fff;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            position: relative;
+            text-shadow: 0 2px 2px rgba(0,0,0,0.1);
+        }
+        .mc-left::after {
+            content: ''; position: absolute; right: -8px; top: 50%; transform: translateY(-50%);
+            width: 16px; height: 16px; background: var(--bg-body); border-radius: 50%;
+        }
+        
+        .mc-right { flex: 1; padding: 18px; display: flex; flex-direction: column; justify-content: center; position: relative;}
+        .mc-title { font-size: 16px; font-weight: bold; margin-bottom: 8px; color: #333; }
+        .mc-shop { font-size: 13px; color: #666; display: flex; align-items: center; gap: 6px; font-weight: 500;}
+        .mc-time { font-size: 11px; color: #ccc; margin-top: 10px; }
+        .status-seal {
+            position: absolute; right: 15px; top: 15px;
+            font-size: 11px; background:#f8f8f8; border: 1px solid #eee; padding: 3px 8px; border-radius: 6px; color: #999;
+        }
+        .btn-use {
+            position: absolute; right: 15px; bottom: 15px;
+            background: var(--primary-grad); color: #fff; border: none;
+            padding: 6px 18px; border-radius: 20px; font-size: 13px; cursor: pointer; font-weight: bold;
+            box-shadow: 0 3px 8px rgba(255,107,0,0.25);
+        }
+
+        /* 空状态 */
+        .empty-state { text-align: center; padding-top: 80px; display: none; }
+        .empty-img { font-size: 70px; color: #e0e0e0; margin-bottom: 20px; }
+        .empty-btn { border: none; color: #fff; background: var(--primary-grad); padding: 10px 28px; border-radius: 25px; font-size: 15px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(255,107,0,0.3); }
+
+
+        /* --- 3. 底部导航栏 --- */
+        .tabbar {
+            height: 60px; background: #fff; display: flex; border-top: 1px solid rgba(0,0,0,0.05);
+            position: absolute; bottom: 0; width: 100%; z-index: 200;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.03);
+        }
+        .bar-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #bbb; cursor: pointer; transition: color 0.2s; }
+        .bar-item i { font-size: 22px; margin-bottom: 4px; }
+        .bar-item.active { color: var(--primary); }
+
+        /* Toast */
+        .toast {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9);
+            background: rgba(0,0,0,0.85); color: #fff; padding: 16px 24px; border-radius: 12px;
+            font-size: 15px; opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 999; font-weight: 500;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+    </style>
+</head>
+<body>
+
+    <div class="mobile-shell">
+        
+        <div class="custom-navbar">
+            <div class="segment-control">
+                <div class="segment-slider" id="segSlider"></div>
+                <div class="segment-btn active" onclick="switchView('center', 0)">领券中心</div>
+                <div class="segment-btn" onclick="switchView('wallet', 1)">我的卡包</div>
+            </div>
+        </div>
+
+        <div class="main-container">
+
+            <div id="view-center" class="view-page show">
+                <div class="search-box-wrapper">
+                    <div class="search-box">
+                        <i class="fa-solid fa-search" style="margin-right:8px; color:#bbb"></i>搜索神券、商家...
+                    </div>
+                </div>
+
+                <div class="seckill-zone">
+                    <div class="zone-header">
+                        <div class="zone-title">
+                            <i class="fa-solid fa-fire"></i> 限时秒杀
+                        </div>
+                        <div class="timer"><span>01</span>:<span>59</span>:<span>30</span></div>
+                    </div>
+                    <div class="seckill-scroll">
+                        <div class="seckill-card">
+                            <div class="sk-price"><span>¥</span>9.9</div>
+                            <span style="font-size:11px; color:#555; margin-bottom:4px;">瑞幸生椰拿铁</span>
+                            <div class="sk-progress"><div class="sk-fill" style="width:70%"></div></div>
+                            <button class="btn-grab" onclick="claimCoupon('瑞幸咖啡', '生椰拿铁兑换券', 29, 9.9)">立即抢</button>
+                        </div>
+                        <div class="seckill-card">
+                            <div class="sk-price"><span>¥</span>0</div>
+                            <span style="font-size:11px; color:#555; margin-bottom:4px;">霸王餐免单</span>
+                            <div class="sk-progress"><div class="sk-fill" style="width:92%"></div></div>
+                            <button class="btn-grab" onclick="claimCoupon('米线王子', '霸王餐免单券', 20, 0)">仅剩2张</button>
+                        </div>
+                        <div class="seckill-card" style="opacity: 0.7">
+                            <div class="sk-price" style="color:#999"><span>¥</span>50</div>
+                            <span style="font-size:11px; color:#999; margin-bottom:4px;">火锅抵扣券</span>
+                            <div class="sk-progress"><div class="sk-fill" style="width:100%; background:#ccc"></div></div>
+                            <button class="btn-grab disabled">已抢光</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="shop-coupon-list">
+                    <div class="list-title">好店神券</div>
+
+                    <div class="coupon-row">
+                        <div class="cr-left">
+                            <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=100" class="cr-logo">
+                            <span class="cr-name">米线王子</span>
+                        </div>
+                        <div class="cr-right">
+                            <div class="cr-info">
+                                <h4>进店立减券</h4>
+                                <p>满20元可用</p>
+                            </div>
+                            <div class="cr-action">
+                                <div class="price-big"><span style="font-size:14px; font-weight:bold">¥</span>5</div>
+                                <button class="btn-get" onclick="claimCoupon('米线王子', '进店立减券', 5, 5)">领取</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="coupon-row">
+                        <div class="cr-left">
+                            <img src="https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?w=100" class="cr-logo">
+                            <span class="cr-name">麻辣烫</span>
+                        </div>
+                        <div class="cr-right">
+                            <div class="cr-info">
+                                <h4>免费饮料券</h4>
+                                <p>任意消费可用</p>
+                            </div>
+                            <div class="cr-action">
+                                <div class="price-big"><span style="font-size:14px; font-weight:bold">¥</span>3</div>
+                                <button class="btn-get" onclick="claimCoupon('张亮麻辣烫', '饮料兑换券', 3, 3)">领取</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="height:20px"></div>
+                </div>
+            </div>
+
+            <div id="view-wallet" class="view-page">
+                <div class="wallet-tabs">
+                    <div class="w-tab active" onclick="filterWallet('all', this)">全部</div>
+                    <div class="w-tab" onclick="filterWallet('unused', this)">未使用</div>
+                    <div class="w-tab" onclick="filterWallet('used', this)">已使用</div>
+                    <div class="w-tab" onclick="filterWallet('expired', this)">已过期</div>
+                </div>
+
+                <div class="my-coupon-list" id="walletList">
+                    </div>
+
+                <div class="empty-state" id="emptyState">
+                    <i class="fa-solid fa-inbox empty-img"></i>
+                    <p style="color:#999; margin-bottom:25px; font-size: 14px;">卡包空空如也，快去抢神券！</p>
+                    <button class="empty-btn" onclick="switchView('center', 0)">去领券中心</button>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="tabbar">
+            <div class="bar-item">
+                <i class="fa-solid fa-house"></i>
+                <span>首页</span>
+            </div>
+            <div class="bar-item active">
+                <i class="fa-solid fa-ticket"></i>
+                <span>优惠</span>
+            </div>
+            <div class="bar-item">
+                <i class="fa-solid fa-circle-plus" style="font-size:38px; color:#ff6b00; transform:translateY(-15px); filter:drop-shadow(0 4px 8px rgba(255,107,0,0.4))"></i>
+            </div>
+            <div class="bar-item">
+                <i class="fa-solid fa-comment-dots"></i>
+                <span>消息</span>
+            </div>
+            <div class="bar-item">
+                <i class="fa-regular fa-user"></i>
+                <span>我的</span>
+            </div>
+        </div>
+
+        <div class="toast" id="toast">
+            <i class="fa-solid fa-circle-check" style="color:#2ed573; font-size: 18px;"></i>
+            <span id="toastMsg">领取成功</span>
+        </div>
+
+    </div>
+
+    <script>
+        // (JS 逻辑保持不变，为了完整性再次提供)
+        let myCoupons = JSON.parse(localStorage.getItem('myCoupons') || '[]');
+
+        function switchView(viewName, index) {
+            const slider = document.getElementById('segSlider');
+            const btns = document.querySelectorAll('.segment-btn');
+            // 计算滑块位置 (简单模拟，实际开发需更精确计算)
+            const translateX = index === 0 ? '4px' : 'calc(100% + 4px)';
+            slider.style.transform = `translateX(${index === 0 ? 0 : '96%'})`;
+
+            btns.forEach(btn => btn.classList.remove('active'));
+            btns[index].classList.add('active');
+
+            document.querySelectorAll('.view-page').forEach(page => page.classList.remove('show'));
+            document.getElementById('view-' + viewName).classList.add('show');
+
+            if(viewName === 'wallet') {
+                renderWallet('all');
+            }
+        }
+
+        function claimCoupon(shop, name, value, displayValue) {
+            const newCoupon = {
+                id: Date.now(), shop: shop, name: name, amount: value, status: 'unused', expireDate: '2025.12.31'
+            };
+            myCoupons.unshift(newCoupon);
+            localStorage.setItem('myCoupons', JSON.stringify(myCoupons));
+            showToast('领取成功！已存入卡包');
+        }
+
+        function renderWallet(filterType) {
+            const container = document.getElementById('walletList');
+            const emptyState = document.getElementById('emptyState');
+            container.innerHTML = '';
+
+            const list = myCoupons.filter(item => {
+                if(filterType === 'all') return true;
+                return item.status === filterType;
+            });
+
+            if(list.length === 0) {
+                emptyState.style.display = 'block';
+                return;
+            } else {
+                emptyState.style.display = 'none';
+            }
+
+            list.forEach(item => {
+                let btnHtml = '', opacityStyle = '';
+                if(item.status === 'unused') {
+                    btnHtml = `<button class="btn-use" onclick="useCoupon(${item.id})">去使用</button>`;
+                } else {
+                    opacityStyle = 'opacity:0.7; filter:grayscale(0.5);';
+                    const text = item.status === 'used' ? '已核销' : '已过期';
+                    btnHtml = `<span style="position:absolute; right:20px; bottom:20px; color:#bbb; font-weight:700; transform:rotate(-15deg); border:2px solid #bbb; padding:4px 10px; border-radius:6px; font-size:12px;">${text}</span>`;
+                }
+
+                const html = `
+                    <div class="my-card" style="${opacityStyle}">
+                        <div class="mc-left">
+                            <span style="font-size:26px; font-weight:900">¥${item.amount}</span>
+                            <span style="font-size:11px; font-weight:500; opacity:0.9">优惠券</span>
+                        </div>
+                        <div class="mc-right">
+                            <div class="mc-title">${item.name}</div>
+                            <div class="mc-shop"><i class="fa-solid fa-store" style="color:#ff6b00"></i> ${item.shop}</div>
+                            <div class="mc-time">有效期至 ${item.expireDate}</div>
+                            ${btnHtml}
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', html);
+            });
+        }
+
+        function useCoupon(id) {
+            const index = myCoupons.findIndex(c => c.id === id);
+            if(index !== -1 && confirm('确定要核销这张券吗？')) {
+                myCoupons[index].status = 'used';
+                localStorage.setItem('myCoupons', JSON.stringify(myCoupons));
+                renderWallet('all');
+                showToast('核销成功', true);
+            }
+        }
+
+        function filterWallet(type, el) {
+            document.querySelectorAll('.w-tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            renderWallet(type);
+        }
+
+        function showToast(msg, isSuccess = true) {
+            const t = document.getElementById('toast');
+            const icon = t.querySelector('i');
+            document.getElementById('toastMsg').innerText = msg;
+            icon.className = isSuccess ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-info';
+            icon.style.color = isSuccess ? '#2ed573' : '#ff6b00';
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
+    </script>
+</body>
+</html>

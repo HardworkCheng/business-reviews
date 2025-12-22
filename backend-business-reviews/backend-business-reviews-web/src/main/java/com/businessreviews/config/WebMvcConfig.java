@@ -58,8 +58,11 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/notes/nearby",
                         "/notes/user/**",
                         
-                        // 公开的商家接口
-                        "/shops/**",
+                        // 公开的商家接口（只读操作）
+                        "/shops",
+                        "/shops/nearby",
+                        "/shops/search",
+                        "/shops/registered",
                         
                         // 公开的分类接口
                         "/categories/**",
@@ -68,10 +71,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/search/**",
                         
                         // 话题接口
-                        "/topics/**",
-                        
-                        // 优惠券公开接口
-                        "/coupons"
+                        "/topics/**"
                 );
     }
 }

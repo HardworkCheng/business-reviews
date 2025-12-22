@@ -57,7 +57,7 @@
 			}
 		},
 		{
-			"path": "pages/map/map",
+			"path": "pages/discount/discount",
 			"style": {
 				"navigationBarTitleText": "优惠券",
 				"navigationStyle": "custom"
@@ -125,6 +125,13 @@
 				"navigationBarTitleText": "聊天",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/map/map",
+			"style": {
+				"navigationBarTitleText": "地图",
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"tabBar": {
@@ -135,32 +142,32 @@
 		"list": [
 			{
 				"pagePath": "pages/index/index",
-				"iconPath": "static/tabbar/home.svg",
-				"selectedIconPath": "static/tabbar/home-active.svg",
+				"iconPath": "static/icons/home.png",
+				"selectedIconPath": "static/icons/home-active.png",
 				"text": "首页"
 			},
 			{
-				"pagePath": "pages/map/map",
-				"iconPath": "static/tabbar/map.svg",
-				"selectedIconPath": "static/tabbar/map-active.svg",
+				"pagePath": "pages/discount/discount",
+				"iconPath": "static/icons/discount.png",
+				"selectedIconPath": "static/icons/discount-active.png",
 				"text": "优惠"
 			},
 			{
 				"pagePath": "pages/publish/publish",
-				"iconPath": "static/tabbar/add.svg",
-				"selectedIconPath": "static/tabbar/add-active.svg",
+				"iconPath": "static/icons/add.png",
+				"selectedIconPath": "static/icons/add-active.png",
 				"text": "发布"
 			},
 			{
 				"pagePath": "pages/message/message",
-				"iconPath": "static/tabbar/message.svg",
-				"selectedIconPath": "static/tabbar/message-active.svg",
+				"iconPath": "static/icons/message.png",
+				"selectedIconPath": "static/icons/message-active.png",
 				"text": "消息"
 			},
 			{
 				"pagePath": "pages/profile/profile",
-				"iconPath": "static/tabbar/profile.svg",
-				"selectedIconPath": "static/tabbar/profile-active.svg",
+				"iconPath": "static/icons/profile.png",
+				"selectedIconPath": "static/icons/profile-active.png",
 				"text": "我的"
 			}
 		]

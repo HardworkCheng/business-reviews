@@ -31,9 +31,29 @@ public class AuthInterceptor implements HandlerInterceptor {
         System.out.println("Request URI: " + requestURI);
         System.out.println("Method: " + method);
         
-        // 笔记详情的 GET 请求不需要登录
-        if ("GET".equals(method) && requestURI.matches(".*/notes/\\d+$")) {
-            System.out.println("笔记详情 GET 请求，跳过认证");
+        // 定义可选认证的接口路径（不强制登录，但如果有token则解析用户ID）
+        boolean isOptionalAuth = isOptionalAuthPath(requestURI, method);
+        
+        if (isOptionalAuth) {
+            System.out.println("可选认证接口，不强制登录");
+            // 尝试解析token获取用户ID（可选）
+            String authorization = request.getHeader("Authorization");
+            if (StringUtils.hasText(authorization) && authorization.startsWith("Bearer ")) {
+                String token = authorization.substring(7);
+                try {
+                    // 检查token是否在黑名单中
+                    String blacklistKey = RedisKeyConstants.TOKEN_BLACKLIST + token;
+                    if (!redisUtil.hasKey(blacklistKey) && jwtUtil.validateToken(token)) {
+                        Long userId = jwtUtil.getUserIdFromToken(token);
+                        UserContext.setUserId(userId);
+                        System.out.println("可选认证 - 已登录用户ID: " + userId);
+                    }
+                } catch (Exception e) {
+                    System.out.println("可选认证 - Token解析失败，以游客身份访问: " + e.getMessage());
+                }
+            } else {
+                System.out.println("可选认证 - 游客访问");
+            }
             return true;
         }
         
@@ -90,5 +110,49 @@ public class AuthInterceptor implements HandlerInterceptor {
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
         // 清除用户上下文
         UserContext.clear();
+    }
+    
+    /**
+     * 判断是否为可选认证路径
+     * 这些路径不强制登录，但如果有token则解析用户ID
+     */
+    private boolean isOptionalAuthPath(String requestURI, String method) {
+        // 笔记详情 GET 请求
+        if ("GET".equals(method) && requestURI.matches(".*/notes/\\d+$")) {
+            return true;
+        }
+        
+        // 商家相关 GET 请求（详情、评价列表、笔记列表）
+        if ("GET".equals(method)) {
+            // /shops/{id}, /shops/{id}/reviews, /shops/{id}/notes
+            if (requestURI.matches(".*/shops/\\d+$") ||
+                requestURI.matches(".*/shops/\\d+/reviews$") ||
+                requestURI.matches(".*/shops/\\d+/notes$")) {
+                return true;
+            }
+        }
+        
+        // 优惠券公开接口 - GET 请求
+        if ("GET".equals(method)) {
+            // /app/coupons, /app/coupons/available, /app/coupons/{id}
+            if (requestURI.matches(".*/app/coupons(/available)?$") || 
+                requestURI.matches(".*/app/coupons/\\d+$") ||
+                requestURI.equals("/api/app/coupons") ||
+                requestURI.equals("/api/app/coupons/available")) {
+                return true;
+            }
+            
+            // /coupons
+            if (requestURI.equals("/api/coupons") || requestURI.equals("/coupons")) {
+                return true;
+            }
+            
+            // 秒杀公开接口
+            if (requestURI.contains("/app/seckill/")) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 }
