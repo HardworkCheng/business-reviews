@@ -21,6 +21,7 @@ import com.businessreviews.service.app.MessageService;
 import com.businessreviews.model.dataobject.NoteDO;
 import com.businessreviews.model.dataobject.SystemNoticeDO;
 import com.businessreviews.util.TimeUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -42,6 +43,7 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
     private final NoteMapper noteMapper;
     private final UserMapper userMapper;
     private final com.businessreviews.handler.MessageWebSocketHandler webSocketHandler;
+    private final ObjectMapper objectMapper;
 
     @Override
     public PageResult<ConversationVO> getConversations(Long userId, Integer pageNum, Integer pageSize) {
@@ -275,6 +277,101 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
         systemNoticeMapper.insert(notice);
         log.info("发送系统通知: userId={}, fromUserId={}, type={}, targetId={}", userId, fromUserId, type, targetId);
     }
+    
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void shareNoteToUsers(Long userId, Long noteId, List<Long> userIds) {
+        log.info("分享笔记: userId={}, noteId={}, userIds={}", userId, noteId, userIds);
+        
+        // 检查笔记是否存在
+        NoteDO note = noteMapper.selectById(noteId);
+        if (note == null || note.getStatus() != 1) {
+            throw new BusinessException(40402, "笔记不存在");
+        }
+        
+        // 获取分享者信息
+        UserDO sender = userMapper.selectById(userId);
+        if (sender == null) {
+            throw new BusinessException(40401, "用户不存在");
+        }
+        
+        // 构建笔记数据JSON - 使用ObjectMapper确保正确转义
+        String noteDataJson;
+        try {
+            Map<String, Object> noteDataMap = new HashMap<>();
+            noteDataMap.put("noteId", note.getId());
+            noteDataMap.put("title", note.getTitle() != null ? note.getTitle() : "");
+            noteDataMap.put("coverImage", note.getCoverImage() != null ? note.getCoverImage() : "");
+            
+            // 截取内容，避免过长
+            String content = note.getContent() != null ? note.getContent() : "";
+            if (content.length() > 50) {
+                content = content.substring(0, 50);
+            }
+            noteDataMap.put("content", content);
+            
+            noteDataJson = objectMapper.writeValueAsString(noteDataMap);
+            log.info("笔记数据JSON: {}", noteDataJson);
+        } catch (Exception e) {
+            log.error("序列化笔记数据失败", e);
+            throw new BusinessException(50001, "序列化笔记数据失败");
+        }
+        
+        // 给每个用户发送消息
+        for (Long targetUserId : userIds) {
+            // 检查目标用户是否存在
+            UserDO targetUser = userMapper.selectById(targetUserId);
+            if (targetUser == null) {
+                log.warn("目标用户不存在: userId={}", targetUserId);
+                continue;
+            }
+            
+            // 创建消息记录
+            MessageDO message = new MessageDO();
+            message.setSenderId(userId);
+            message.setReceiverId(targetUserId);
+            message.setContent("分享了一篇笔记");
+            message.setType(4); // 4=笔记分享
+            message.setReadStatus(false);
+            message.setNoteData(noteDataJson);
+            
+            messageMapper.insert(message);
+            log.info("笔记分享消息已创建: messageId={}, targetUserId={}", message.getId(), targetUserId);
+            
+            // 通过WebSocket实时推送消息
+            try {
+                Map<String, Object> wsMessage = new HashMap<>();
+                wsMessage.put("type", "private_message");
+                
+                Map<String, Object> messageData = new HashMap<>();
+                messageData.put("id", message.getId());
+                messageData.put("senderId", userId);
+                messageData.put("receiverId", targetUserId);
+                messageData.put("content", "分享了一篇笔记");
+                messageData.put("messageType", 4);
+                messageData.put("createdAt", message.getCreatedAt().toString());
+                messageData.put("senderName", sender.getUsername());
+                messageData.put("senderAvatar", sender.getAvatar());
+                
+                // 添加笔记数据
+                Map<String, Object> noteData = new HashMap<>();
+                noteData.put("noteId", note.getId());
+                noteData.put("title", note.getTitle());
+                noteData.put("coverImage", note.getCoverImage());
+                noteData.put("content", note.getContent() != null ? note.getContent().substring(0, Math.min(50, note.getContent().length())) : "");
+                messageData.put("noteData", noteData);
+                
+                wsMessage.put("data", messageData);
+                
+                webSocketHandler.sendMessageToUser(targetUserId, wsMessage);
+                log.info("笔记分享WebSocket消息已推送: targetUserId={}", targetUserId);
+            } catch (Exception e) {
+                log.error("WebSocket消息推送失败: targetUserId={}", targetUserId, e);
+            }
+        }
+        
+        log.info("笔记分享完成: noteId={}, 成功分享给{}个用户", noteId, userIds.size());
+    }
 
     private int countUnreadNotifications(Long userId, Integer type) {
         LambdaQueryWrapper<SystemNoticeDO> wrapper = new LambdaQueryWrapper<>();
@@ -294,6 +391,11 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
         response.setReadStatus(message.getReadStatus());
         response.setCreatedAt(message.getCreatedAt().toString());
         response.setTimeAgo(TimeUtil.formatRelativeTime(message.getCreatedAt()));
+        
+        // 如果是笔记分享消息，添加noteData
+        if (message.getType() != null && message.getType() == 4 && message.getNoteData() != null) {
+            response.setNoteData(message.getNoteData());
+        }
         
         // 查询发送者信息
         UserDO sender = userMapper.selectById(message.getSenderId());

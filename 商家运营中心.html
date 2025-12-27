@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商家运营中心 - 店铺信息管理</title>
+    <style>
+        /* --- 全局重置 --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f0f2f5; /* 经典的后台浅灰背景 */
+            color: #333;
+            min-height: 100vh;
+        }
+
+        /* --- 顶部导航栏 (模拟) --- */
+        .navbar {
+            height: 60px;
+            background-color: #fff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 100;
+        }
+        
+        .nav-logo {
+            font-weight: 700;
+            font-size: 18px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .nav-logo span {
+            color: #ff6b00; /* 品牌橙色 */
+        }
+
+        .nav-menu {
+            margin-left: 60px;
+            display: flex;
+            gap: 30px;
+            font-size: 14px;
+        }
+
+        .nav-item {
+            color: #666;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 4px;
+        }
+
+        .nav-item.active {
+            background-color: #ff6b00;
+            color: white;
+        }
+
+        /* --- 主内容区域 --- */
+        .main-container {
+            margin-top: 80px; /* 让出导航栏高度 */
+            padding: 20px 40px;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* 页面标题头 */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 20px;
+        }
+
+        .page-title h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .page-title p {
+            font-size: 13px;
+            color: #999;
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 8px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .btn-outline {
+            background-color: #fff;
+            border-color: #d9d9d9;
+            color: #666;
+        }
+
+        .btn-primary {
+            background-color: #ff6b00;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #e65e00;
+        }
+
+        /* --- 白色大卡片盒子 --- */
+        .card-box {
+            background: #fff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        /* 模块标题 (带橙色竖条) */
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 30px;
+            padding-left: 12px;
+            border-left: 4px solid #ff6b00;
+            line-height: 1.2;
+        }
+
+        /* --- 表单布局 Grid --- */
+        .form-layout {
+            display: flex;
+            gap: 50px; /* 左侧图片与右侧表单的间距 */
+        }
+
+        /* 左侧：封面图上传区 */
+        .left-uploader {
+            width: 280px;
+            flex-shrink: 0;
+        }
+
+        .upload-box-large {
+            width: 100%;
+            height: 280px; /* 更加正方或根据比例调整 */
+            background-color: #fafafa;
+            border: 1px dashed #d9d9d9;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: border-color 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-box-large:hover {
+            border-color: #ff6b00;
+        }
+        
+        .upload-box-large img.preview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .upload-hint {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        /* 右侧：详细表单区 */
+        .right-form {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* 两列布局 */
+            column-gap: 30px;
+            row-gap: 24px;
+        }
+
+        /* 表单控件样式 */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group.full-width {
+            grid-column: span 2; /* 占满整行 */
+        }
+
+        .form-label {
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .form-label span.required {
+            color: #ff4d4f;
+            margin-left: 4px;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #333;
+            transition: all 0.3s;
+            background-color: #fff;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            border-color: #ff6b00;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(255, 107, 0, 0.1);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* 商家相册上传区域 */
+        .gallery-upload-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .gallery-item {
+            width: 100px;
+            height: 100px;
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid #eee;
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .gallery-add-btn {
+            width: 100px;
+            height: 100px;
+            background-color: #fafafa;
+            border: 1px dashed #d9d9d9;
+            border-radius: 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 24px;
+            color: #999;
+        }
+
+        .gallery-add-btn:hover {
+            border-color: #ff6b00;
+            color: #ff6b00;
+        }
+
+        .gallery-limit-text {
+            font-size: 12px;
+            color: #999;
+            margin-top: 8px;
+        }
+
+        /* 适配：当屏幕较窄时变为单列 */
+        @media (max-width: 900px) {
+            .form-layout {
+                flex-direction: column;
+            }
+            .left-uploader {
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+            .right-form {
+                grid-template-columns: 1fr;
+            }
+            .form-group.full-width {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="nav-logo">🛍️ 商家<span>运营中心</span></div>
+        <div class="nav-menu">
+            <div class="nav-item active">门店管理</div>
+            <div class="nav-item">订单中心</div>
+            <div class="nav-item">营销活动</div>
+            <div class="nav-item">数据分析</div>
+            <div class="nav-item">系统设置</div>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        
+        <div class="page-header">
+            <div class="page-title">
+                <h1>店铺信息管理</h1>
+                <p>管理您的店铺基本信息、经营类目、地理位置及展示素材。最后更新: 2025/12/24</p>
+            </div>
+            <div class="action-btns">
+                <button class="btn btn-outline">刷新数据</button>
+                <button class="btn btn-primary">保存修改</button>
+            </div>
+        </div>
+
+        <div class="card-box">
+            
+            <h3 class="section-title">基本信息</h3>
+
+            <div class="form-layout">
+                
+                <div class="left-uploader">
+                    <div class="form-label">店铺封面 <span class="required">*</span></div>
+                    <div class="upload-box-large">
+                        <img src="https://via.placeholder.com/300x300/ffecd2/ff6b00?text=店铺封面" class="preview" alt="Cover">
+                    </div>
+                    <div class="upload-hint">
+                        建议尺寸 750x750px<br>支持 JPG, PNG 格式，大小不超过 2MB
+                    </div>
+                </div>
+
+                <div class="right-form">
+                    
+                    <div class="form-group">
+                        <label class="form-label">店铺名称 <span class="required">*</span></label>
+                        <input type="text" class="form-input" value="时光咖啡馆 (Time Coffee)" placeholder="请输入店铺名称">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">经营类目 <span class="required">*</span></label>
+                        <select class="form-select">
+                            <option>餐饮美食 / 咖啡厅</option>
+                            <option>餐饮美食 / 甜点饮品</option>
+                            <option>生活服务</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">店铺状态</label>
+                        <select class="form-select">
+                            <option value="open">营业中</option>
+                            <option value="closed">休息中</option>
+                            <option value="renovation">装修中</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">人均消费 (元)</label>
+                        <input type="number" class="form-input" value="35" placeholder="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">联系电话 <span class="required">*</span></label>
+                        <input type="text" class="form-input" value="021-12345678" placeholder="请输入座机或手机号">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">营业时间</label>
+                        <input type="text" class="form-input" value="周一至周日 09:00 - 22:00" placeholder="例：09:00 - 22:00">
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label class="form-label">店铺位置 <span class="required">*</span></label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" class="form-input" value="上海市静安区南京西路888号" style="flex:1;">
+                            <button class="btn btn-outline" style="padding: 0 15px;">地图定位</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label class="form-label">店铺简介</label>
+                        <textarea class="form-textarea" placeholder="请输入店铺的特色介绍，让顾客更了解你...">非常不错的一家咖啡店，主打手冲咖啡和自制提拉米苏，欢迎大家来品尝。</textarea>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label class="form-label">商家相册 (最多9张)</label>
+                        <div class="gallery-upload-area">
+                            <div class="gallery-item"><img src="https://via.placeholder.com/150/eee/999?text=图1"></div>
+                            <div class="gallery-item"><img src="https://via.placeholder.com/150/eee/999?text=图2"></div>
+                            <div class="gallery-item"><img src="https://via.placeholder.com/150/eee/999?text=图3"></div>
+                            <div class="gallery-item"><img src="https://via.placeholder.com/150/eee/999?text=图4"></div>
+                            
+                            <div class="gallery-add-btn">+</div>
+                        </div>
+                        <p class="gallery-limit-text">支持 JPG/PNG 格式，建议尺寸 800x800px，展示店铺环境、菜品或服务细节。</p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

@@ -38,4 +38,29 @@ public class CommentVO implements Serializable {
     private String replyToUser;
     
     private List<CommentVO> replies;
+    
+    // 商家运营中心专用字段
+    private String noteTitle;  // 笔记标题（用于显示关联商品）
+    
+    private String status;  // 状态：published/deleted
+    
+    private String reply;  // 商家回复内容
+    
+    private LocalDateTime replyTime;  // 商家回复时间
+    
+    private Boolean isTop;  // 是否置顶
+    
+    private Boolean isVip;  // 是否VIP用户
+    
+    private Boolean isAnonymous;  // 是否匿名
+    
+    private Double rating;  // 综合评分
+    
+    private Double tasteScore;  // 口味评分
+    
+    private Double environmentScore;  // 环境评分
+    
+    private Double serviceScore;  // 服务评分
+    
+    private List<String> images;  // 评论图片
 }

@@ -39,6 +39,11 @@ public class PageResult<T> implements Serializable {
      */
     private Boolean hasMore;
     
+    /**
+     * Tab计数（用于评论管理等场景）
+     */
+    private java.util.Map<String, Long> tabCounts;
+    
     public PageResult() {
     }
     

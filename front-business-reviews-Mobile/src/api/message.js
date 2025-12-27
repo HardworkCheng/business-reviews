@@ -75,6 +75,18 @@ export const markAllNotificationsAsRead = (type = null) => {
   return post('/messages/notifications/read-all', params)
 }
 
+/**
+ * 分享笔记给用户
+ * @param {String} noteId - 笔记ID
+ * @param {Array} userIds - 用户ID列表
+ */
+export const shareNoteToUsers = (noteId, userIds) => {
+  return post('/messages/share-note', {
+    noteId,
+    userIds
+  })
+}
+
 export default {
   getConversationList,
   getConversationMessages,
@@ -83,5 +95,6 @@ export default {
   getUnreadCount,
   getNotifications,
   markNotificationAsRead,
-  markAllNotificationsAsRead
+  markAllNotificationsAsRead,
+  shareNoteToUsers
 }

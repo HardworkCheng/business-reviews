@@ -233,14 +233,16 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         response.setAuthor(author != null ? author.getUsername() : "未知用户");
         response.setAuthorAvatar(author != null ? author.getAvatar() : null);
         response.setAuthorId(note.getUserId());
-        response.setPublishTime(TimeUtil.formatRelativeTime(note.getCreatedAt()));
+        // 使用更新时间而不是创建时间，这样编辑后时间会正确显示
+        response.setPublishTime(TimeUtil.formatRelativeTime(note.getUpdatedAt() != null ? note.getUpdatedAt() : note.getCreatedAt()));
         response.setTags(tags);
         response.setLikeCount(note.getLikeCount());
         response.setCommentCount(note.getCommentCount());
         response.setViewCount(note.getViewCount());
         response.setFavoriteCount(note.getFavoriteCount());
         response.setLocation(note.getLocation());
-        response.setCreatedAt(note.getCreatedAt());
+        // 使用updatedAt来显示最后更新时间
+        response.setCreatedAt(note.getUpdatedAt() != null ? note.getUpdatedAt() : note.getCreatedAt());
 
         // 查询关联商家
         if (note.getShopId() != null) {
@@ -328,8 +330,10 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
             saveNoteTags(note.getId(), request.getTags());
         }
 
-        // 保存话题关联
-        if (request.getTopics() != null && !request.getTopics().isEmpty()) {
+        // 保存话题关联 - 优先使用topicNames（自定义话题），否则使用topics（ID列表）
+        if (request.getTopicNames() != null && !request.getTopicNames().isEmpty()) {
+            saveNoteTopicsByNames(note.getId(), request.getTopicNames());
+        } else if (request.getTopics() != null && !request.getTopics().isEmpty()) {
             saveNoteTopics(note.getId(), request.getTopics());
         }
 
@@ -355,6 +359,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
             note.setCoverImage(request.getImages().get(0));
             note.setImages(String.join(",", request.getImages()));
         }
+        note.setShopId(request.getShopId());
         note.setLocation(request.getLocation());
         note.setLatitude(request.getLatitude());
         note.setLongitude(request.getLongitude());
@@ -368,6 +373,21 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
                 saveNoteTags(noteId, request.getTags());
             }
         }
+
+        // 更新话题关联 - 优先使用topicNames（自定义话题），否则使用topics（ID列表）
+        if (request.getTopicNames() != null) {
+            deleteNoteTopics(noteId);
+            if (!request.getTopicNames().isEmpty()) {
+                saveNoteTopicsByNames(noteId, request.getTopicNames());
+            }
+        } else if (request.getTopics() != null) {
+            deleteNoteTopics(noteId);
+            if (!request.getTopics().isEmpty()) {
+                saveNoteTopics(noteId, request.getTopics());
+            }
+        }
+
+        log.info("用户{}更新笔记成功，笔记ID={}", userId, noteId);
     }
 
     @Override
@@ -685,10 +705,66 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         }
     }
 
+    /**
+     * 通过话题名称保存笔记话题关联（支持自定义话题）
+     * 如果话题不存在，则自动创建
+     */
+    private void saveNoteTopicsByNames(Long noteId, List<String> topicNames) {
+        for (String topicName : topicNames) {
+            if (topicName == null || topicName.trim().isEmpty()) {
+                continue;
+            }
+            
+            // 查找或创建话题
+            TopicDO topic = findOrCreateTopic(topicName.trim());
+            
+            // 创建笔记话题关联
+            NoteTopicDO noteTopic = new NoteTopicDO();
+            noteTopic.setNoteId(noteId);
+            noteTopic.setTopicId(topic.getId());
+            noteTopicMapper.insert(noteTopic);
+            
+            // 更新话题的笔记数量
+            topicMapper.incrementNoteCount(topic.getId());
+        }
+    }
+
+    /**
+     * 查找或创建话题
+     * 如果话题已存在则返回，否则创建新话题
+     */
+    private TopicDO findOrCreateTopic(String topicName) {
+        // 查找已存在的话题
+        LambdaQueryWrapper<TopicDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TopicDO::getName, topicName)
+                .eq(TopicDO::getStatus, 1);
+        TopicDO topic = topicMapper.selectOne(wrapper);
+        
+        if (topic == null) {
+            // 创建新话题
+            topic = new TopicDO();
+            topic.setName(topicName);
+            topic.setStatus(1);
+            topic.setHot(0);
+            topic.setNoteCount(0);
+            topic.setViewCount(0);
+            topicMapper.insert(topic);
+            log.info("创建新话题: {}, ID: {}", topicName, topic.getId());
+        }
+        
+        return topic;
+    }
+
     private void deleteNoteTags(Long noteId) {
         LambdaQueryWrapper<NoteTagDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(NoteTagDO::getNoteId, noteId);
         noteTagMapper.delete(wrapper);
+    }
+
+    private void deleteNoteTopics(Long noteId) {
+        LambdaQueryWrapper<NoteTopicDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteTopicDO::getNoteId, noteId);
+        noteTopicMapper.delete(wrapper);
     }
 
     /**

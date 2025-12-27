@@ -22,6 +22,11 @@ public class MessageVO implements Serializable {
     private Integer type;
     
     /**
+     * 笔记数据（JSON格式，用于笔记分享消息）
+     */
+    private String noteData;
+    
+    /**
      * 是否已读
      */
     @JsonProperty("isRead")

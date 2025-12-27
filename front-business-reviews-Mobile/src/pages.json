@@ -22,6 +22,13 @@
 			}
 		},
 		{
+			"path": "pages/note-edit/note-edit",
+			"style": {
+				"navigationBarTitleText": "编辑笔记",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/search/search",
 			"style": {
 				"navigationBarTitleText": "搜索",
@@ -130,6 +137,13 @@
 			"path": "pages/map/map",
 			"style": {
 				"navigationBarTitleText": "地图",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/note-share/note-share",
+			"style": {
+				"navigationBarTitleText": "分享笔记",
 				"navigationStyle": "custom"
 			}
 		}

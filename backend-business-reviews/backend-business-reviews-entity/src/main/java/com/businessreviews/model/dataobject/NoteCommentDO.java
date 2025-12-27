@@ -44,6 +44,11 @@ public class NoteCommentDO implements Serializable {
     private Integer likeCount;
     
     /**
+     * 回复数量
+     */
+    private Integer replyCount;
+    
+    /**
      * 状态（1正常，2隐藏）
      */
     private Integer status;

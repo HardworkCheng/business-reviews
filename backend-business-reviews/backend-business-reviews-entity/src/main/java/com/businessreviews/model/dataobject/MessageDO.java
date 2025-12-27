@@ -24,7 +24,12 @@ public class MessageDO implements Serializable {
     
     private String content;
     
-    private Integer type; // 1=文本, 2=图片
+    private Integer type; // 1=文本, 2=图片, 4=笔记分享
+    
+    /**
+     * 笔记数据（JSON格式，用于笔记分享消息）
+     */
+    private String noteData;
     
     /**
      * 是否已读

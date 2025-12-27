@@ -68,4 +68,12 @@ public interface MessageService extends IService<MessageDO> {
      * @param imageUrl 关联图片URL
      */
     void sendSystemNotice(Long userId, Long fromUserId, Integer type, Long targetId, String content, String imageUrl);
+    
+    /**
+     * 分享笔记给多个用户
+     * @param userId 分享者用户ID
+     * @param noteId 笔记ID
+     * @param userIds 接收者用户ID列表
+     */
+    void shareNoteToUsers(Long userId, Long noteId, java.util.List<Long> userIds);
 }

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>商家运营中心 - 评论管理 (自动发布版)</title>
+  <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+  <style>
+    /* --- 全局基础样式 --- */
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f4f7fc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      color: #2c3e50;
+    }
+    #app {
+      padding: 24px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    /* --- 1. 数据概览看板 (Dashboard Cards) --- */
+    .dashboard-row {
+      margin-bottom: 24px;
+    }
+    .data-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid rgba(230, 234, 241, 0.5);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      position: relative;
+      overflow: hidden;
+    }
+    .data-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+    }
+    .card-left { z-index: 2; }
+    .card-title {
+      font-size: 14px;
+      color: #8c9eae;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    .card-number {
+      font-size: 32px;
+      font-weight: 700;
+      color: #1a1a1a;
+      letter-spacing: -1px;
+      margin: 0;
+      line-height: 1.2;
+    }
+    .trend {
+      font-size: 12px;
+      margin-top: 6px;
+      display: inline-flex;
+      align-items: center;
+      font-weight: 600;
+    }
+    .trend.up { color: #52c41a; background: #f6ffed; padding: 2px 6px; border-radius: 4px; }
+    .trend.down { color: #ff4d4f; background: #fff1f0; padding: 2px 6px; border-radius: 4px; }
+    
+    .card-icon-box {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      z-index: 2;
+    }
+    .icon-blue { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); color: #1890ff; }
+    .icon-orange { background: linear-gradient(135deg, #fff7e6 0%, #ffd591 100%); color: #fa8c16; }
+    .icon-green { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); color: #52c41a; }
+    .icon-red { background: linear-gradient(135deg, #fff1f0 0%, #ffccc7 100%); color: #f5222d; }
+
+    /* --- 2. 主内容区域 --- */
+    .main-panel {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .toolbar {
+      padding: 20px 24px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #fff;
+    }
+    .custom-tabs .el-tabs__header { margin: 0; }
+    .custom-tabs .el-tabs__nav-wrap::after { height: 0; }
+    .custom-tabs .el-tabs__item {
+      font-size: 15px;
+      font-weight: 500;
+      height: 50px;
+      line-height: 50px;
+    }
+
+    /* --- 3. 表格样式优化 --- */
+    .custom-table { width: 100%; }
+    .custom-table th {
+      background-color: #fafafa !important;
+      color: #595959;
+      font-weight: 600;
+      border-bottom: 1px solid #f0f0f0;
+      padding: 16px 0;
+    }
+    .custom-table td { padding: 20px 0; }
+    .el-table--enable-row-hover .el-table__body tr:hover>td {
+      background-color: #fcfcfd !important;
+    }
+
+    .user-info { display: flex; align-items: center; }
+    .user-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      margin-right: 14px;
+      border: 2px solid #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .user-meta-box { display: flex; flex-direction: column; }
+    .user-name { font-weight: 600; font-size: 14px; color: #262626; }
+    .user-tag { transform: scale(0.85); transform-origin: left; margin-top: 4px; }
+
+    .review-main { padding-right: 20px; }
+    .review-header { display: flex; align-items: center; margin-bottom: 8px; }
+    .review-time { font-size: 12px; color: #bfbfbf; margin-left: 12px; }
+    .goods-badge {
+      background: #f5f5f5;
+      color: #8c8c8c;
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: auto;
+    }
+    .review-text { font-size: 14px; line-height: 1.6; color: #434343; margin-bottom: 12px; }
+    
+    .merchant-reply {
+      background: #fff7e6;
+      border-left: 3px solid #fa8c16;
+      padding: 10px 14px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #595959;
+      position: relative;
+    }
+    .merchant-reply strong { color: #d46b08; margin-right: 5px; }
+
+    .status-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    
+    .action-btn {
+      color: #8c8c8c;
+      transition: all 0.2s;
+      background: #f5f5f5;
+      border: none;
+    }
+    .action-btn:hover { transform: scale(1.1); }
+    .btn-reply:hover { background: #e6f7ff; color: #1890ff; }
+    .btn-top:hover { background: #fff7e6; color: #fa8c16; }
+    .btn-del:hover { background: #fff1f0; color: #f5222d; }
+
+    .pagination-wrapper {
+      padding: 20px 24px;
+      border-top: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: flex-end;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <el-row :gutter="24" class="dashboard-row">
+      <el-col :span="6">
+        <div class="data-card">
+          <div class="card-left">
+            <div class="card-title">今日新增评论</div>
+            <h2 class="card-number">128</h2>
+            <div class="trend up"><i class="el-icon-top"></i> 12% 较昨日</div>
+          </div>
+          <div class="card-icon-box icon-blue">
+            <i class="el-icon-chat-line-square"></i>
+          </div>
+        </div>
+      </el-col>
+      <el-col :span="6">
+        <div class="data-card">
+          <div class="card-left">
+            <div class="card-title">店铺综合评分</div>
+            <h2 class="card-number">4.8</h2>
+            <div class="trend up"><i class="el-icon-minus"></i> 持平</div>
+          </div>
+          <div class="card-icon-box icon-orange">
+            <i class="el-icon-star-on"></i>
+          </div>
+        </div>
+      </el-col>
+      <el-col :span="6">
+        <div class="data-card">
+          <div class="card-left">
+            <div class="card-title">待回复内容</div>
+            <h2 class="card-number">9</h2>
+            <div class="trend down"><i class="el-icon-bottom"></i> 5% 效率提升</div>
+          </div>
+          <div class="card-icon-box icon-green">
+            <i class="el-icon-message-solid"></i>
+          </div>
+        </div>
+      </el-col>
+      <el-col :span="6">
+        <div class="data-card">
+          <div class="card-left">
+            <div class="card-title">差评/投诉待处理</div>
+            <h2 class="card-number" style="color: #f5222d">2</h2>
+            <div class="trend"><span style="color: #999; font-weight: normal;">需优先处理</span></div>
+          </div>
+          <div class="card-icon-box icon-red">
+            <i class="el-icon-warning"></i>
+          </div>
+        </div>
+      </el-col>
+    </el-row>
+
+    <div class="main-panel">
+      <div class="toolbar">
+        <el-tabs v-model="activeTab" @tab-click="handleTabClick" class="custom-tabs">
+          <el-tab-pane label="全部评论 (128)" name="all"></el-tab-pane>
+          <el-tab-pane label="正常显示 (120)" name="published"></el-tab-pane>
+          <el-tab-pane label="差评/投诉 (8)" name="negative"></el-tab-pane>
+          <el-tab-pane label="已删除" name="deleted"></el-tab-pane>
+        </el-tabs>
+
+        <div style="display: flex; gap: 10px;">
+          <el-input 
+            placeholder="搜索内容、用户或订单号..." 
+            v-model="searchKey" 
+            size="medium" 
+            prefix-icon="el-icon-search"
+            style="width: 260px;">
+          </el-input>
+          <el-button type="primary" size="medium" icon="el-icon-download" plain>导出数据</el-button>
+        </div>
+      </div>
+
+      <el-table 
+        :data="tableData" 
+        class="custom-table"
+        :header-cell-style="{borderBottom: '1px solid #f0f0f0'}"
+        :cell-style="{borderBottom: '1px solid #f0f0f0'}">
+        
+        <el-table-column label="用户信息" width="220">
+          <template slot-scope="scope">
+            <div class="user-info">
+              <img :src="scope.row.avatar" class="user-avatar">
+              <div class="user-meta-box">
+                <div class="user-name">{{ scope.row.userName }}</div>
+                <div>
+                  <el-tag v-if="scope.row.isVip" size="mini" type="warning" effect="dark" class="user-tag">VIP</el-tag>
+                  <el-tag v-if="scope.row.isAnonymous" size="mini" type="info" effect="plain" class="user-tag">匿名</el-tag>
+                </div>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="评论详情" min-width="400">
+          <template slot-scope="scope">
+            <div class="review-main">
+              <div class="review-header">
+                <el-rate 
+                  v-model="scope.row.rating" 
+                  disabled 
+                  show-score 
+                  text-color="#ff9900" 
+                  score-template="{value}分">
+                </el-rate>
+                <span class="review-time">{{ scope.row.createTime }}</span>
+                <span class="goods-badge">购买: {{ scope.row.goodsName }}</span>
+              </div>
+              
+              <div class="review-text">{{ scope.row.content }}</div>
+
+              <div v-if="scope.row.images && scope.row.images.length" style="margin-bottom: 10px;">
+                 <el-image 
+                    v-for="(img, idx) in scope.row.images" 
+                    :key="idx"
+                    style="width: 60px; height: 60px; border-radius: 4px; margin-right: 8px"
+                    :src="img" 
+                    :preview-src-list="scope.row.images">
+                 </el-image>
+              </div>
+              
+              <div v-if="scope.row.reply" class="merchant-reply">
+                <strong>商家回复:</strong> {{ scope.row.reply }}
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="状态" width="120" align="center">
+          <template slot-scope="scope">
+            <div v-if="scope.row.status === 'published'" style="color: #52c41a">
+              <span class="status-dot" style="background: #52c41a"></span>正常显示
+            </div>
+            <div v-else-if="scope.row.status === 'deleted'" style="color: #bfbfbf">
+              <span class="status-dot" style="background: #bfbfbf"></span>已删除
+            </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="操作" width="180" align="center" fixed="right">
+          <template slot-scope="scope">
+            <el-tooltip content="回复" placement="top">
+              <el-button class="action-btn btn-reply" icon="el-icon-chat-dot-round" circle size="small"></el-button>
+            </el-tooltip>
+            <el-tooltip content="置顶" placement="top">
+              <el-button class="action-btn btn-top" icon="el-icon-top" circle size="small"></el-button>
+            </el-tooltip>
+            <el-tooltip content="删除/屏蔽" placement="top">
+              <el-button class="action-btn btn-del" icon="el-icon-delete" circle size="small"></el-button>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div class="pagination-wrapper">
+        <el-pagination
+          background
+          layout="total, sizes, prev, pager, next, jumper"
+          :total="128"
+          :page-sizes="[10, 20, 50]">
+        </el-pagination>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/vue@2/dist/vue.js"></script>
+  <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+  
+  <script>
+    new Vue({
+      el: '#app',
+      data: function() {
+        return {
+          activeTab: 'all',
+          searchKey: '',
+          // 修改后的数据：去除了 pending 状态
+          tableData: [
+            {
+              id: 1,
+              userName: '爱吃火锅的猫',
+              avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+              isVip: true,
+              isAnonymous: false,
+              rating: 5.0,
+              content: '海底捞的服务还是一如既往的好！天生祥这家店环境非常不错，而且停车很方便。强烈推荐大家来尝试番茄锅底，味道浓郁！',
+              goodsName: '双人超值套餐',
+              createTime: '2025-12-24 18:30',
+              status: 'published', // 状态：正常
+              reply: '感谢您的好评，小张已经收到您的表扬啦！期待您的再次光临！',
+              images: ['https://via.placeholder.com/150/FF6B6B/FFFFFF?text=Food1']
+            },
+            {
+              id: 2,
+              userName: 'User89757',
+              avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Coco',
+              isVip: false,
+              isAnonymous: true,
+              rating: 4.5,
+              content: '味道不错，但是排队时间稍微有点长了，建议优化一下叫号系统。',
+              goodsName: '招牌毛肚',
+              createTime: '2025-12-24 14:20',
+              status: 'published', // 修改：原本是待审核，现在直接改为已发布
+              reply: '', // 状态：未回复
+              images: []
+            },
+            {
+              id: 3,
+              userName: '李先生',
+              avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jack',
+              isVip: false,
+              isAnonymous: false,
+              rating: 1.0,
+              content: '太难吃了，服务员态度也很差，再也不来了！',
+              goodsName: '海鲜拼盘',
+              createTime: '2025-12-23 20:10',
+              status: 'deleted', // 状态：已删除
+              reply: '',
+              images: []
+            },
+            {
+              id: 4,
+              userName: '美食探店',
+              avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Annie',
+              isVip: true,
+              isAnonymous: false,
+              rating: 5.0,
+              content: '非常棒的体验，食材很新鲜。',
+              goodsName: '雪花肥牛',
+              createTime: '2025-12-23 12:05',
+              status: 'published',
+              reply: '谢谢大V的支持！',
+              images: []
+            }
+          ]
+        }
+      },
+      methods: {
+        handleTabClick(tab) {
+          console.log('切换Tab:', tab.name);
+          // 在这里对接后端接口，根据 tab.name 加载不同状态的数据
+        }
+      }
+    })
+  </script>
+</body>
+</html>

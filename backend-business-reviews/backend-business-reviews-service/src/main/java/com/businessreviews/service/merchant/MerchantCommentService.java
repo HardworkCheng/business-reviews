@@ -12,9 +12,10 @@ public interface MerchantCommentService {
     
     /**
      * 获取评论列表
+     * @param isNegative 是否只查询差评（评分<3分）
      */
-    PageResult<CommentVO> getCommentList(Long merchantId, Integer pageNum, Integer pageSize, 
-            Integer status, String keyword);
+    PageResult<CommentVO> getCommentList(Long merchantId, Long shopId, Integer pageNum, Integer pageSize, 
+            Integer status, String keyword, Boolean isNegative);
     
     /**
      * 回复评论
@@ -30,4 +31,14 @@ public interface MerchantCommentService {
      * 获取评论统计
      */
     Map<String, Object> getCommentStats(Long merchantId);
+    
+    /**
+     * 获取数据概览
+     */
+    Map<String, Object> getDashboard(Long merchantId, Long shopId);
+    
+    /**
+     * 置顶评论
+     */
+    void topComment(Long merchantId, Long commentId, Boolean isTop);
 }

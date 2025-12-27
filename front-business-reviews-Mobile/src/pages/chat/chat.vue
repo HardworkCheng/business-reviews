@@ -37,9 +37,33 @@
 					mode="aspectFill"
 				></image>
 				<view class="message-content">
-					<view class="message-bubble">
+					<!-- 文本消息 -->
+					<view v-if="msg.messageType === 1 || !msg.messageType" class="message-bubble">
 						<text>{{ msg.content }}</text>
 					</view>
+					
+					<!-- 笔记分享卡片 -->
+					<view v-else-if="msg.messageType === 4" class="note-card" @click="goToNoteDetail(msg.noteData)">
+						<view class="note-card-header">
+							<text class="note-card-label">📝 分享了一篇笔记</text>
+						</view>
+						<view class="note-card-body">
+							<image 
+								v-if="msg.noteData && msg.noteData.coverImage" 
+								:src="msg.noteData.coverImage" 
+								class="note-card-cover" 
+								mode="aspectFill"
+							></image>
+							<view class="note-card-info">
+								<text class="note-card-title">{{ msg.noteData?.title || '无标题' }}</text>
+								<text class="note-card-content">{{ msg.noteData?.content || '' }}</text>
+							</view>
+						</view>
+						<view class="note-card-footer">
+							<text class="note-card-hint">点击查看详情 ›</text>
+						</view>
+					</view>
+					
 					<text class="message-time">{{ formatTime(msg.createdAt) }}</text>
 				</view>
 			</view>
@@ -167,11 +191,31 @@ const loadMessages = async () => {
 			const userInfo = uni.getStorageSync('userInfo')
 			const myUserId = userInfo?.userId || userInfo?.id
 			
-			// 处理消息，添加 isMine 属性
-			const processedMessages = result.list.map(msg => ({
-				...msg,
-				isMine: msg.senderId?.toString() === myUserId?.toString()
-			})).reverse()
+			// 处理消息，添加 isMine 属性，并解析 noteData
+			const processedMessages = result.list.map(msg => {
+				const processed = {
+					...msg,
+					isMine: msg.senderId?.toString() === myUserId?.toString(),
+					messageType: msg.type || msg.messageType
+				}
+				
+				// 如果是笔记分享消息，解析 noteData JSON 字符串
+				if (processed.messageType === 4 && msg.noteData) {
+					try {
+						if (typeof msg.noteData === 'string') {
+							processed.noteData = JSON.parse(msg.noteData)
+						} else {
+							processed.noteData = msg.noteData
+						}
+						console.log('解析笔记数据:', processed.noteData)
+					} catch (e) {
+						console.error('解析笔记数据失败:', e, msg.noteData)
+						processed.noteData = null
+					}
+				}
+				
+				return processed
+			}).reverse()
 			
 			// 新消息插入到前面
 			messages.value = [...processedMessages, ...messages.value]
@@ -318,7 +362,23 @@ const handleNewMessage = (message) => {
 				senderId: msgData.senderId,
 				receiverId: msgData.receiverId,
 				createdAt: msgData.createdAt || new Date().toISOString(),
-				isMine: false
+				isMine: false,
+				messageType: msgData.messageType || msgData.type
+			}
+			
+			// 如果是笔记分享消息，处理 noteData
+			if (newMessage.messageType === 4 && msgData.noteData) {
+				try {
+					if (typeof msgData.noteData === 'string') {
+						newMessage.noteData = JSON.parse(msgData.noteData)
+					} else {
+						newMessage.noteData = msgData.noteData
+					}
+					console.log('WebSocket-解析笔记数据:', newMessage.noteData)
+				} catch (e) {
+					console.error('WebSocket-解析笔记数据失败:', e)
+					newMessage.noteData = null
+				}
 			}
 			
 			messages.value.push(newMessage)
@@ -394,11 +454,30 @@ const pollNewMessages = async () => {
 			const userInfo = uni.getStorageSync('userInfo')
 			const myUserId = userInfo?.userId || userInfo?.id
 			
-			// 处理消息，添加 isMine 属性
-			const newMessages = result.list.map(msg => ({
-				...msg,
-				isMine: msg.senderId?.toString() === myUserId?.toString()
-			})).reverse()
+			// 处理消息，添加 isMine 属性，并解析 noteData
+			const newMessages = result.list.map(msg => {
+				const processed = {
+					...msg,
+					isMine: msg.senderId?.toString() === myUserId?.toString(),
+					messageType: msg.type || msg.messageType
+				}
+				
+				// 如果是笔记分享消息，解析 noteData JSON 字符串
+				if (processed.messageType === 4 && msg.noteData) {
+					try {
+						if (typeof msg.noteData === 'string') {
+							processed.noteData = JSON.parse(msg.noteData)
+						} else {
+							processed.noteData = msg.noteData
+						}
+					} catch (e) {
+						console.error('轮询-解析笔记数据失败:', e)
+						processed.noteData = null
+					}
+				}
+				
+				return processed
+			}).reverse()
 			
 			// 检查是否有新消息
 			const existingIds = new Set(messages.value.map(m => m.id?.toString()))
@@ -451,6 +530,33 @@ const formatTime = (dateStr) => {
 	}
 	// 更早
 	return (date.getMonth() + 1) + '-' + date.getDate()
+}
+
+// 跳转到笔记详情
+const goToNoteDetail = (noteData) => {
+	console.log('点击笔记卡片，noteData:', noteData)
+	
+	if (!noteData) {
+		console.error('noteData为空')
+		uni.showToast({
+			title: '笔记数据为空',
+			icon: 'none'
+		})
+		return
+	}
+	
+	if (noteData && noteData.noteId) {
+		console.log('跳转到笔记详情，noteId:', noteData.noteId)
+		uni.navigateTo({
+			url: `/pages/note-detail/note-detail?id=${noteData.noteId}`
+		})
+	} else {
+		console.error('noteData缺少noteId字段:', noteData)
+		uni.showToast({
+			title: '笔记不存在',
+			icon: 'none'
+		})
+	}
 }
 
 const goBack = () => {
@@ -598,5 +704,91 @@ const goBack = () => {
 .safe-area-bottom {
 	height: constant(safe-area-inset-bottom);
 	height: env(safe-area-inset-bottom);
+}
+
+// 笔记卡片样式
+.note-card {
+	background: white;
+	border-radius: 20rpx;
+	overflow: hidden;
+	max-width: 500rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+	transition: all 0.3s ease;
+	
+	&:active {
+		transform: scale(0.98);
+	}
+}
+
+.note-card-header {
+	padding: 20rpx 25rpx;
+	background: linear-gradient(135deg, #fff5f0 0%, #ffe4cc 100%);
+	border-bottom: 1rpx solid #f0f0f0;
+}
+
+.note-card-label {
+	font-size: 24rpx;
+	color: #ff9f43;
+	font-weight: 500;
+}
+
+.note-card-body {
+	display: flex;
+	padding: 20rpx;
+}
+
+.note-card-cover {
+	width: 120rpx;
+	height: 120rpx;
+	border-radius: 12rpx;
+	flex-shrink: 0;
+	background: #f5f5f5;
+}
+
+.note-card-info {
+	flex: 1;
+	margin-left: 20rpx;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+}
+
+.note-card-title {
+	font-size: 28rpx;
+	font-weight: 600;
+	color: #333;
+	margin-bottom: 10rpx;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.note-card-content {
+	font-size: 24rpx;
+	color: #999;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	line-height: 1.4;
+}
+
+.note-card-footer {
+	padding: 15rpx 25rpx;
+	background: #fafafa;
+	border-top: 1rpx solid #f0f0f0;
+}
+
+.note-card-hint {
+	font-size: 22rpx;
+	color: #ff9f43;
+}
+
+// 我的消息中的笔记卡片
+.message-mine .note-card {
+	.note-card-header {
+		background: linear-gradient(135deg, #ffe4cc 0%, #ffd4a3 100%);
+	}
 }
 </style>

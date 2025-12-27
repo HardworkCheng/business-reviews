@@ -99,61 +99,86 @@ const goToNoteDetail = (noteId) => {
 </script>
 
 <style lang="scss" scoped>
+/* 定义玫瑰金边框流光动画 */
+@keyframes roseGoldBorder {
+	0% { border-color: #E0BFB8; }
+	50% { border-color: #B76E79; }
+	100% { border-color: #E0BFB8; }
+}
+
 .container {
-	background: #F7F9FC;
+	background: linear-gradient(180deg, #FBF4F6 0%, #FAFAFA 100%);
 	min-height: 100vh;
 }
 
 .navbar {
-	background: white;
+	background: rgba(255, 255, 255, 0.9);
+	backdrop-filter: blur(10px);
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	padding: 20rpx 30rpx;
-	box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+	box-shadow: 0 4rpx 20rpx rgba(224, 191, 184, 0.2);
+	position: sticky;
+	top: 0;
+	z-index: 100;
 }
 
 .nav-btn {
 	width: 60rpx;
 	font-size: 40rpx;
-	color: #333;
+	color: #B76E79;
 }
 
 .nav-title {
 	font-size: 36rpx;
-	font-weight: 500;
-	color: #333;
+	font-weight: 600;
+	color: #8E5C5C;
 }
 
 .like-list {
-	padding: 30rpx;
+	padding: 24rpx;
 }
 
 .like-item {
 	background: white;
-	border-radius: 20rpx;
-	padding: 25rpx;
-	margin-bottom: 20rpx;
+	border-radius: 24rpx;
+	padding: 30rpx;
+	margin-bottom: 24rpx;
 	display: flex;
 	flex-direction: row;
 	align-items: flex-start;
-	gap: 20rpx;
+	gap: 24rpx;
+	box-shadow: 0 8rpx 24rpx -6rpx rgba(183, 110, 121, 0.1),
+				0 4rpx 10rpx -2rpx rgba(224, 191, 184, 0.15);
+	/* 静态边框作为回退 */
+	border: 2rpx solid transparent;
+	/* 动感边框 */
+	animation: roseGoldBorder 4s infinite ease-in-out;
+	position: relative;
+	transition: all 0.3s ease;
+	
+	&:active {
+		transform: scale(0.98);
+	}
 }
 
 .user-avatar {
-	width: 80rpx;
-	height: 80rpx;
+	width: 90rpx;
+	height: 90rpx;
 	border-radius: 50%;
-	border: 3rpx solid #FF9E64;
+	border: 3rpx solid #E0BFB8;
 	flex-shrink: 0;
 	object-fit: cover;
+	padding: 2rpx;
+	background-clip: content-box;
 }
 
 .item-content {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
-	gap: 8rpx;
+	gap: 12rpx;
 	min-width: 0;
 }
 
@@ -164,36 +189,39 @@ const goToNoteDetail = (noteId) => {
 }
 
 .username {
-	font-size: 28rpx;
-	font-weight: 500;
+	font-size: 30rpx;
+	font-weight: 600;
 	color: #333;
 }
 
 .time {
 	font-size: 24rpx;
-	color: #999;
+	color: #B76E79; /* 玫瑰金时间 */
+	opacity: 0.8;
 }
 
 .action-text {
-	font-size: 26rpx;
-	color: #666;
+	font-size: 28rpx;
+	color: #8E5C5C; /* 深色文字 */
+	font-weight: 500;
 }
 
 .note-info {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	gap: 15rpx;
+	gap: 16rpx;
 	margin-top: 10rpx;
-	padding: 15rpx;
-	background: #F7F9FC;
-	border-radius: 15rpx;
+	padding: 16rpx;
+	background: #FCF6F7; /* 极淡玫瑰底色 */
+	border-radius: 16rpx;
+	border: 1rpx solid rgba(224, 191, 184, 0.3);
 }
 
 .note-image {
 	width: 100rpx;
 	height: 100rpx;
-	border-radius: 10rpx;
+	border-radius: 12rpx;
 	flex-shrink: 0;
 	object-fit: cover;
 }
@@ -201,7 +229,7 @@ const goToNoteDetail = (noteId) => {
 .note-title {
 	flex: 1;
 	font-size: 26rpx;
-	color: #333;
+	color: #555;
 	line-height: 1.5;
 	word-break: break-all;
 }
@@ -216,18 +244,19 @@ const goToNoteDetail = (noteId) => {
 .empty {
 	text-align: center;
 	padding: 100rpx 0;
-	color: #999;
+	color: #B76E79;
 	font-size: 28rpx;
 }
 
 .loading {
 	text-align: center;
 	padding: 50rpx 0;
-	color: #999;
+	color: #B76E79;
 	font-size: 28rpx;
 }
 
 .clay-shadow {
-	box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.08);
+	/* 已在主类中重新定义更为精致的阴影，此处保留类名兼容性但置空或重写 */
+	box-shadow: 0 8rpx 24rpx -6rpx rgba(183, 110, 121, 0.15); 
 }
 </style>

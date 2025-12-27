@@ -12,8 +12,9 @@ import java.io.Serializable;
 public class CategoryVO implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
-    private String id;
+    private Integer id;
     private String name;
     private String icon;
-    private Integer sort;
+    private String color;
+    private Integer sortOrder;
 }

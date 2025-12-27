@@ -55,6 +55,16 @@ public class ShopReviewDO implements Serializable {
     private String content;
     
     /**
+     * 商家回复内容
+     */
+    private String reply;
+    
+    /**
+     * 回复时间
+     */
+    private LocalDateTime replyTime;
+    
+    /**
      * 评价图片（JSON）
      */
     private String images;

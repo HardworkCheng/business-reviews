@@ -1,5 +1,7 @@
 package com.businessreviews.manager;
 
+import com.businessreviews.constants.RedisKeyConstants;
+import com.businessreviews.constants.SmsCodeConstants;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.util.RedisUtil;
 import lombok.RequiredArgsConstructor;
@@ -22,27 +24,6 @@ public class SmsManager {
     
     private final RedisUtil redisUtil;
     
-    /**
-     * 验证码长度
-     */
-    private static final int CODE_LENGTH = 6;
-    
-    /**
-     * 验证码有效期（秒）
-     */
-    private static final long CODE_EXPIRE_SECONDS = 300;
-    
-    /**
-     * 发送间隔限制（秒）
-     */
-    private static final long SEND_INTERVAL_SECONDS = 60;
-    
-    /**
-     * Redis key前缀
-     */
-    private static final String SMS_CODE_PREFIX = "sms:code:";
-    private static final String SMS_LIMIT_PREFIX = "sms:limit:";
-    
     private static final Random RANDOM = new Random();
     
     /**
@@ -53,7 +34,7 @@ public class SmsManager {
      */
     public String sendCode(String phone) {
         // 检查发送频率限制
-        String limitKey = SMS_LIMIT_PREFIX + phone;
+        String limitKey = RedisKeyConstants.SMS_LIMIT_PREFIX + phone;
         if (redisUtil.hasKey(limitKey)) {
             throw new BusinessException(40001, "验证码发送过于频繁，请稍后再试");
         }
@@ -68,11 +49,11 @@ public class SmsManager {
         }
         
         // 保存验证码到Redis
-        String codeKey = SMS_CODE_PREFIX + phone;
-        redisUtil.set(codeKey, code, CODE_EXPIRE_SECONDS);
+        String codeKey = RedisKeyConstants.SMS_CODE_PREFIX + phone;
+        redisUtil.set(codeKey, code, SmsCodeConstants.CODE_EXPIRE_SECONDS);
         
         // 设置发送频率限制
-        redisUtil.set(limitKey, "1", SEND_INTERVAL_SECONDS);
+        redisUtil.set(limitKey, "1", SmsCodeConstants.SEND_INTERVAL_SECONDS);
         
         log.info("验证码已发送到手机 {}", maskPhone(phone));
         
@@ -92,7 +73,7 @@ public class SmsManager {
             return false;
         }
         
-        String codeKey = SMS_CODE_PREFIX + phone;
+        String codeKey = RedisKeyConstants.SMS_CODE_PREFIX + phone;
         String cachedCode = redisUtil.get(codeKey);
         
         if (cachedCode == null) {
@@ -115,7 +96,7 @@ public class SmsManager {
      * @return 验证码
      */
     public String getCachedCode(String phone) {
-        String codeKey = SMS_CODE_PREFIX + phone;
+        String codeKey = RedisKeyConstants.SMS_CODE_PREFIX + phone;
         return redisUtil.get(codeKey);
     }
     
@@ -125,7 +106,7 @@ public class SmsManager {
      * @param phone 手机号
      */
     public void removeCode(String phone) {
-        String codeKey = SMS_CODE_PREFIX + phone;
+        String codeKey = RedisKeyConstants.SMS_CODE_PREFIX + phone;
         redisUtil.delete(codeKey);
     }
     
@@ -145,7 +126,7 @@ public class SmsManager {
      */
     private String generateCode() {
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < CODE_LENGTH; i++) {
+        for (int i = 0; i < SmsCodeConstants.CODE_LENGTH; i++) {
             sb.append(RANDOM.nextInt(10));
         }
         return sb.toString();

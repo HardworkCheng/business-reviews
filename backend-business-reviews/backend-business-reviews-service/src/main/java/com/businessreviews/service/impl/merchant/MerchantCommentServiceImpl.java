@@ -2,6 +2,7 @@ package com.businessreviews.service.impl.merchant;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.businessreviews.common.DefaultAvatar;
 import com.businessreviews.common.PageResult;
 import com.businessreviews.model.vo.CommentVO;
 import com.businessreviews.model.dataobject.*;
@@ -20,131 +21,186 @@ import java.util.stream.Collectors;
 
 /**
  * 商家评论服务实现类
+ * 管理商家评价（shop_reviews表）
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class MerchantCommentServiceImpl implements MerchantCommentService {
 
-    private final NoteCommentMapper noteCommentMapper;
-    private final NoteMapper noteMapper;
+    private final ShopReviewMapper shopReviewMapper;
     private final ShopMapper shopMapper;
     private final MerchantMapper merchantMapper;
     private final UserMapper userMapper;
 
     @Override
-    public PageResult<CommentVO> getCommentList(Long merchantId, Integer pageNum, Integer pageSize,
-            Integer status, String keyword) {
-        log.info("获取评论列表: merchantId={}, pageNum={}, pageSize={}", merchantId, pageNum, pageSize);
+    public PageResult<CommentVO> getCommentList(Long merchantId, Long shopId, Integer pageNum, Integer pageSize,
+            Integer status, String keyword, Boolean isNegative) {
+        log.info("获取商家评论列表: merchantId={}, shopId={}, pageNum={}, pageSize={}, isNegative={}", 
+                merchantId, shopId, pageNum, pageSize, isNegative);
         
         validateMerchant(merchantId);
         
-        // 获取商家关联的笔记ID列表
-        List<Long> noteIds = getNoteIdsByMerchant(merchantId);
-        if (noteIds.isEmpty()) {
+        // 获取门店ID列表
+        List<Long> shopIds;
+        if (shopId != null) {
+            // 如果指定了门店ID，只获取该门店的评论
+            validateShopBelongsToMerchant(merchantId, shopId);
+            shopIds = Collections.singletonList(shopId);
+        } else {
+            // 如果没有指定门店ID，获取商家所有门店
+            shopIds = getShopIdsByMerchant(merchantId);
+        }
+        
+        if (shopIds.isEmpty()) {
             return emptyPageResult(pageNum, pageSize);
         }
         
-        LambdaQueryWrapper<NoteCommentDO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(NoteCommentDO::getNoteId, noteIds);
+        LambdaQueryWrapper<ShopReviewDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(ShopReviewDO::getShopId, shopIds);
         
         if (status != null) {
-            wrapper.eq(NoteCommentDO::getStatus, status);
+            wrapper.eq(ShopReviewDO::getStatus, status);
         }
+        
+        // 如果是查询差评，添加评分筛选条件
+        if (isNegative != null && isNegative) {
+            wrapper.lt(ShopReviewDO::getRating, 3);
+        }
+        
         if (StringUtils.hasText(keyword)) {
-            wrapper.like(NoteCommentDO::getContent, keyword);
+            wrapper.like(ShopReviewDO::getContent, keyword);
         }
-        wrapper.orderByDesc(NoteCommentDO::getCreatedAt);
+        wrapper.orderByDesc(ShopReviewDO::getCreatedAt);
         
-        Page<NoteCommentDO> page = new Page<>(pageNum, pageSize);
-        Page<NoteCommentDO> commentPage = noteCommentMapper.selectPage(page, wrapper);
+        Page<ShopReviewDO> page = new Page<>(pageNum, pageSize);
+        Page<ShopReviewDO> reviewPage = shopReviewMapper.selectPage(page, wrapper);
         
-        List<CommentVO> list = commentPage.getRecords().stream()
+        List<CommentVO> list = reviewPage.getRecords().stream()
                 .map(this::convertToCommentVO)
                 .collect(Collectors.toList());
         
+        // 计算Tab计数
+        Map<String, Long> tabCounts = calculateTabCounts(shopIds);
+        
         PageResult<CommentVO> result = new PageResult<>();
         result.setList(list);
-        result.setTotal(commentPage.getTotal());
+        result.setTotal(reviewPage.getTotal());
         result.setPageNum(pageNum);
         result.setPageSize(pageSize);
+        result.setTabCounts(tabCounts);
         return result;
+    }
+    
+    private Map<String, Long> calculateTabCounts(List<Long> shopIds) {
+        Map<String, Long> counts = new HashMap<>();
+        
+        // 全部评论
+        LambdaQueryWrapper<ShopReviewDO> allWrapper = new LambdaQueryWrapper<>();
+        allWrapper.in(ShopReviewDO::getShopId, shopIds);
+        long all = shopReviewMapper.selectCount(allWrapper);
+        
+        // 正常显示
+        LambdaQueryWrapper<ShopReviewDO> publishedWrapper = new LambdaQueryWrapper<>();
+        publishedWrapper.in(ShopReviewDO::getShopId, shopIds)
+                .eq(ShopReviewDO::getStatus, 1);
+        long published = shopReviewMapper.selectCount(publishedWrapper);
+        
+        // 已删除
+        LambdaQueryWrapper<ShopReviewDO> deletedWrapper = new LambdaQueryWrapper<>();
+        deletedWrapper.in(ShopReviewDO::getShopId, shopIds)
+                .eq(ShopReviewDO::getStatus, 2);
+        long deleted = shopReviewMapper.selectCount(deletedWrapper);
+        
+        // 差评/投诉（评分低于3分的）
+        LambdaQueryWrapper<ShopReviewDO> negativeWrapper = new LambdaQueryWrapper<>();
+        negativeWrapper.in(ShopReviewDO::getShopId, shopIds)
+                .lt(ShopReviewDO::getRating, 3)
+                .eq(ShopReviewDO::getStatus, 1);
+        long negative = shopReviewMapper.selectCount(negativeWrapper);
+        
+        counts.put("all", all);
+        counts.put("published", published);
+        counts.put("deleted", deleted);
+        counts.put("negative", negative);
+        
+        return counts;
     }
 
     @Override
     @Transactional
     public void replyComment(Long merchantId, Long operatorId, Long commentId, String content) {
-        log.info("回复评论: merchantId={}, commentId={}", merchantId, commentId);
+        log.info("回复商家评论: merchantId={}, commentId={}", merchantId, commentId);
         
         validateMerchant(merchantId);
         
-        NoteCommentDO parentComment = noteCommentMapper.selectById(commentId);
-        if (parentComment == null) {
+        ShopReviewDO review = shopReviewMapper.selectById(commentId);
+        if (review == null) {
             throw new BusinessException(40404, "评论不存在");
         }
         
-        // 创建回复评论
-        NoteCommentDO reply = new NoteCommentDO();
-        reply.setNoteId(parentComment.getNoteId());
-        reply.setUserId(operatorId);
-        reply.setParentId(commentId);
-        reply.setContent(content);
-        reply.setLikeCount(0);
-        reply.setStatus(1);
-        reply.setCreatedAt(LocalDateTime.now());
-        reply.setUpdatedAt(LocalDateTime.now());
+        // 验证评论属于该商家的门店
+        ShopDO shop = shopMapper.selectById(review.getShopId());
+        if (shop == null || !merchantId.equals(shop.getMerchantId())) {
+            throw new BusinessException(40300, "无权回复该评论");
+        }
         
-        noteCommentMapper.insert(reply);
+        // 更新回复内容
+        review.setReply(content);
+        review.setReplyTime(LocalDateTime.now());
+        review.setUpdatedAt(LocalDateTime.now());
+        shopReviewMapper.updateById(review);
         
-        // 更新笔记评论数
-        noteMapper.incrementCommentCount(parentComment.getNoteId());
-        
-        log.info("评论回复成功: replyId={}", reply.getId());
+        log.info("商家评论回复成功: reviewId={}", review.getId());
     }
 
     @Override
     @Transactional
     public void deleteComment(Long merchantId, Long operatorId, Long commentId) {
-        log.info("删除评论: merchantId={}, commentId={}", merchantId, commentId);
+        log.info("删除商家评论: merchantId={}, commentId={}", merchantId, commentId);
         
         validateMerchant(merchantId);
         
-        NoteCommentDO comment = noteCommentMapper.selectById(commentId);
-        if (comment == null) {
+        ShopReviewDO review = shopReviewMapper.selectById(commentId);
+        if (review == null) {
             throw new BusinessException(40404, "评论不存在");
         }
         
+        // 验证评论属于该商家的门店
+        ShopDO shop = shopMapper.selectById(review.getShopId());
+        if (shop == null || !merchantId.equals(shop.getMerchantId())) {
+            throw new BusinessException(40300, "无权删除该评论");
+        }
+        
         // 软删除：更新状态为隐藏
-        comment.setStatus(2);
-        comment.setUpdatedAt(LocalDateTime.now());
-        noteCommentMapper.updateById(comment);
+        review.setStatus(2);
+        review.setUpdatedAt(LocalDateTime.now());
+        shopReviewMapper.updateById(review);
         
-        // 更新笔记评论数
-        noteMapper.decrementCommentCount(comment.getNoteId());
-        
-        log.info("评论删除成功: commentId={}", commentId);
+        log.info("商家评论删除成功: reviewId={}", commentId);
     }
 
     @Override
     public Map<String, Object> getCommentStats(Long merchantId) {
-        log.info("获取评论统计: merchantId={}", merchantId);
+        log.info("获取商家评论统计: merchantId={}", merchantId);
         
         validateMerchant(merchantId);
         
-        List<Long> noteIds = getNoteIdsByMerchant(merchantId);
+        List<Long> shopIds = getShopIdsByMerchant(merchantId);
         
         long totalComments = 0;
         long pendingComments = 0;
         
-        if (!noteIds.isEmpty()) {
-            LambdaQueryWrapper<NoteCommentDO> totalWrapper = new LambdaQueryWrapper<>();
-            totalWrapper.in(NoteCommentDO::getNoteId, noteIds);
-            totalComments = noteCommentMapper.selectCount(totalWrapper);
+        if (!shopIds.isEmpty()) {
+            LambdaQueryWrapper<ShopReviewDO> totalWrapper = new LambdaQueryWrapper<>();
+            totalWrapper.in(ShopReviewDO::getShopId, shopIds);
+            totalComments = shopReviewMapper.selectCount(totalWrapper);
             
-            LambdaQueryWrapper<NoteCommentDO> pendingWrapper = new LambdaQueryWrapper<>();
-            pendingWrapper.in(NoteCommentDO::getNoteId, noteIds)
-                    .eq(NoteCommentDO::getStatus, 1);
-            pendingComments = noteCommentMapper.selectCount(pendingWrapper);
+            LambdaQueryWrapper<ShopReviewDO> pendingWrapper = new LambdaQueryWrapper<>();
+            pendingWrapper.in(ShopReviewDO::getShopId, shopIds)
+                    .eq(ShopReviewDO::getStatus, 1)
+                    .isNull(ShopReviewDO::getReply);
+            pendingComments = shopReviewMapper.selectCount(pendingWrapper);
         }
         
         Map<String, Object> stats = new HashMap<>();
@@ -153,6 +209,118 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
         stats.put("repliedComments", totalComments - pendingComments);
         
         return stats;
+    }
+    
+    @Override
+    public Map<String, Object> getDashboard(Long merchantId, Long shopId) {
+        log.info("获取数据概览: merchantId={}, shopId={}", merchantId, shopId);
+        
+        validateMerchant(merchantId);
+        
+        // 获取门店ID列表
+        List<Long> shopIds;
+        if (shopId != null) {
+            // 如果指定了门店ID，只获取该门店的评论
+            validateShopBelongsToMerchant(merchantId, shopId);
+            shopIds = Collections.singletonList(shopId);
+        } else {
+            // 如果没有指定门店ID，获取商家所有门店
+            shopIds = getShopIdsByMerchant(merchantId);
+        }
+        
+        Map<String, Object> dashboard = new HashMap<>();
+        
+        if (shopIds.isEmpty()) {
+            dashboard.put("todayNewComments", 0);
+            dashboard.put("todayTrend", 0);
+            dashboard.put("averageRating", 0.0);
+            dashboard.put("ratingTrend", 0);
+            dashboard.put("pendingReply", 0);
+            dashboard.put("replyTrend", 0);
+            dashboard.put("negativeComments", 0);
+            return dashboard;
+        }
+        
+        // 今日新增评论
+        LocalDateTime todayStart = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
+        LambdaQueryWrapper<ShopReviewDO> todayWrapper = new LambdaQueryWrapper<>();
+        todayWrapper.in(ShopReviewDO::getShopId, shopIds)
+                .ge(ShopReviewDO::getCreatedAt, todayStart);
+        long todayNewComments = shopReviewMapper.selectCount(todayWrapper);
+        
+        // 昨日新增评论（用于计算趋势）
+        LocalDateTime yesterdayStart = todayStart.minusDays(1);
+        LambdaQueryWrapper<ShopReviewDO> yesterdayWrapper = new LambdaQueryWrapper<>();
+        yesterdayWrapper.in(ShopReviewDO::getShopId, shopIds)
+                .ge(ShopReviewDO::getCreatedAt, yesterdayStart)
+                .lt(ShopReviewDO::getCreatedAt, todayStart);
+        long yesterdayComments = shopReviewMapper.selectCount(yesterdayWrapper);
+        
+        // 计算趋势
+        int todayTrend = 0;
+        if (yesterdayComments > 0) {
+            todayTrend = (int) (((todayNewComments - yesterdayComments) * 100.0) / yesterdayComments);
+        } else if (todayNewComments > 0) {
+            todayTrend = 100;
+        }
+        
+        // 计算平均评分
+        LambdaQueryWrapper<ShopReviewDO> ratingWrapper = new LambdaQueryWrapper<>();
+        ratingWrapper.in(ShopReviewDO::getShopId, shopIds)
+                .eq(ShopReviewDO::getStatus, 1);
+        List<ShopReviewDO> reviews = shopReviewMapper.selectList(ratingWrapper);
+        double averageRating = reviews.stream()
+                .mapToDouble(r -> r.getRating().doubleValue())
+                .average()
+                .orElse(0.0);
+        
+        // 待回复内容（没有回复的评论）
+        LambdaQueryWrapper<ShopReviewDO> pendingWrapper = new LambdaQueryWrapper<>();
+        pendingWrapper.in(ShopReviewDO::getShopId, shopIds)
+                .eq(ShopReviewDO::getStatus, 1)
+                .isNull(ShopReviewDO::getReply);
+        long pendingReply = shopReviewMapper.selectCount(pendingWrapper);
+        
+        // 差评/投诉待处理（评分低于3分且未回复的）
+        LambdaQueryWrapper<ShopReviewDO> negativeWrapper = new LambdaQueryWrapper<>();
+        negativeWrapper.in(ShopReviewDO::getShopId, shopIds)
+                .lt(ShopReviewDO::getRating, 3)
+                .eq(ShopReviewDO::getStatus, 1)
+                .isNull(ShopReviewDO::getReply);
+        long negativeComments = shopReviewMapper.selectCount(negativeWrapper);
+        
+        dashboard.put("todayNewComments", todayNewComments);
+        dashboard.put("todayTrend", todayTrend);
+        dashboard.put("averageRating", Math.round(averageRating * 10.0) / 10.0);
+        dashboard.put("ratingTrend", 0);
+        dashboard.put("pendingReply", pendingReply);
+        dashboard.put("replyTrend", 0);
+        dashboard.put("negativeComments", negativeComments);
+        
+        return dashboard;
+    }
+    
+    @Override
+    @Transactional
+    public void topComment(Long merchantId, Long commentId, Boolean isTop) {
+        log.info("置顶商家评论: merchantId={}, commentId={}, isTop={}", merchantId, commentId, isTop);
+        
+        validateMerchant(merchantId);
+        
+        ShopReviewDO review = shopReviewMapper.selectById(commentId);
+        if (review == null) {
+            throw new BusinessException(40404, "评论不存在");
+        }
+        
+        // 验证评论属于该商家的门店
+        ShopDO shop = shopMapper.selectById(review.getShopId());
+        if (shop == null || !merchantId.equals(shop.getMerchantId())) {
+            throw new BusinessException(40300, "无权操作该评论");
+        }
+        
+        // 这里需要在数据库表中添加is_top字段
+        // 暂时记录日志，实际需要修改数据库表结构
+        log.info("置顶评论功能需要在数据库表中添加is_top字段");
     }
     
     private void validateMerchant(Long merchantId) {
@@ -165,23 +333,19 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
         }
     }
     
-    private List<Long> getNoteIdsByMerchant(Long merchantId) {
-        // 获取商家关联的门店
-        List<Long> shopIds = getShopIdsByMerchant(merchantId);
-        if (shopIds.isEmpty()) {
-            return new ArrayList<>();
+    private void validateShopBelongsToMerchant(Long merchantId, Long shopId) {
+        ShopDO shop = shopMapper.selectById(shopId);
+        if (shop == null) {
+            throw new BusinessException(40404, "门店不存在");
         }
-        
-        // 获取门店关联的笔记
-        LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(NoteDO::getShopId, shopIds);
-        List<NoteDO> notes = noteMapper.selectList(wrapper);
-        return notes.stream().map(NoteDO::getId).collect(Collectors.toList());
+        if (!merchantId.equals(shop.getMerchantId())) {
+            throw new BusinessException(40300, "无权访问该门店");
+        }
     }
     
     private List<Long> getShopIdsByMerchant(Long merchantId) {
         LambdaQueryWrapper<ShopDO> wrapper = new LambdaQueryWrapper<>();
-        // wrapper.eq(ShopDO::getMerchantId, merchantId);
+        wrapper.eq(ShopDO::getMerchantId, merchantId);
         List<ShopDO> shops = shopMapper.selectList(wrapper);
         return shops.stream().map(ShopDO::getId).collect(Collectors.toList());
     }
@@ -192,26 +356,79 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
         result.setTotal(0L);
         result.setPageNum(pageNum);
         result.setPageSize(pageSize);
+        Map<String, Long> tabCounts = new HashMap<>();
+        tabCounts.put("all", 0L);
+        tabCounts.put("published", 0L);
+        tabCounts.put("deleted", 0L);
+        tabCounts.put("negative", 0L);
+        result.setTabCounts(tabCounts);
         return result;
     }
     
-    private CommentVO convertToCommentVO(NoteCommentDO comment) {
+    private CommentVO convertToCommentVO(ShopReviewDO review) {
         CommentVO response = new CommentVO();
-        response.setId(comment.getId());
-        response.setContent(comment.getContent());
-        response.setLikes(comment.getLikeCount());
+        response.setId(review.getId());
+        response.setContent(review.getContent());
+        response.setLikes(review.getLikeCount());
         response.setLiked(false);
-        response.setTime(comment.getCreatedAt());
-        response.setReplyCount(0);
+        response.setTime(review.getCreatedAt());
         
         // 获取用户信息
-        if (comment.getUserId() != null) {
-            UserDO user = userMapper.selectById(comment.getUserId());
+        if (review.getUserId() != null) {
+            UserDO user = userMapper.selectById(review.getUserId());
             if (user != null) {
                 response.setAuthorId(user.getId());
                 response.setAuthor(user.getUsername());
-                response.setAvatar(user.getAvatar());
+                
+                // 设置头像：如果用户没有头像，使用DefaultAvatar常量类获取默认头像
+                String avatar = user.getAvatar();
+                if (avatar == null || avatar.trim().isEmpty()) {
+                    avatar = DefaultAvatar.getRandomAvatar();
+                    log.debug("用户{}没有头像，使用默认头像: {}", user.getId(), avatar);
+                }
+                response.setAvatar(avatar);
             }
+        }
+        
+        // 获取门店信息（用于显示关联商家）
+        if (review.getShopId() != null) {
+            ShopDO shop = shopMapper.selectById(review.getShopId());
+            if (shop != null) {
+                response.setNoteTitle(shop.getName());  // 使用门店名称
+            }
+        }
+        
+        // 设置状态
+        response.setStatus(review.getStatus() == 1 ? "published" : "deleted");
+        
+        // 设置评分
+        if (review.getRating() != null) {
+            response.setRating(review.getRating().doubleValue());
+        }
+        if (review.getTasteScore() != null) {
+            response.setTasteScore(review.getTasteScore().doubleValue());
+        }
+        if (review.getEnvironmentScore() != null) {
+            response.setEnvironmentScore(review.getEnvironmentScore().doubleValue());
+        }
+        if (review.getServiceScore() != null) {
+            response.setServiceScore(review.getServiceScore().doubleValue());
+        }
+        
+        // 设置图片
+        if (StringUtils.hasText(review.getImages())) {
+            try {
+                // 假设images字段存储的是JSON数组格式
+                response.setImages(Arrays.asList(review.getImages().split(",")));
+            } catch (Exception e) {
+                log.warn("解析评论图片失败: reviewId={}", review.getId(), e);
+            }
+        }
+        
+        // 设置商家回复
+        if (StringUtils.hasText(review.getReply())) {
+            response.setReply(review.getReply());
+            response.setReplyTime(review.getReplyTime());
         }
         
         return response;

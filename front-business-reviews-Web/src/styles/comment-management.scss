@@ -1,0 +1,282 @@
+// 评论管理页面专用样式
+@import './variables.scss';
+
+// 数据卡片样式
+.dashboard-row {
+  margin-bottom: $comment-spacing-xl;
+}
+
+.data-card {
+  background: $comment-bg-primary;
+  border-radius: $comment-radius-lg;
+  padding: $comment-spacing-xl;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid rgba(230, 234, 241, 0.5);
+  box-shadow: $comment-shadow-md;
+  transition: all $comment-transition-base;
+  position: relative;
+  overflow: hidden;
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: $comment-shadow-lg;
+  }
+}
+
+.card-left {
+  z-index: 2;
+}
+
+.card-title {
+  font-size: 14px;
+  color: $comment-info;
+  margin-bottom: $comment-spacing-sm;
+  font-weight: 500;
+}
+
+.card-number {
+  font-size: 32px;
+  font-weight: 700;
+  color: $comment-text-primary;
+  letter-spacing: -1px;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.trend {
+  font-size: 12px;
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  
+  &.up {
+    color: $comment-success;
+    background: #f6ffed;
+    padding: 2px 6px;
+    border-radius: $comment-radius-sm;
+  }
+  
+  &.down {
+    color: $comment-danger;
+    background: #fff1f0;
+    padding: 2px 6px;
+    border-radius: $comment-radius-sm;
+  }
+}
+
+.card-icon-box {
+  width: 56px;
+  height: 56px;
+  border-radius: $comment-radius-xl;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  z-index: 2;
+  
+  &.icon-blue {
+    background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%);
+    color: $comment-primary;
+  }
+  
+  &.icon-orange {
+    background: linear-gradient(135deg, #fff7e6 0%, #ffd591 100%);
+    color: $comment-warning;
+  }
+  
+  &.icon-green {
+    background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%);
+    color: $comment-success;
+  }
+  
+  &.icon-red {
+    background: linear-gradient(135deg, #fff1f0 0%, #ffccc7 100%);
+    color: $comment-danger;
+  }
+}
+
+// 主内容区域样式
+.main-panel {
+  background: $comment-bg-primary;
+  border-radius: $comment-radius-lg;
+  box-shadow: $comment-shadow-md;
+  padding: 0;
+  overflow: hidden;
+}
+
+.toolbar {
+  padding: 20px $comment-spacing-xl;
+  border-bottom: 1px solid $comment-border-light;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: $comment-bg-primary;
+}
+
+// Tab样式
+.custom-tabs {
+  :deep(.el-tabs__header) {
+    margin: 0;
+  }
+  
+  :deep(.el-tabs__nav-wrap::after) {
+    height: 0;
+  }
+  
+  :deep(.el-tabs__item) {
+    font-size: 15px;
+    font-weight: 500;
+    height: 50px;
+    line-height: 50px;
+  }
+}
+
+// 表格样式
+.custom-table {
+  width: 100%;
+  
+  :deep(th) {
+    background-color: $comment-bg-card !important;
+    color: $comment-text-secondary;
+    font-weight: 600;
+    border-bottom: 1px solid $comment-border-light;
+    padding: $comment-spacing-lg 0;
+  }
+  
+  :deep(td) {
+    padding: 20px 0;
+  }
+  
+  :deep(.el-table--enable-row-hover .el-table__body tr:hover > td) {
+    background-color: $comment-bg-hover !important;
+  }
+}
+
+// 用户信息样式
+.user-info {
+  display: flex;
+  align-items: center;
+}
+
+.user-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: $comment-radius-circle;
+  margin-right: 14px;
+  border: 2px solid $comment-bg-primary;
+  box-shadow: $comment-shadow-sm;
+}
+
+.user-meta-box {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #262626;
+}
+
+.user-tag {
+  transform: scale(0.85);
+  transform-origin: left;
+  margin-top: $comment-spacing-xs;
+}
+
+// 评论详情样式
+.review-main {
+  padding-right: 20px;
+}
+
+.review-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: $comment-spacing-sm;
+}
+
+.review-time {
+  font-size: 12px;
+  color: $comment-text-disabled;
+  margin-left: $comment-spacing-md;
+}
+
+.goods-badge {
+  background: #f5f5f5;
+  color: $comment-text-tertiary;
+  font-size: 12px;
+  padding: 2px $comment-spacing-sm;
+  border-radius: $comment-radius-sm;
+  margin-left: auto;
+}
+
+.review-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #434343;
+  margin-bottom: $comment-spacing-md;
+}
+
+// 商家回复样式
+.merchant-reply {
+  background: $comment-bg-reply;
+  border-left: 3px solid $comment-warning;
+  padding: 10px 14px;
+  border-radius: $comment-radius-sm;
+  font-size: 13px;
+  color: $comment-text-secondary;
+  position: relative;
+  
+  strong {
+    color: #d46b08;
+    margin-right: 5px;
+  }
+}
+
+// 状态点样式
+.status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: $comment-radius-circle;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+// 操作按钮样式
+.action-btn {
+  color: $comment-text-tertiary;
+  transition: all $comment-transition-fast;
+  background: #f5f5f5;
+  border: none;
+  
+  &:hover {
+    transform: scale(1.1);
+  }
+  
+  &.btn-reply:hover {
+    background: #e6f7ff;
+    color: $comment-primary;
+  }
+  
+  &.btn-top:hover {
+    background: #fff7e6;
+    color: $comment-warning;
+  }
+  
+  &.btn-del:hover {
+    background: #fff1f0;
+    color: $comment-danger;
+  }
+}
+
+// 分页样式
+.pagination-wrapper {
+  padding: 20px $comment-spacing-xl;
+  border-top: 1px solid $comment-border-light;
+  display: flex;
+  justify-content: flex-end;
+}

@@ -29,3 +29,26 @@ export function deleteComment(id: number) {
 export function getCommentStats() {
   return request.get('/merchant/comments/stats')
 }
+
+// 获取评论数据概览
+export function getCommentDashboard(params?: any) {
+  return request.get('/merchant/comments/dashboard', { params })
+}
+
+// 置顶评论
+export function topComment(id: number, isTop: boolean) {
+  return request.put(`/merchant/comments/${id}/top`, { isTop })
+}
+
+// 导出评论数据
+export function exportComments(params: any) {
+  return request.get('/merchant/comments/export', { 
+    params,
+    responseType: 'blob'
+  })
+}
+
+// 获取商家门店列表
+export function getMerchantShops() {
+  return request.get('/merchant/shops')
+}

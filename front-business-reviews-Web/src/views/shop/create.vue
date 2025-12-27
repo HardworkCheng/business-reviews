@@ -109,7 +109,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import type { UploadProps, UploadRawFile } from 'element-plus'
-import { createShop, updateShop, getShopDetail } from '@/api/shop'
+import { createShop, updateShop, getShopDetail, getCategories, type CategoryVO } from '@/api/shop'
 import { uploadFile } from '@/api/upload'
 
 // 路由
@@ -128,16 +128,31 @@ const avatarUploading = ref(false)
 const coverUploading = ref(false)
 
 // 分类列表
-const categories = ref([
-  { id: 1, name: '美食' },
-  { id: 2, name: 'KTV' },
-  { id: 3, name: '丽人·美发' },
-  { id: 4, name: '美睫·美甲' },
-  { id: 5, name: '按摩·足疗' },
-  { id: 6, name: '美容SPA' },
-  { id: 7, name: '亲子游乐' },
-  { id: 8, name: '酒吧' }
-])
+const categories = ref<CategoryVO[]>([])
+
+// 加载类目列表
+const loadCategories = async () => {
+  try {
+    console.log('🔄 开始加载类目列表...')
+    categories.value = await getCategories()
+    console.log('✅ 类目列表加载成功:', categories.value)
+  } catch (error: any) {
+    console.error('❌ 加载类目失败:', error)
+    // 降级方案：使用默认类目
+    categories.value = [
+      { id: 1, name: '美食' },
+      { id: 2, name: 'KTV' },
+      { id: 3, name: '美发' },
+      { id: 4, name: '美甲' },
+      { id: 5, name: '足疗' },
+      { id: 6, name: '美容' },
+      { id: 7, name: '游乐' },
+      { id: 8, name: '酒吧' }
+    ]
+    console.log('⚠️ 使用降级方案，默认类目:', categories.value)
+    ElMessage.warning('类目加载失败，使用默认类目')
+  }
+}
 
 // 表单数据
 const form = ref({
@@ -273,7 +288,10 @@ const fetchShopDetail = async (id: number) => {
 }
 
 // 页面加载时初始化
-onMounted(() => {
+onMounted(async () => {
+  // 加载类目列表
+  await loadCategories()
+  
   // 检查是否为编辑模式
   if (route.params.id) {
     isEdit.value = true

@@ -5,11 +5,13 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.businessreviews.common.PageResult;
 import com.businessreviews.model.vo.ShopDetailVO;
 import com.businessreviews.model.vo.ShopItemVO;
+import com.businessreviews.model.dataobject.CategoryDO;
 import com.businessreviews.model.dataobject.MerchantDO;
 import com.businessreviews.model.dataobject.NoteDO;
 import com.businessreviews.model.dataobject.ShopDO;
 import com.businessreviews.model.dataobject.ShopReviewDO;
 import com.businessreviews.exception.BusinessException;
+import com.businessreviews.mapper.CategoryMapper;
 import com.businessreviews.mapper.MerchantMapper;
 import com.businessreviews.mapper.NoteMapper;
 import com.businessreviews.mapper.ShopMapper;
@@ -41,6 +43,7 @@ public class MerchantShopServiceImpl implements MerchantShopService {
     private final MerchantMapper merchantMapper;
     private final NoteMapper noteMapper;
     private final ShopReviewMapper shopReviewMapper;
+    private final CategoryMapper categoryMapper;
 
     @Override
     public PageResult<ShopItemVO> getShopList(Long merchantId, Integer pageNum, Integer pageSize, 
@@ -184,6 +187,8 @@ public class MerchantShopServiceImpl implements MerchantShopService {
             } else if (catId instanceof Number) {
                 shop.setCategoryId(((Number) catId).intValue());
             }
+            // 验证类目ID有效性
+            validateCategoryId(shop.getCategoryId());
         }
         if (request.get("averagePrice") != null) {
             shop.setAveragePrice(new BigDecimal(request.get("averagePrice").toString()));
@@ -240,7 +245,10 @@ public class MerchantShopServiceImpl implements MerchantShopService {
             shop.setStatus((Integer) request.get("status"));
         }
         if (request.get("categoryId") != null) {
-            shop.setCategoryId((Integer) request.get("categoryId"));
+            Integer categoryId = (Integer) request.get("categoryId");
+            // 验证类目ID有效性
+            validateCategoryId(categoryId);
+            shop.setCategoryId(categoryId);
         }
         if (request.get("latitude") != null && !request.get("latitude").toString().trim().isEmpty()) {
             try {
@@ -373,6 +381,28 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         }
         if (merchant.getStatus() != 1) {
             throw new BusinessException(40300, "商家账号已被禁用");
+        }
+    }
+    
+    /**
+     * 验证类目ID是否有效
+     * 检查类目是否存在且状态为启用(status=1)
+     * 
+     * @param categoryId 类目ID
+     * @throws BusinessException 如果类目无效
+     */
+    private void validateCategoryId(Integer categoryId) {
+        if (categoryId == null) {
+            return; // 类目ID为空时不验证，使用默认值
+        }
+        
+        CategoryDO category = categoryMapper.selectById(categoryId);
+        if (category == null) {
+            throw new BusinessException(40400, "选择的类目不存在");
+        }
+        
+        if (category.getStatus() != 1) {
+            throw new BusinessException(40400, "选择的类目已被禁用");
         }
     }
     

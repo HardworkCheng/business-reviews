@@ -1,5 +1,19 @@
 import request from './request'
 
+// CategoryVO接口定义
+export interface CategoryVO {
+  id: number
+  name: string
+  icon?: string
+  color?: string
+  sortOrder?: number
+}
+
+// 获取类目列表
+export function getCategories() {
+  return request.get<CategoryVO[]>('/api/common/categories')
+}
+
 // 获取门店列表
 export function getShopList(params: any) {
   return request.get('/merchant/shops', { params })

@@ -2,7 +2,7 @@
  * 笔记模块API
  */
 
-import { get, post, del } from './request'
+import { get, post, put, del } from './request'
 
 /**
  * 获取推荐笔记列表
@@ -112,6 +112,23 @@ export const deleteNote = (id) => {
   return del(`/notes/${id}`)
 }
 
+/**
+ * 更新笔记
+ * @param {String} id - 笔记ID
+ * @param {Object} data - 笔记数据
+ * @param {String} data.title - 标题
+ * @param {String} data.content - 内容
+ * @param {Array} data.images - 图片数组
+ * @param {String} data.shopId - 商家ID
+ * @param {String} data.location - 位置
+ * @param {Number} data.latitude - 纬度
+ * @param {Number} data.longitude - 经度
+ * @param {Array} data.topics - 话题ID数组
+ */
+export const updateNote = (id, data) => {
+  return put(`/notes/${id}`, data)
+}
+
 export default {
   getRecommendedNotes,
   getUserNotes,
@@ -123,5 +140,6 @@ export default {
   unlikeNote,
   bookmarkNote,
   unbookmarkNote,
-  deleteNote
+  deleteNote,
+  updateNote
 }

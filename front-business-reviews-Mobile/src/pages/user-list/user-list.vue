@@ -175,62 +175,78 @@ const goBack = () => {
 
 <style lang="scss" scoped>
 .container {
-	background: #F7F9FC;
+	background: linear-gradient(180deg, #FBF4F6 0%, #FAFAFA 100%);
 	min-height: 100vh;
 }
 
 .navbar {
-	background: white;
+	background: rgba(255, 255, 255, 0.9);
+	backdrop-filter: blur(10px);
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	padding: 20rpx 30rpx;
-	box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+	box-shadow: 0 4rpx 20rpx rgba(224, 191, 184, 0.2);
+	position: sticky;
+	top: 0;
+	z-index: 100;
 }
 
 .nav-btn {
 	width: 60rpx;
 	font-size: 40rpx;
-	color: #333;
+	color: #B76E79; /* 经典玫瑰金 */
 }
 
 .nav-title {
 	font-size: 36rpx;
-	font-weight: 500;
-	color: #333;
+	font-weight: 600;
+	color: #8E5C5C; /* 深玫瑰色 */
 }
 
 .list {
-	padding: 20rpx;
+	padding: 24rpx;
 }
 
 .list-item {
-	background: white;
+	background: #FFFFFF;
 	border-radius: 30rpx;
 	padding: 30rpx;
-	margin-bottom: 20rpx;
+	margin-bottom: 24rpx;
 	display: flex;
 	align-items: center;
-	gap: 20rpx;
+	gap: 24rpx;
+	/* 柔美光影：温暖的粉棕色阴影 */
+	box-shadow: 0 8rpx 24rpx -6rpx rgba(183, 110, 121, 0.15),
+				0 4rpx 10rpx -2rpx rgba(224, 191, 184, 0.2);
+	border: 2rpx solid rgba(224, 191, 184, 0.3);
+	transition: all 0.3s ease;
+	
+	&:active {
+		transform: scale(0.98);
+	}
 }
 
 .avatar {
-	width: 100rpx;
-	height: 100rpx;
+	width: 110rpx;
+	height: 110rpx;
 	border-radius: 50%;
 	flex-shrink: 0;
+	border: 4rpx solid #E0BFB8; /* 柔粉金边框 */
+	padding: 2rpx; /* 双层边框效果 */
+	background-clip: content-box;
 }
 
 .info {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
-	gap: 10rpx;
+	gap: 8rpx;
 }
 
 .username {
 	font-size: 32rpx;
-	font-weight: 500;
+	font-weight: 600;
 	color: #333;
 }
 
@@ -243,23 +259,34 @@ const goBack = () => {
 }
 
 .follow-btn {
-	padding: 16rpx 32rpx;
-	border-radius: 30rpx;
-	background: #FF9E64;
+	padding: 16rpx 36rpx;
+	border-radius: 40rpx;
+	/* 玫瑰金渐变按钮 */
+	background: linear-gradient(135deg, #B76E79, #E0BFB8);
 	font-size: 26rpx;
+	font-weight: 500;
 	color: white;
 	flex-shrink: 0;
+	box-shadow: 0 6rpx 16rpx rgba(183, 110, 121, 0.3);
+	transition: all 0.3s ease;
+	
+	&:active {
+		transform: translateY(2rpx);
+		box-shadow: 0 2rpx 8rpx rgba(183, 110, 121, 0.3);
+	}
 }
 
 .follow-btn.followed {
-	background: #F5F5F5;
-	color: #999;
+	background: #F2E6E8; /* 浅玫瑰灰 */
+	color: #B76E79;
+	box-shadow: none;
+	border: 2rpx solid rgba(183, 110, 121, 0.1);
 }
 
 .empty {
 	text-align: center;
 	padding: 100rpx 0;
-	color: #999;
+	color: #B76E79;
 	font-size: 28rpx;
 }
 
@@ -272,7 +299,7 @@ const goBack = () => {
 
 .loading-text {
 	font-size: 28rpx;
-	color: #999;
+	color: #B76E79;
 }
 
 .error-container {
@@ -292,6 +319,7 @@ const goBack = () => {
 
 .retry-text {
 	font-size: 28rpx;
-	color: #FF9E64;
+	color: #B76E79;
+	text-decoration: underline;
 }
 </style>

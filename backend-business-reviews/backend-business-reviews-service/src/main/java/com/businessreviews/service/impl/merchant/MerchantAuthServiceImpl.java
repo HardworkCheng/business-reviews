@@ -12,6 +12,7 @@ import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.MerchantMapper;
 import com.businessreviews.mapper.ShopMapper;
 import com.businessreviews.mapper.UserMapper;
+import com.businessreviews.constants.RedisKeyConstants;
 import com.businessreviews.service.merchant.MerchantAuthService;
 import com.businessreviews.util.JwtUtil;
 import com.businessreviews.util.RedisUtil;
@@ -40,13 +41,10 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
     private final RedisUtil redisUtil;
     private final JwtUtil jwtUtil;
 
-    private static final String MERCHANT_SMS_CODE_PREFIX = "merchant:sms:code:";
-    private static final String MERCHANT_SMS_LIMIT_PREFIX = "merchant:sms:limit:";
-
     @Override
     public void sendCode(String phone) {
         // 检查发送频率
-        String limitKey = MERCHANT_SMS_LIMIT_PREFIX + phone;
+        String limitKey = RedisKeyConstants.MERCHANT_SMS_LIMIT + phone;
         if (redisUtil.hasKey(limitKey)) {
             throw new BusinessException(40005, "操作过于频繁，请稍后再试");
         }
@@ -55,7 +53,7 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         String code = String.format("%06d", new Random().nextInt(1000000));
 
         // 存储到Redis，5分钟过期
-        redisUtil.set(MERCHANT_SMS_CODE_PREFIX + phone, code, 300);
+        redisUtil.set(RedisKeyConstants.MERCHANT_SMS_CODE + phone, code, 300);
         redisUtil.set(limitKey, "1", 60);
 
         // TODO: 调用短信服务发送验证码
@@ -65,7 +63,7 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
     @Override
     public MerchantLoginVO loginByCode(String phone, String code) {
         // 验证验证码
-        String cacheCode = redisUtil.get(MERCHANT_SMS_CODE_PREFIX + phone);
+        String cacheCode = redisUtil.get(RedisKeyConstants.MERCHANT_SMS_CODE + phone);
         if (cacheCode == null || !cacheCode.equals(code)) {
             throw new BusinessException(40002, "验证码错误或已过期");
         }
@@ -77,7 +75,7 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         }
 
         // 删除验证码
-        redisUtil.delete(MERCHANT_SMS_CODE_PREFIX + phone);
+        redisUtil.delete(RedisKeyConstants.MERCHANT_SMS_CODE + phone);
 
         // 更新登录时间
         merchant.setLastLoginAt(LocalDateTime.now());
@@ -144,7 +142,7 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
     @Transactional(rollbackFor = Exception.class)
     public MerchantLoginVO register(MerchantRegisterDTO request) {
         // 验证验证码
-        String cacheCode = redisUtil.get(MERCHANT_SMS_CODE_PREFIX + request.getPhone());
+        String cacheCode = redisUtil.get(RedisKeyConstants.MERCHANT_SMS_CODE + request.getPhone());
         if (cacheCode == null || !cacheCode.equals(request.getCode())) {
             throw new BusinessException(40002, "验证码错误或已过期");
         }
@@ -189,7 +187,7 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         createDefaultShop(merchant, request);
 
         // 删除验证码
-        redisUtil.delete(MERCHANT_SMS_CODE_PREFIX + request.getPhone());
+        redisUtil.delete(RedisKeyConstants.MERCHANT_SMS_CODE + request.getPhone());
 
         return buildLoginResponse(merchant);
     }

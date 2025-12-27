@@ -4,6 +4,7 @@ import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.model.PutObjectRequest;
 import com.businessreviews.config.OssConfig;
+import com.businessreviews.constants.FileUploadConstants;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.service.common.OssService;
 import lombok.RequiredArgsConstructor;
@@ -24,16 +25,6 @@ import java.util.UUID;
 public class OssServiceImpl implements OssService {
     
     private final OssConfig ossConfig;
-    
-    /**
-     * 允许的文件类型
-     */
-    private static final String[] ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"};
-    
-    /**
-     * 最大文件大小: 10MB
-     */
-    private static final long MAX_FILE_SIZE = 10 * 1024 * 1024;
     
     @Override
     public String uploadFile(MultipartFile file, String folder) {
@@ -171,8 +162,8 @@ public class OssServiceImpl implements OssService {
         }
         
         // 验证文件大小
-        if (file.getSize() > MAX_FILE_SIZE) {
-            throw new BusinessException(40001, "文件大小不能超过10MB");
+        if (file.getSize() > FileUploadConstants.MAX_FILE_SIZE) {
+            throw new BusinessException(40001, "文件大小不能超过" + FileUploadConstants.MAX_FILE_SIZE_DESC);
         }
         
         // 验证文件类型
@@ -183,7 +174,7 @@ public class OssServiceImpl implements OssService {
         
         String extension = getExtension(originalFilename).toLowerCase();
         boolean isAllowed = false;
-        for (String allowedExt : ALLOWED_EXTENSIONS) {
+        for (String allowedExt : FileUploadConstants.ALLOWED_IMAGE_EXTENSIONS) {
             if (extension.equals(allowedExt)) {
                 isAllowed = true;
                 break;

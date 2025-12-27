@@ -27,11 +27,13 @@ public class MerchantCommentController {
     public Result<PageResult<CommentVO>> getCommentList(
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(required = false) Long shopId,
             @RequestParam(required = false) Integer status,
-            @RequestParam(required = false) String keyword) {
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Boolean isNegative) {
         Long merchantId = MerchantContext.requireMerchantId();
         PageResult<CommentVO> result = merchantCommentService.getCommentList(
-                merchantId, pageNum, pageSize, status, keyword);
+                merchantId, shopId, pageNum, pageSize, status, keyword, isNegative);
         return Result.success(result);
     }
 
@@ -66,5 +68,26 @@ public class MerchantCommentController {
         Long merchantId = MerchantContext.requireMerchantId();
         Map<String, Object> stats = merchantCommentService.getCommentStats(merchantId);
         return Result.success(stats);
+    }
+    
+    /**
+     * 获取数据概览
+     */
+    @GetMapping("/dashboard")
+    public Result<Map<String, Object>> getDashboard(@RequestParam(required = false) Long shopId) {
+        Long merchantId = MerchantContext.requireMerchantId();
+        Map<String, Object> dashboard = merchantCommentService.getDashboard(merchantId, shopId);
+        return Result.success(dashboard);
+    }
+    
+    /**
+     * 置顶评论
+     */
+    @PutMapping("/{id}/top")
+    public Result<?> topComment(@PathVariable Long id, @RequestBody Map<String, Boolean> request) {
+        Long merchantId = MerchantContext.requireMerchantId();
+        Boolean isTop = request.get("isTop");
+        merchantCommentService.topComment(merchantId, id, isTop);
+        return Result.success("操作成功");
     }
 }

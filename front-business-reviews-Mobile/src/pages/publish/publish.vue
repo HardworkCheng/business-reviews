@@ -329,8 +329,8 @@ const handlePublish = async () => {
 			location: location.value || null,
 			latitude: latitude.value,
 			longitude: longitude.value,
-			// 只提交有id的话题（已存在的话题），自定义话题id为null会被过滤
-			topics: selectedTopics.value.length > 0 ? selectedTopics.value.filter(t => t.id).map(t => t.id) : null,
+			// 发送话题名称列表（支持自定义话题）
+			topicNames: selectedTopics.value.length > 0 ? selectedTopics.value.map(t => t.name) : null,
 			status: 1 // 默认公开
 		}
 		

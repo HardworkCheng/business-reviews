@@ -3,12 +3,18 @@
 		<!-- 顶部导航 -->
 		<view class="header">
 			<view class="nav-bar">
-				<view class="nav-btn clay-icon" @click="goBack">
-					<text>←</text>
+				<view class="nav-btn-icon" @click="goBack">
+					<image src="/static/icons/back.png" class="back-icon" mode="aspectFit"></image>
 				</view>
 				<text class="nav-title">笔记详情</text>
-				<view class="nav-btn clay-icon" @click="shareNote">
-					<text>📤</text>
+				<view class="nav-actions">
+					<!-- 编辑按钮 - 只有作者可见 -->
+					<view v-if="noteData.isAuthor" class="nav-btn-icon" @click="editNote">
+						<image src="/static/icons/edit.png" class="edit-icon" mode="aspectFit"></image>
+					</view>
+					<view class="nav-btn-icon" @click="shareNote">
+						<image src="/static/icons/share.png" class="share-icon" mode="aspectFit"></image>
+					</view>
 				</view>
 			</view>
 		</view>
@@ -60,7 +66,8 @@
 			<!-- 话题标签 -->
 			<view class="topics" v-if="noteData.topics && noteData.topics.length > 0">
 				<view class="topic-tag" v-for="(topic, index) in noteData.topics" :key="index" @click="goToTopic(topic)">
-					<text class="topic-text">#{{ topic.name }}</text>
+					<image src="/static/icons/topics.png" class="topic-icon" mode="aspectFit"></image>
+					<text class="topic-text">{{ topic.name }}</text>
 				</view>
 			</view>
 
@@ -144,17 +151,33 @@
 				</view>
 			</view>
 		</view>
+
+		<!-- 分享弹窗 -->
+		<ShareSheet 
+			v-model:visible="isShareSheetVisible" 
+			:note-id="noteId"
+			:note-info="shareNoteInfo"
+		/>
 	</view>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getNoteDetail, likeNote, unlikeNote, bookmarkNote, unbookmarkNote } from '../../api/note'
 import { followUser, unfollowUser } from '../../api/user'
 import { getNoteComments, postComment as postCommentAPI, likeComment as likeCommentAPI, unlikeComment as unlikeCommentAPI } from '../../api/comment'
+import ShareSheet from '../../components/share-sheet/share-sheet.vue'
 
 const noteId = ref('')
+
+// 分享弹窗控制
+const isShareSheetVisible = ref(false)
+const shareNoteInfo = computed(() => ({
+	coverImage: noteData.value.image,
+	title: noteData.value.title,
+	content: noteData.value.content
+}))
 
 // 时间格式化函数
 const formatTime = (timeStr) => {
@@ -284,7 +307,8 @@ const goBack = () => {
 }
 
 const shareNote = () => {
-	uni.showToast({ title: '分享功能', icon: 'none' })
+	// 打开分享弹窗，不再跳转页面
+	isShareSheetVisible.value = true
 }
 
 const toggleLike = async () => {
@@ -493,6 +517,21 @@ const goToMap = () => {
 		})
 	}
 }
+
+// 编辑笔记
+const editNote = () => {
+	if (!noteId.value) {
+		uni.showToast({
+			title: '无法获取笔记信息',
+			icon: 'none'
+		})
+		return
+	}
+	
+	uni.navigateTo({
+		url: `/pages/note-edit/note-edit?id=${noteId.value}`
+	})
+}
 </script>
 
 <style lang="scss" scoped>
@@ -516,12 +555,39 @@ const goToMap = () => {
 	padding: 20rpx 30rpx;
 }
 
-.nav-btn {
+.nav-actions {
+	display: flex;
+	align-items: center;
+	gap: 15rpx;
+}
+
+.nav-btn-icon {
 	width: 60rpx;
 	height: 60rpx;
-	background: white;
-	border: 2rpx solid #000;
 	font-size: 32rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: opacity 0.2s;
+	
+	&:active {
+		opacity: 0.6;
+	}
+}
+
+.back-icon {
+	width: 36rpx;
+	height: 36rpx;
+}
+
+.edit-icon {
+	width: 36rpx;
+	height: 36rpx;
+}
+
+.share-icon {
+	width: 36rpx;
+	height: 36rpx;
 }
 
 .nav-title {
@@ -781,19 +847,24 @@ const goToMap = () => {
 }
 
 .topic-tag {
-	padding: 10rpx 20rpx;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	border-radius: 30rpx;
+	display: flex;
+	align-items: center;
+	gap: 8rpx;
 	transition: all 0.3s ease;
 	
 	&:active {
-		transform: scale(0.95);
+		opacity: 0.7;
 	}
+}
+
+.topic-icon {
+	width: 28rpx;
+	height: 28rpx;
 }
 
 .topic-text {
 	font-size: 24rpx;
-	color: white;
+	color: #667eea;
 	font-weight: 500;
 }
 

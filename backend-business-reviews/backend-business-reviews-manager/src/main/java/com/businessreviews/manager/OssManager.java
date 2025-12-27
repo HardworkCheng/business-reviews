@@ -4,6 +4,7 @@ import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.model.PutObjectRequest;
 import com.businessreviews.config.OssConfig;
+import com.businessreviews.constants.FileUploadConstants;
 import com.businessreviews.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,16 +29,6 @@ import java.util.UUID;
 public class OssManager {
     
     private final OssConfig ossConfig;
-    
-    /**
-     * 允许的文件类型
-     */
-    private static final String[] ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"};
-    
-    /**
-     * 最大文件大小: 10MB
-     */
-    private static final long MAX_FILE_SIZE = 10 * 1024 * 1024;
     
     /**
      * 上传文件到OSS
@@ -155,8 +146,8 @@ public class OssManager {
             throw new BusinessException(40001, "文件不能为空");
         }
         
-        if (file.getSize() > MAX_FILE_SIZE) {
-            throw new BusinessException(40001, "文件大小不能超过10MB");
+        if (file.getSize() > FileUploadConstants.MAX_FILE_SIZE) {
+            throw new BusinessException(40001, "文件大小不能超过" + FileUploadConstants.MAX_FILE_SIZE_DESC);
         }
         
         String originalFilename = file.getOriginalFilename();
@@ -166,7 +157,7 @@ public class OssManager {
         
         String extension = getExtension(originalFilename).toLowerCase();
         boolean isAllowed = false;
-        for (String allowedExt : ALLOWED_EXTENSIONS) {
+        for (String allowedExt : FileUploadConstants.ALLOWED_IMAGE_EXTENSIONS) {
             if (extension.equals(allowedExt)) {
                 isAllowed = true;
                 break;

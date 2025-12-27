@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.businessreviews.constants.RedisKeyConstants;
 import com.businessreviews.constants.SmsCodeConstants;
+import com.businessreviews.common.DefaultAvatar;
 import com.businessreviews.common.PageResult;
 import com.businessreviews.model.dto.app.ChangePhoneDTO;
 import com.businessreviews.model.dto.app.UpdateUserInfoDTO;
@@ -25,7 +26,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -42,24 +42,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     private final ShopMapper shopMapper;
     private final RedisUtil redisUtil;
     private final MessageService messageService;
-    
-    /**
-     * 默认头像列表 - 从阿里云OSS上随机选取
-     */
-    private static final String[] DEFAULT_AVATARS = {
-        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head1.png",
-        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head2.png",
-        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head3.png",
-        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head4.png",
-        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head5.png",
-        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head6.png",
-        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head7.png",
-        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head8.png",
-        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head9.png",
-        "https://cheng-9.oss-cn-beijing.aliyuncs.com/head_photo/headphoto/head10.png"
-    };
-    
-    private static final Random RANDOM = new Random();
 
     @Override
     public UserDO getByPhone(String phone) {
@@ -73,8 +55,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         user.setPhone(phone);
         user.setUsername("用户" + phone.substring(7));
         
-        // 随机选择一个默认头像
-        user.setAvatar(getRandomAvatar());
+        // 使用DefaultAvatar常量类随机选择一个默认头像
+        user.setAvatar(DefaultAvatar.getRandomAvatar());
         
         user.setStatus(1);
         userMapper.insert(user);
@@ -495,17 +477,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         log.info("用户{}:密码修改成功", userId);
     }
     
-    /**
-     * 随机获取一个默认头像 URL
-     *
-     * @return 头像 URL
-     */
-    private String getRandomAvatar() {
-        int index = RANDOM.nextInt(DEFAULT_AVATARS.length);
-        String avatar = DEFAULT_AVATARS[index];
-        log.info("为新用户随机分配头像: {}", avatar);
-        return avatar;
-    }
     
     @Override
     @Transactional(rollbackFor = Exception.class)

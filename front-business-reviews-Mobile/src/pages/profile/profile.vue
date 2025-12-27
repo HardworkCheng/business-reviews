@@ -1,238 +1,169 @@
 <template>
 	<view class="container">
 		<view class="profile-header">
+			<!-- 背景装饰 -->
+			<view class="header-bg"></view>
+			
 			<view class="user-info">
-				<image class="avatar" :src="avatarUrl"></image>
+				<view class="avatar-wrapper">
+					<image class="avatar" :src="avatarUrl" mode="aspectFill"></image>
+					<view class="avatar-border"></view>
+				</view>
 				<view class="info">
 					<text class="username">{{ userInfo.username || '未登录' }}</text>
-					<text class="user-id">{{ userInfo.userId ? 'ID: ' + userInfo.userId : '' }}</text>
+					<text class="user-id">{{ userInfo.userId ? 'ID: ' + userInfo.userId : '点击登录' }}</text>
 				</view>
-				<view class="setting-btn clay-icon" @click="openSettings">
-					<text>⚙️</text>
+				<view class="setting-btn" @click="openSettings">
+					<image src="/static/icons/settings.png" class="setting-icon" mode="aspectFit"></image>
 				</view>
 			</view>
 
-			<text class="bio">{{ userInfo.bio || '还没有个人简介' }}</text>
+			<text class="bio">{{ userInfo.bio || '这个人很懒，什么都没留下~' }}</text>
 
-			<view class="stats-card clay-shadow">
-				<view class="stat" @click="goToList('following')">
-					<text class="stat-value text-primary">{{ userInfo.followingCount || 0 }}</text>
-					<text class="stat-label">关注</text>
-				</view>
-				<view class="divider"></view>
-				<view class="stat" @click="goToList('follower')">
-					<text class="stat-value text-primary">{{ userInfo.followerCount || 0 }}</text>
-					<text class="stat-label">粉丝</text>
-				</view>
-				<view class="divider"></view>
-				<view class="stat" @click="goToLikeNotifications">
-					<text class="stat-value text-primary">{{ userInfo.likeCount || 0 }}</text>
-					<text class="stat-label">获赞</text>
-				</view>
-				<view class="divider"></view>
-				<view class="stat" @click="switchTab(2)">
-					<text class="stat-value text-primary">{{ userInfo.favoriteCount || 0 }}</text>
-					<text class="stat-label">收藏</text>
+			<view class="stats-card">
+				<view class="stats-inner">
+					<view class="stat-item" @click="goToList('following')">
+						<text class="stat-num">{{ userInfo.followingCount || 0 }}</text>
+						<text class="stat-label">关注</text>
+					</view>
+					<view class="stat-divider"></view>
+					<view class="stat-item" @click="goToList('follower')">
+						<text class="stat-num">{{ userInfo.followerCount || 0 }}</text>
+						<text class="stat-label">粉丝</text>
+					</view>
+					<view class="stat-divider"></view>
+					<view class="stat-item" @click="goToLikeNotifications">
+						<text class="stat-num">{{ userInfo.likeCount || 0 }}</text>
+						<text class="stat-label">获赞</text>
+					</view>
+					<view class="stat-divider"></view>
+					<view class="stat-item" @click="switchTab(2)">
+						<text class="stat-num">{{ userInfo.favoriteCount || 0 }}</text>
+						<text class="stat-label">收藏</text>
+					</view>
 				</view>
 			</view>
 		</view>
 
-		<view class="tabs">
-			<view 
-				class="tab-item" 
-				:class="{ active: currentTab === 0 }"
-				@click="switchTab(0)"
-			>
-				<text>我的笔记</text>
-			</view>
-			<view 
-				class="tab-item" 
-				:class="{ active: currentTab === 1 }"
-				@click="switchTab(1)"
-			>
-				<text>点赞</text>
-			</view>
-			<view 
-				class="tab-item" 
-				:class="{ active: currentTab === 2 }"
-				@click="switchTab(2)"
-			>
-				<text>收藏</text>
-			</view>
-			<view 
-				class="tab-item" 
-				:class="{ active: currentTab === 3 }"
-				@click="switchTab(3)"
-			>
-				<text>足迹</text>
+		<view class="tabs-container">
+			<view class="tabs">
+				<view 
+					class="tab-item" 
+					:class="{ active: currentTab === 0 }"
+					@click="switchTab(0)"
+				>
+					<text class="tab-text">我的笔记</text>
+					<view class="tab-indicator" v-if="currentTab === 0"></view>
+				</view>
+				<view 
+					class="tab-item" 
+					:class="{ active: currentTab === 3 }"
+					@click="switchTab(3)"
+				>
+					<text class="tab-text">足迹</text>
+					<view class="tab-indicator" v-if="currentTab === 3"></view>
+				</view>
+				<view 
+					class="tab-item" 
+					:class="{ active: currentTab === 2 }"
+					@click="switchTab(2)"
+				>
+					<text class="tab-text">收藏</text>
+					<view class="tab-indicator" v-if="currentTab === 2"></view>
+				</view>
+				<view 
+					class="tab-item" 
+					:class="{ active: currentTab === 1 }"
+					@click="switchTab(1)"
+				>
+					<text class="tab-text">点赞</text>
+					<view class="tab-indicator" v-if="currentTab === 1"></view>
+				</view>
 			</view>
 		</view>
 
 		<view class="content">
-			<!-- 我的笔记 -->
-			<view v-if="currentTab === 0" class="notes-grid">
-				<view 
-					class="note-card clay-shadow" 
-					v-for="(note, index) in myNotes" 
-					:key="index"
-					@click="goToNoteDetail(note.id)"
-				>
-					<view class="note-image-wrapper">
-						<image :src="note.image" class="note-image" mode="aspectFill"></image>
-					</view>
-					<view class="note-info">
-						<text class="note-title line-clamp-2">{{ note.title }}</text>
-						<view class="note-meta">
-							<view class="author-info">
-								<text class="author">@{{ note.author }}</text>
-							</view>
-							<view class="like-info">
-								<text class="like-icon">❤️</text>
-								<text class="like-count">{{ note.likes }}</text>
-							</view>
+			<!-- 瀑布流/网格布局内容 -->
+			<view class="notes-grid">
+				<template v-if="currentList.length > 0">
+					<view 
+						class="note-card" 
+						v-for="(note, index) in currentList" 
+						:key="index"
+						@click="goToNoteDetail(note.id)"
+					>
+						<view class="image-box">
+							<image :src="note.image" class="note-image" mode="aspectFill"></image>
+							<view class="image-mask"></view>
 						</view>
-						<view class="note-time">
-							<text class="time-text">{{ note.createTime }}</text>
+						<view class="card-body">
+							<text class="note-title">{{ note.title }}</text>
+							<view class="card-footer">
+								<view class="author-row">
+									<text class="author-name">@{{ note.author }}</text>
+								</view>
+								<view class="like-row">
+									<image src="/static/icons/like-small.png" class="like-icon-small" mode="aspectFit"></image>
+									<text class="like-num">{{ note.likes }}</text>
+								</view>
+							</view>
+							<text class="publish-time">{{ note.createTime }}</text>
 						</view>
 					</view>
-				</view>
+				</template>
 				
-				<view v-if="myNotes.length === 0" class="empty">
-					<text>还没有发布笔记</text>
-				</view>
-			</view>
-
-			<!-- 点赞 -->
-			<view v-if="currentTab === 1" class="notes-grid">
-				<view 
-					class="note-card clay-shadow" 
-					v-for="(item, index) in likedList" 
-					:key="index"
-					@click="goToNoteDetail(item.id)"
-				>
-					<view class="note-image-wrapper">
-						<image :src="item.image" class="note-image" mode="aspectFill"></image>
-					</view>
-					<view class="note-info">
-						<text class="note-title line-clamp-2">{{ item.title }}</text>
-						<view class="note-meta">
-							<view class="author-info">
-								<text class="author">@{{ item.author }}</text>
-							</view>
-							<view class="like-info">
-								<text class="like-icon">❤️</text>
-								<text class="like-count">{{ item.likes }}</text>
-							</view>
-						</view>
-						<view class="note-time">
-							<text class="time-text">{{ item.createTime }}</text>
-						</view>
-					</view>
-				</view>
-				
-				<view v-if="likedList.length === 0" class="empty">
-					<text>还没有点赞过笔记</text>
-				</view>
-			</view>
-
-			<!-- 收藏 -->
-			<view v-if="currentTab === 2" class="notes-grid">
-				<view 
-					class="note-card clay-shadow" 
-					v-for="(item, index) in favoriteList" 
-					:key="index"
-					@click="goToNoteDetail(item.id)"
-				>
-					<view class="note-image-wrapper">
-						<image :src="item.image" class="note-image" mode="aspectFill"></image>
-					</view>
-					<view class="note-info">
-						<text class="note-title line-clamp-2">{{ item.title }}</text>
-						<view class="note-meta">
-							<view class="author-info">
-								<text class="author">@{{ item.author }}</text>
-							</view>
-							<view class="like-info">
-								<text class="like-icon">❤️</text>
-								<text class="like-count">{{ item.likes }}</text>
-							</view>
-						</view>
-						<view class="note-time">
-							<text class="time-text">{{ item.createTime }}</text>
-						</view>
-					</view>
-				</view>
-				
-				<view v-if="favoriteList.length === 0" class="empty">
-					<text>暂无收藏内容</text>
-				</view>
-			</view>
-
-			<!-- 足迹 -->
-			<view v-if="currentTab === 3" class="notes-grid">
-				<view 
-					class="note-card clay-shadow" 
-					v-for="(item, index) in historyList" 
-					:key="index"
-					@click="goToNoteDetail(item.id)"
-				>
-					<view class="note-image-wrapper">
-						<image :src="item.image" class="note-image" mode="aspectFill"></image>
-					</view>
-					<view class="note-info">
-						<text class="note-title line-clamp-2">{{ item.title }}</text>
-						<view class="note-meta">
-							<view class="author-info">
-								<text class="author">@{{ item.author }}</text>
-							</view>
-							<view class="like-info">
-								<text class="like-icon">❤️</text>
-								<text class="like-count">{{ item.likes }}</text>
-							</view>
-						</view>
-						<view class="note-time">
-							<text class="time-text">{{ item.createTime }}</text>
-						</view>
-					</view>
-				</view>
-				
-				<view v-if="historyList.length === 0" class="empty">
-					<text>暂无足迹记录</text>
+				<!-- 空状态 -->
+				<view v-else class="empty-state">
+					<image src="/static/icons/empty.png" class="empty-icon" mode="aspectFit"></image>
+					<text class="empty-text">{{ getEmptyText() }}</text>
 				</view>
 			</view>
 		</view>
 	</view>
 </template>
 
+
 <script setup>
 import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getUserInfo, getMyFavorites, getBrowseHistory } from '../../api/user'
 import { getMyNotes, getMyLikedNotes } from '../../api/note'
+import { getImageUrl } from '../../utils/placeholder'
+
 
 const currentTab = ref(0)
-
-// 用户信息（从后端获取）
 const userInfo = ref({})
-
-// 我的笔记（从后端获取）
 const myNotes = ref([])
-
-// 点赞列表（从后端获取）
 const likedList = ref([])
-
-// 收藏列表（从后端获取）
 const favoriteList = ref([])
-
-// 足迹列表（从后端获取）
 const historyList = ref([])
-
 const loading = ref(false)
 
-// 时间格式化函数
+// 当前显示的列表
+const currentList = computed(() => {
+	switch(currentTab.value) {
+		case 0: return myNotes.value
+		case 1: return likedList.value
+		case 2: return favoriteList.value
+		case 3: return historyList.value
+		default: return []
+	}
+})
+
+// 空状态文案
+const getEmptyText = () => {
+	switch(currentTab.value) {
+		case 0: return '还没有发布笔记，去发布第一篇吧~'
+		case 1: return '还没有点赞过笔记~'
+		case 2: return '还没有收藏内容~'
+		case 3: return '还没有浏览足迹~'
+		default: return '暂无内容'
+	}
+}
+
+// 时间格式化
 const formatTime = (timeStr) => {
 	if (!timeStr) return ''
-	
 	try {
 		const date = new Date(timeStr)
 		const now = new Date()
@@ -253,47 +184,30 @@ const formatTime = (timeStr) => {
 	}
 }
 
-// 计算属性 - 确保头像响应式更新
 const avatarUrl = computed(() => {
-	return getAvatarUrl(userInfo.value.avatar)
+	return getImageUrl(userInfo.value.avatar)
 })
 
 onLoad(async () => {
-	console.log('Profile page loaded')
-	// 强制从服务器获取最新数据
 	await loadData()
 })
 
 onShow(async () => {
-	console.log('Profile page show')
-	// 每次显示时都强制刷新数据
 	await loadData()
 })
 
-// 统一的数据加载函数
 const loadData = async () => {
 	const token = uni.getStorageSync('token')
-	console.log('=== loadData ===', 'token:', token ? token.substring(0, 20) + '...' : '无')
-	
 	if (!token) {
-		console.warn('未找到 token，跳转登录页')
 		uni.reLaunch({ url: '/pages/login/login' })
 		return
 	}
 	
-	// 清空旧数据，避免显示缓存
-	userInfo.value = {}
-	myNotes.value = []
-	
 	try {
-		// 并发获取用户信息和笔记列表
-		await Promise.all([
-			fetchUserInfo(),
-			fetchMyNotes()
-		])
+		await fetchUserInfo()
+		// 初始加载当前Tab数据
+		switchTab(currentTab.value)
 	} catch (e) {
-		console.error('加载数据失败:', e)
-		// 如果是认证错误，跳转登录页
 		if (e && (e.code === 401 || e.code === 40401)) {
 			uni.clearStorageSync()
 			uni.reLaunch({ url: '/pages/login/login' })
@@ -303,142 +217,42 @@ const loadData = async () => {
 
 const fetchUserInfo = async () => {
 	try {
-		console.log('开始请求用户信息...')
 		const info = await getUserInfo()
-		console.log('用户信息响应:', info)
-		
 		if (info) {
-			// 更新显示数据
 			userInfo.value = info
-			// 更新缓存
 			uni.setStorageSync('userInfo', info)
-			console.log('用户信息已更新')
+		}
+	} catch (e) {
+		console.error('获取用户信息失败', e)
+	}
+}
+
+// 数据获取函数封装
+const fetchList = async (apiFunc, listRef, type = 'normal') => {
+	if (loading.value) return
+	loading.value = true
+	try {
+		// 根据不同接口适配参数
+		let result
+		if (type === 'favorite') {
+			result = await apiFunc(1, 1, 20)
 		} else {
-			console.warn('未获取到用户信息')
-			userInfo.value = {}
+			result = await apiFunc(1, 20)
 		}
-	} catch (e) {
-		console.error('获取用户信息失败:', e)
-		
-		// 如果是401或用户不存在,不使用缓存,直接跳转登录
-		if (e.code === 401 || e.code === 40401) {
-			console.warn('认证失败,清除缓存并跳转登录')
-			uni.clearStorageSync()
-			uni.reLaunch({ url: '/pages/login/login' })
-		} else {
-			// 其他错误(如网络错误)，不使用缓存以避免展示旧账号信息
-			uni.removeStorageSync('userInfo')
-			userInfo.value = {}
-			uni.showToast({ title: '获取用户信息失败，请稍后重试', icon: 'none' })
-		}
-	}
-}
-
-const fetchMyNotes = async () => {
-	if (loading.value) return
-	
-	loading.value = true
-	try {
-		const result = await getMyNotes(1, 20)
-		console.log('获取我的笔记:', result)
 		
 		if (result && result.list) {
-			// 转换数据格式
-			myNotes.value = result.list.map(note => ({
-				id: note.id,
-				title: note.title,
-				image: note.image || '',
-				author: note.author || '匿名用户',
-				likes: note.likes || 0,
-				createTime: formatTime(note.createdAt)
-			}))
-			console.log('我的笔记已更新:', myNotes.value.length, myNotes.value)
-		}
-	} catch (e) {
-		console.error('获取我的笔记失败:', e)
-		// 静默失败，不显示错误
-	} finally {
-		loading.value = false
-	}
-}
-
-const fetchFavorites = async () => {
-	if (loading.value) return
-	
-	loading.value = true
-	try {
-		const result = await getMyFavorites(1, 1, 20) // type=1 表示笔记
-		console.log('获取收藏列表:', result)
-		
-		if (result && result.list) {
-			favoriteList.value = result.list.map(item => ({
-				id: item.targetId || item.id,
-				title: item.title || '未命名笔记',
-				image: item.image || '',
-				author: item.author || '匿名用户',
-				likes: item.likes || 0,
-				createTime: formatTime(item.createdAt)
-			}))
-			console.log('收藏列表已更新:', favoriteList.value.length)
-		}
-	} catch (e) {
-		console.error('获取收藏列表失败:', e)
-		favoriteList.value = []
-	} finally {
-		loading.value = false
-	}
-}
-
-const fetchHistory = async () => {
-	if (loading.value) return
-	
-	loading.value = true
-	try {
-		const result = await getBrowseHistory(1, 20)
-		console.log('获取足迹列表:', result)
-		
-		if (result && result.list) {
-			historyList.value = result.list.map(item => ({
+			listRef.value = result.list.map(item => ({
 				id: item.noteId || item.targetId || item.id,
 				title: item.title || '未命名笔记',
-				image: item.image || '',
+				image: getImageUrl(item.image, 'cover'),
 				author: item.author || '匿名用户',
 				likes: item.likes || 0,
-				createTime: item.viewTime || formatTime(item.createdAt)  // 直接使用后端格式化的viewTime
+				createTime: item.viewTime || formatTime(item.createdAt)
 			}))
-			console.log('足迹列表已更新:', historyList.value.length)
 		}
 	} catch (e) {
-		console.error('获取足迹列表失败:', e)
-		historyList.value = []
-	} finally {
-		loading.value = false
-	}
-}
-
-// 获取点赞笔记列表
-const fetchLikedNotes = async () => {
-	if (loading.value) return
-	
-	loading.value = true
-	try {
-		const result = await getMyLikedNotes(1, 20)
-		console.log('获取点赞列表:', result)
-		
-		if (result && result.list) {
-			likedList.value = result.list.map(item => ({
-				id: item.id,
-				title: item.title || '未命名笔记',
-				image: item.image || '',
-				author: item.author || '匿名用户',
-				likes: item.likes || 0,
-				createTime: formatTime(item.createdAt)
-			}))
-			console.log('点赞列表已更新:', likedList.value.length)
-		}
-	} catch (e) {
-		console.error('获取点赞列表失败:', e)
-		likedList.value = []
+		console.error('获取列表失败', e)
+		listRef.value = []
 	} finally {
 		loading.value = false
 	}
@@ -446,180 +260,271 @@ const fetchLikedNotes = async () => {
 
 const switchTab = (index) => {
 	currentTab.value = index
-	
-	// 根据标签加载对应数据
-	if (index === 1) {
-		// 点赞标签
-		fetchLikedNotes()
-	} else if (index === 2) {
-		// 收藏标签
-		fetchFavorites()
-	} else if (index === 3) {
-		// 足迹标签
-		fetchHistory()
-	}
+	if (index === 0 && myNotes.value.length === 0) fetchList(getMyNotes, myNotes)
+	else if (index === 1 && likedList.value.length === 0) fetchList(getMyLikedNotes, likedList)
+	else if (index === 2 && favoriteList.value.length === 0) fetchList(getMyFavorites, favoriteList, 'favorite')
+	else if (index === 3 && historyList.value.length === 0) fetchList(getBrowseHistory, historyList)
 }
 
-const openSettings = () => {
-	uni.navigateTo({
-		url: '/pages/settings/settings'
-	})
-}
+const openSettings = () => uni.navigateTo({ url: '/pages/settings/settings' })
+const goToNoteDetail = (id) => uni.navigateTo({ url: `/pages/note-detail/note-detail?id=${id}` })
+const goToList = (type) => uni.navigateTo({ url: `/pages/user-list/user-list?type=${type}` })
+const goToLikeNotifications = () => uni.navigateTo({ url: '/pages/like-notifications/like-notifications' })
 
-const goToNoteDetail = (id) => {
-	uni.navigateTo({
-		url: `/pages/note-detail/note-detail?id=${id}`
-	})
-}
-
-const goToList = (type) => {
-	uni.navigateTo({
-		url: `/pages/user-list/user-list?type=${type}`
-	})
-}
-
-const goToLikeNotifications = () => {
-	uni.navigateTo({
-		url: '/pages/like-notifications/like-notifications'
-	})
-}
-
-// 获取头像完整URL
-const getAvatarUrl = (avatar) => {
-	if (!avatar) {
-		return 'https://via.placeholder.com/200/FFD166/FFFFFF?text=User'
-	}
-	
-	// 直接返回阿里云OSS URL
-	return avatar
-}
 </script>
 
 <style lang="scss" scoped>
 .container {
-	background: #F7F9FC;
+	background-color: #FAFBFC;
 	min-height: 100vh;
-	padding-bottom: 100rpx;
 }
 
 .profile-header {
-	background: linear-gradient(to bottom, rgba(255, 158, 100, 0.2), white);
-	padding: 30rpx;
+	position: relative;
+	padding: 40rpx 40rpx 60rpx;
+	overflow: hidden;
+	background: white;
+	border-bottom-left-radius: 40rpx;
+	border-bottom-right-radius: 40rpx;
+	box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.02);
+	z-index: 1;
+}
+
+.header-bg {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: linear-gradient(180deg, rgba(255, 158, 100, 0.15) 0%, rgba(255, 255, 255, 0) 100%);
+	z-index: -1;
 }
 
 .user-info {
 	display: flex;
 	align-items: center;
-	margin-bottom: 30rpx;
+	margin-top: 20rpx;
+}
+
+.avatar-wrapper {
+	position: relative;
+	margin-right: 30rpx;
 }
 
 .avatar {
-	width: 140rpx;
-	height: 140rpx;
+	width: 130rpx;
+	height: 130rpx;
 	border-radius: 50%;
-	border: 6rpx solid white;
-	box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.1);
-	margin-right: 25rpx;
+	border: 4rpx solid #fff;
+	box-shadow: 0 8rpx 16rpx rgba(255, 158, 100, 0.2);
 }
 
 .info {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
+	justify-content: center;
 }
 
 .username {
-	font-size: 40rpx;
-	font-weight: bold;
-	margin-bottom: 10rpx;
+	font-size: 44rpx;
+	font-weight: 700;
+	color: #333;
+	margin-bottom: 8rpx;
+	letter-spacing: 1rpx;
 }
 
 .user-id {
-	font-size: 26rpx;
+	font-size: 24rpx;
 	color: #999;
+	background: rgba(0,0,0,0.03);
+	padding: 4rpx 12rpx;
+	border-radius: 20rpx;
+	align-self: flex-start;
 }
 
 .setting-btn {
-	width: 70rpx;
-	height: 70rpx;
-	background: white;
-	font-size: 32rpx;
+	width: 80rpx;
+	height: 80rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(255,255,255,0.8);
+	border-radius: 50%;
+	backdrop-filter: blur(10px);
+	box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.05);
+	transition: transform 0.2s;
+	
+	&:active {
+		transform: scale(0.95);
+	}
+}
+
+.setting-icon {
+	width: 44rpx;
+	height: 44rpx;
+	opacity: 0.8;
 }
 
 .bio {
 	display: block;
+	margin-top: 30rpx;
 	font-size: 28rpx;
 	color: #666;
-	margin-bottom: 30rpx;
+	line-height: 1.5;
+	padding: 0 10rpx;
+}
+
+/* 定义流光动画 */
+/* 定义绚丽流光动画 */
+/* 定义赛博故障动画 */
+/* 定义丝绸流光动画 */
+/* 定义水晶折射动画 */
+/* 定义皇家流光动画 */
+/* 定义森林秘境动画 */
+/* 定义玫瑰金流光动画 */
+@keyframes roseGoldFlow {
+	0% { background-position: 0% 50%; }
+	50% { background-position: 100% 50%; }
+	100% { background-position: 0% 50%; }
 }
 
 .stats-card {
-	background: white;
-	border-radius: 40rpx;
-	padding: 30rpx;
-	display: flex;
-	justify-content: space-around;
+	position: relative;
+	margin-top: 40rpx;
+	padding: 4rpx;
+	/* 玫瑰金：优雅的粉金色调，细腻温润的金属质感 */
+	background: linear-gradient(
+		125deg, 
+		#E0BFB8, /* 柔粉金 */
+		#B76E79, /* 经典玫瑰金 */
+		#FFFFFF, /* 金属高光 */
+		#F5D1C5, /* 浅玫瑰色 */
+		#B76E79,
+		#E0BFB8
+	);
+	background-size: 300% 300%;
+	animation: roseGoldFlow 6s ease-in-out infinite;
+	border-radius: 36rpx;
+	/* 柔美光影：温暖的粉棕色阴影 */
+	box-shadow: 
+		0 12rpx 36rpx -6rpx rgba(183, 110, 121, 0.4),
+		0 6rpx 16rpx -2rpx rgba(224, 191, 184, 0.3);
 }
 
-.stat {
+.stats-inner {
+	position: relative;
+	display: flex;
+	justify-content: space-around;
+	align-items: center;
+	/* 提高不透明度，让背景更纯净，衬托边框的鲜艳 */
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.99) 100%);
+	border-radius: 32rpx;
+	backdrop-filter: blur(20rpx);
+	overflow: hidden;
+	height: 160rpx;
+}
+
+.stat-item {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 0 20rpx;
+	flex: 1;
+	height: 100%;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	cursor: pointer;
+	
+	&:active {
+		transform: scale(0.92);
+		background: rgba(0,0,0,0.02);
+	}
+}
+
+.stat-num {
+	font-size: 44rpx;
+	font-weight: 800;
+	color: #333;
+	margin-bottom: 12rpx;
+	transition: all 0.3s ease;
+	/* 匹配玫瑰金边框：深玫瑰-柔粉 */
+	background: linear-gradient(135deg, #B76E79 0%, #E0BFB8 100%);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+	text-shadow: 0 4rpx 10rpx rgba(183, 110, 121, 0.2);
+}
+
+.stat-label {
+	font-size: 24rpx;
+	color: #888;
+	font-weight: 500;
+	letter-spacing: 1rpx;
+}
+
+.stat-divider {
+	position: relative;
+	z-index: 1;
+	width: 2rpx;
+	height: 40%; /* 相对高度 */
+	background: linear-gradient(180deg, 
+		rgba(255, 158, 100, 0) 0%, 
+		rgba(255, 158, 100, 0.4) 50%, 
+		rgba(255, 158, 100, 0) 100%
+	);
+}
+
+/* Tabs */
+.tabs-container {
+	position: sticky;
+	top: 0;
+	z-index: 10;
+	background: #FAFBFC;
+	padding: 20rpx 0;
+}
+
+.tabs {
+	display: flex;
+	justify-content: space-around;
+	padding: 0 20rpx;
+}
+
+.tab-item {
+	position: relative;
+	padding: 16rpx 0;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 }
 
-.stat-value {
-	font-size: 40rpx;
-	font-weight: bold;
-	margin-bottom: 5rpx;
-}
-
-.stat-label {
-	font-size: 24rpx;
-	color: #999;
-}
-
-.divider {
-	width: 1rpx;
-	background: #f0f0f0;
-}
-
-.tabs {
-	display: flex;
-	background: white;
-	box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
-	position: sticky;
-	top: 0;
-	z-index: 10;
-}
-
-.tab-item {
-	flex: 1;
-	text-align: center;
-	padding: 30rpx;
+.tab-text {
 	font-size: 28rpx;
-	color: #999;
-	position: relative;
-}
-
-.tab-item.active {
-	color: #FF9E64;
+	color: #888;
 	font-weight: 500;
+	transition: all 0.3s;
 }
 
-.tab-item.active::after {
-	content: '';
-	position: absolute;
-	bottom: 0;
-	left: 50%;
-	transform: translateX(-50%);
-	width: 60rpx;
+.tab-item.active .tab-text {
+	color: #333;
+	font-weight: 700;
+	font-size: 30rpx;
+}
+
+.tab-indicator {
+	width: 40rpx;
 	height: 6rpx;
-	background: #FF9E64;
+	background: linear-gradient(90deg, #FF9E64, #FF7A45);
 	border-radius: 3rpx;
+	margin-top: 10rpx;
+	box-shadow: 0 2rpx 6rpx rgba(255, 158, 100, 0.4);
 }
 
+/* Content */
 .content {
-	padding: 30rpx;
+	padding: 0 20rpx 40rpx;
 }
 
 .notes-grid {
@@ -630,81 +535,118 @@ const getAvatarUrl = (avatar) => {
 
 .note-card {
 	background: white;
-	border-radius: 30rpx;
+	border-radius: 20rpx;
 	overflow: hidden;
-	transition: all 0.3s;
+	box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04);
+	display: flex;
+	flex-direction: column;
 }
 
-.note-image-wrapper {
+.image-box {
 	position: relative;
 	width: 100%;
-	height: 350rpx;
+	padding-bottom: 133%; /* 3:4 aspect ratio */
+	background: #f5f5f5;
 }
 
 .note-image {
+	position: absolute;
+	top: 0;
+	left: 0;
 	width: 100%;
 	height: 100%;
 }
 
-.note-info {
+.image-mask {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: linear-gradient(180deg, transparent 70%, rgba(0,0,0,0.05) 100%);
+	pointer-events: none;
+}
+
+.card-body {
 	padding: 20rpx;
+	display: flex;
+	flex-direction: column;
+	gap: 12rpx;
 }
 
 .note-title {
-	display: block;
 	font-size: 28rpx;
-	font-weight: 500;
-	margin-bottom: 15rpx;
+	font-weight: 600;
+	color: #333;
 	line-height: 1.4;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
 }
 
-.note-meta {
+.card-footer {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
 }
 
-.author-info {
-	display: flex;
-	flex-direction: column;
-	gap: 4rpx;
-}
-
-.author {
-	font-size: 24rpx;
-	color: #999;
-}
-
-.like-info {
+.author-row {
 	display: flex;
 	align-items: center;
 }
 
-.like-icon {
-	font-size: 24rpx;
-	margin-right: 5rpx;
+.author-name {
+	font-size: 22rpx;
+	color: #999;
+	max-width: 140rpx;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
-.like-count {
-	font-size: 24rpx;
-	color: #EF476F;
-}
-
-.note-time {
+.like-row {
 	display: flex;
-	justify-content: flex-end;
-	margin-top: 10rpx;
+	align-items: center;
+	gap: 6rpx;
 }
 
-.time-text {
+.like-icon-small {
+	width: 24rpx;
+	height: 24rpx;
+}
+
+.like-num {
 	font-size: 22rpx;
 	color: #999;
 }
 
-.empty {
-	text-align: center;
-	padding: 100rpx 0;
-	color: #999;
-	font-size: 28rpx;
+.publish-time {
+	font-size: 20rpx;
+	color: #ccc;
+	align-self: flex-end;
 }
+
+/* Empty State */
+.empty-state {
+	grid-column: 1 / -1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 100rpx 0;
+}
+
+.empty-icon {
+	width: 200rpx;
+	height: 200rpx;
+	opacity: 0.5;
+	margin-bottom: 20rpx;
+}
+
+.empty-text {
+	font-size: 28rpx;
+	color: #999;
+}
+
 </style>

@@ -33,157 +33,6 @@
 
     <!-- 店铺信息内容 -->
     <div class="content-section">
-      <!-- 基本信息 -->
-      <div class="info-card">
-        <h3 class="card-title">基本信息</h3>
-        <div class="form-container" v-loading="loading">
-          <div class="form-layout">
-            <!-- 店铺封面 -->
-            <div class="cover-section">
-              <div class="cover-label">
-                <span class="cover-title">店铺封面</span>
-                <span class="cover-subtitle">展示您店铺的特色形象</span>
-              </div>
-              <div class="cover-upload-wrapper" @click="triggerLogoUpload">
-                <input ref="logoInput" type="file" accept="image/*" @change="handleLogoChange" style="display: none;" />
-                <img v-if="shopForm.headerImage" :src="shopForm.headerImage" class="cover-image" :class="{ editable: isEditing }" />
-                <div v-else class="cover-placeholder" :class="{ editable: isEditing }">
-                  <el-icon :size="40" class="upload-icon"><Plus /></el-icon>
-                  <span class="upload-text">点击上传封面</span>
-                </div>
-                <div v-if="logoUploading" class="upload-loading">
-                  <el-icon class="is-loading"><Loading /></el-icon>
-                  <span class="loading-text">上传中...</span>
-                </div>
-                <div v-if="isEditing && shopForm.headerImage" class="cover-overlay">
-                  <el-icon :size="24"><Edit /></el-icon>
-                  <span>更换封面</span>
-                </div>
-              </div>
-              <p class="cover-tip">建议尺寸: 750x400px，支持JPG、PNG格式，文件大小不超过2MB</p>
-            </div>
-
-            <!-- 基本信息表单 -->
-            <div class="form-fields">
-              <div class="field-row">
-                <div class="field-item">
-                  <label class="field-label">店铺名称 <span class="required">*</span></label>
-                  <el-input v-model="shopForm.name" placeholder="请输入店铺名称" class="field-input" :disabled="!isEditing" />
-                </div>
-                <div class="field-item">
-                  <label class="field-label">经营类目 <span class="required">*</span></label>
-                  <el-select v-model="shopForm.categoryId" placeholder="请选择经营类目" class="field-input" :disabled="!isEditing">
-                    <el-option label="餐饮美食" :value="1" />
-                    <el-option label="休闲娱乐" :value="2" />
-                    <el-option label="生活服务" :value="3" />
-                    <el-option label="购物商场" :value="4" />
-                    <el-option label="酒店住宿" :value="5" />
-                  </el-select>
-                </div>
-              </div>
-              <!-- 店铺简介和商家相册并排 -->
-              <div class="field-row description-gallery-row">
-                <div class="field-item field-half">
-                  <label class="field-label">店铺简介 <span class="required">*</span></label>
-                  <el-input v-model="shopForm.description" type="textarea" :rows="4" placeholder="请输入店铺简介" maxlength="500" show-word-limit class="field-input" :disabled="!isEditing" />
-                </div>
-                <div class="field-item field-half">
-                  <label class="field-label">商家相册</label>
-                  <div class="gallery-section">
-                    <div class="gallery-grid">
-                      <div v-for="(img, index) in galleryImages" :key="index" class="gallery-item">
-                        <img :src="img" class="gallery-image" @click="previewImage(index)" />
-                        <div v-if="isEditing" class="gallery-delete" @click.stop="removeGalleryImage(index)">
-                          <el-icon><Close /></el-icon>
-                        </div>
-                      </div>
-                      <div v-if="isEditing && galleryImages.length < 9" class="gallery-upload" @click="triggerGalleryUpload">
-                        <input ref="galleryInput" type="file" accept="image/*" multiple @change="handleGalleryChange" style="display: none;" />
-                        <el-icon :size="24" v-if="!galleryUploading"><Plus /></el-icon>
-                        <span v-else class="uploading-text">上传中...</span>
-                      </div>
-                    </div>
-                    <p class="gallery-tip">最多上传9张图片，支持JPG、PNG格式</p>
-                  </div>
-                </div>
-              </div>
-              <div class="field-row">
-                <div class="field-item">
-                  <label class="field-label">人均消费</label>
-                  <el-input v-model="shopForm.averagePrice" placeholder="请输入人均消费金额" class="field-input" :disabled="!isEditing">
-                    <template #append>元</template>
-                  </el-input>
-                </div>
-                <div class="field-item">
-                  <label class="field-label">店铺状态 <span class="required">*</span></label>
-                  <el-select v-model="shopForm.status" placeholder="请选择店铺状态" class="field-input" :disabled="!isEditing">
-                    <el-option label="营业中" :value="1" />
-                    <el-option label="休息中" :value="2" />
-                    <el-option label="已关闭" :value="3" />
-                  </el-select>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 联系方式与地址 -->
-      <div class="info-card">
-        <h3 class="card-title">联系方式与地址</h3>
-        <div class="form-container">
-          <div class="field-row">
-            <div class="field-item">
-              <label class="field-label">联系电话 <span class="required">*</span></label>
-              <el-input v-model="shopForm.phone" placeholder="请输入联系电话" class="field-input" :disabled="!isEditing" />
-            </div>
-            <div class="field-item">
-              <label class="field-label">营业时间</label>
-              <el-input v-model="shopForm.businessHours" placeholder="例如：09:00-22:00" class="field-input" :disabled="!isEditing" />
-            </div>
-          </div>
-          <div class="field-item field-full">
-            <label class="field-label">店铺位置 <span class="required">*</span></label>
-            <div class="location-picker-container">
-              <div class="location-input-row">
-                <el-input v-model="shopForm.address" placeholder="输入详细地址" class="field-input location-input" :disabled="!isEditing" @blur="geocodeAddress" />
-                <div class="coordinate-section">
-                  <el-input v-model="shopForm.longitude" placeholder="经度" class="coord-input" :disabled="!isEditing" />
-                  <span class="coord-separator">,</span>
-                  <el-input v-model="shopForm.latitude" placeholder="纬度" class="coord-input" :disabled="!isEditing" />
-                  <el-button type="primary" size="small" @click="locateCurrentPosition" class="locate-btn" :disabled="!isEditing" :loading="locating">
-                    <el-icon v-if="!locating"><Aim /></el-icon>
-                  </el-button>
-                </div>
-                <el-button type="primary" @click="openLocationPicker" class="location-btn" :disabled="!isEditing">
-                  <el-icon><Location /></el-icon>选择位置
-                </el-button>
-              </div>
-              <div v-if="showMap" class="map-wrapper">
-                <div id="amap-container" class="amap-container"></div>
-                <div class="map-center-marker">📍</div>
-                <div class="map-controls">
-                  <el-button size="small" @click="relocateToCurrentPosition" class="relocate-btn"><el-icon><Aim /></el-icon>重新定位</el-button>
-                </div>
-                <div class="map-search">
-                  <el-input v-model="searchKeyword" placeholder="搜索地点" @input="onSearchInput" class="search-input" clearable>
-                    <template #prefix><el-icon><Search /></el-icon></template>
-                  </el-input>
-                </div>
-                <div v-if="poiList.length > 0" class="poi-list">
-                  <div v-for="(poi, index) in poiList" :key="index" class="poi-item" :class="{ active: selectedPoi?.name === poi.name }" @click="selectPoi(poi)">
-                    <div class="poi-name">{{ poi.name }}</div>
-                    <div class="poi-address">{{ poi.address }}</div>
-                  </div>
-                </div>
-                <div v-if="mapLoading" class="map-loading"><el-icon class="is-loading"><Loading /></el-icon>加载中...</div>
-              </div>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
       <!-- 运营数据 -->
       <div class="info-card">
         <div class="stats-header">
@@ -233,12 +82,146 @@
             </div>
           </div>
           <div class="stats-footer">
-            <p class="stats-note">注：运营数据由系统自动统计，基于UniApp用户评价实时计算</p>
             <p class="last-update" v-if="lastStatsUpdate">最后更新：{{ formatTime(lastStatsUpdate) }}</p>
           </div>
         </div>
       </div>
 
+      <!-- 基本信息 -->
+      <div class="info-card">
+        <h3 class="card-title">基本信息</h3>
+        <div class="form-container" v-loading="loading">
+          <div class="form-layout-horizontal">
+            <!-- 左侧：店铺封面上传区 -->
+            <div class="left-cover-section">
+              <div class="cover-label-top">
+                <span class="cover-title">店铺封面</span>
+                <span class="required">*</span>
+              </div>
+              <div class="cover-upload-box" @click="triggerLogoUpload">
+                <input ref="logoInput" type="file" accept="image/*" @change="handleLogoChange" style="display: none;" />
+                <img v-if="shopForm.headerImage" :src="shopForm.headerImage" class="cover-preview" :class="{ editable: isEditing }" />
+                <div v-else class="cover-placeholder-new" :class="{ editable: isEditing }">
+                  <el-icon :size="40" class="upload-icon"><Plus /></el-icon>
+                  <span class="upload-text">点击上传封面</span>
+                </div>
+                <div v-if="logoUploading" class="upload-loading-overlay">
+                  <el-icon class="is-loading"><Loading /></el-icon>
+                  <span class="loading-text">上传中...</span>
+                </div>
+                <div v-if="isEditing && shopForm.headerImage" class="cover-hover-overlay">
+                  <el-icon :size="24"><Edit /></el-icon>
+                  <span>更换封面</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 右侧：表单字段区（2列网格） -->
+            <div class="right-form-grid">
+              <div class="form-field">
+                <label class="field-label-new">店铺名称 <span class="required">*</span></label>
+                <el-input v-model="shopForm.name" placeholder="请输入店铺名称" class="field-input-new" :readonly="!isEditing" />
+              </div>
+
+              <div class="form-field">
+                <label class="field-label-new">经营类目 <span class="required">*</span></label>
+                <el-select v-model="shopForm.categoryId" placeholder="请选择经营类目" class="field-input-new" :disabled="!isEditing" :class="{ 'select-readonly': !isEditing }">
+                  <el-option 
+                    v-for="cat in categories" 
+                    :key="cat.id" 
+                    :label="cat.name" 
+                    :value="cat.id" 
+                  />
+                </el-select>
+              </div>
+
+              <div class="form-field">
+                <label class="field-label-new">店铺状态 <span class="required">*</span></label>
+                <el-select v-model="shopForm.status" placeholder="请选择店铺状态" class="field-input-new" :disabled="!isEditing" :class="{ 'select-readonly': !isEditing }">
+                  <el-option label="营业中" :value="1" />
+                  <el-option label="休息中" :value="2" />
+                  <el-option label="已关闭" :value="3" />
+                </el-select>
+              </div>
+
+              <div class="form-field">
+                <label class="field-label-new">人均消费 (元)</label>
+                <el-input v-model="shopForm.averagePrice" placeholder="请输入人均消费金额" class="field-input-new" :readonly="!isEditing">
+                  <template #append>元</template>
+                </el-input>
+              </div>
+
+              <div class="form-field">
+                <label class="field-label-new">联系电话 <span class="required">*</span></label>
+                <el-input v-model="shopForm.phone" placeholder="请输入联系电话" class="field-input-new" :readonly="!isEditing" />
+              </div>
+
+              <div class="form-field">
+                <label class="field-label-new">营业时间</label>
+                <el-input v-model="shopForm.businessHours" placeholder="例如：09:00-22:00" class="field-input-new" :readonly="!isEditing" />
+              </div>
+
+              <div class="form-field form-field-full">
+                <label class="field-label-new">店铺位置 <span class="required">*</span></label>
+                <div class="location-input-group">
+                  <el-input v-model="shopForm.address" placeholder="输入详细地址" class="field-input-new location-input-flex" :readonly="!isEditing" @blur="geocodeAddress" />
+                  <!-- 隐藏的经纬度输入框，保留功能 -->
+                  <input type="hidden" v-model="shopForm.longitude" />
+                  <input type="hidden" v-model="shopForm.latitude" />
+                  <el-button type="primary" size="default" @click="locateCurrentPosition" class="locate-btn-new" :disabled="!isEditing" :loading="locating">
+                    <el-icon v-if="!locating"><Aim /></el-icon>
+                    <span v-if="!locating">定位</span>
+                  </el-button>
+                  <el-button type="primary" @click="openLocationPicker" class="location-btn-new" :disabled="!isEditing">
+                    <el-icon><Location /></el-icon>地图选择
+                  </el-button>
+                </div>
+                <div v-if="showMap" class="map-wrapper-new">
+                  <div id="amap-container" class="amap-container"></div>
+                  <div class="map-center-marker">📍</div>
+                  <div class="map-controls">
+                    <el-button size="small" @click="relocateToCurrentPosition" class="relocate-btn"><el-icon><Aim /></el-icon>重新定位</el-button>
+                  </div>
+                  <div class="map-search">
+                    <el-input v-model="searchKeyword" placeholder="搜索地点" @input="onSearchInput" class="search-input" clearable>
+                      <template #prefix><el-icon><Search /></el-icon></template>
+                    </el-input>
+                  </div>
+                  <div v-if="poiList.length > 0" class="poi-list">
+                    <div v-for="(poi, index) in poiList" :key="index" class="poi-item" :class="{ active: selectedPoi?.name === poi.name }" @click="selectPoi(poi)">
+                      <div class="poi-name">{{ poi.name }}</div>
+                      <div class="poi-address">{{ poi.address }}</div>
+                    </div>
+                  </div>
+                  <div v-if="mapLoading" class="map-loading"><el-icon class="is-loading"><Loading /></el-icon>加载中...</div>
+                </div>
+              </div>
+
+              <div class="form-field form-field-full">
+                <label class="field-label-new">店铺简介</label>
+                <el-input v-model="shopForm.description" type="textarea" :rows="3" placeholder="请输入店铺简介" maxlength="500" show-word-limit class="field-input-new" :readonly="!isEditing" />
+              </div>
+
+              <div class="form-field form-field-full">
+                <label class="field-label-new">商家相册 (最多9张)</label>
+                <div class="gallery-grid-new">
+                  <div v-for="(img, index) in galleryImages" :key="index" class="gallery-item-new">
+                    <img :src="img" class="gallery-image-new" @click="previewImage(index)" />
+                    <div v-if="isEditing" class="gallery-delete-new" @click.stop="removeGalleryImage(index)">
+                      <el-icon><Close /></el-icon>
+                    </div>
+                  </div>
+                  <div v-if="isEditing && galleryImages.length < 9" class="gallery-add-new" @click="triggerGalleryUpload">
+                    <input ref="galleryInput" type="file" accept="image/*" multiple @change="handleGalleryChange" style="display: none;" />
+                    <el-icon :size="24" v-if="!galleryUploading"><Plus /></el-icon>
+                    <span v-else class="uploading-text">上传中...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
     </div>
 
@@ -251,7 +234,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Location, Aim, Search, Loading, Edit, Close, Refresh } from '@element-plus/icons-vue'
-import { getShopList, updateShop, getShopStats } from '@/api/shop'
+import { getShopList, updateShop, getShopStats, getCategories, type CategoryVO } from '@/api/shop'
 import { uploadSingleFile, uploadMultipleFiles } from '@/services/uploadService'
 import { 
   transformApiDataToForm, 
@@ -292,6 +275,32 @@ let refreshTimer: NodeJS.Timeout | null = null
 const shopForm = ref<ShopFormData>(createDefaultShopFormData())
 const originalForm = ref({})
 const ratingDisplay = computed(() => Number(shopForm.value.rating) || 0)
+
+// 类目列表
+const categories = ref<CategoryVO[]>([])
+
+// 加载类目列表
+const loadCategories = async () => {
+  try {
+    console.log('🔄 开始加载类目列表...')
+    categories.value = await getCategories()
+    console.log('✅ 类目列表加载成功:', categories.value)
+  } catch (error: any) {
+    console.error('❌ 加载类目失败:', error)
+    // 降级方案：使用默认类目
+    categories.value = [
+      { id: 1, name: '美食' },
+      { id: 2, name: 'KTV' },
+      { id: 3, name: '美发' },
+      { id: 4, name: '美甲' },
+      { id: 5, name: '足疗' },
+      { id: 6, name: '美容' },
+      { id: 7, name: '游乐' },
+      { id: 8, name: '酒吧' }
+    ]
+    console.log('⚠️ 使用降级方案，默认类目:', categories.value)
+  }
+}
 
 // 解析商家相册图片
 const galleryImages = computed(() => {
@@ -832,6 +841,9 @@ onMounted(async () => {
     // 清除可能的缓存，确保获取最新数据
     clearCache()
     
+    // 加载类目列表
+    await loadCategories()
+    
     // 强制刷新数据
     await loadShopInfo(true)
     
@@ -865,23 +877,24 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.shop-info-page { background: #FFFFFF; min-height: 100%; }
-.page-header { padding: 24px; }
-.header-content { display: flex; justify-content: space-between; align-items: flex-start; }
+.shop-info-page { background: #f0f2f5; min-height: 100vh; padding-bottom: 40px; }
+.page-header { padding: 24px 40px; background: #FFFFFF; }
+.header-content { display: flex; justify-content: space-between; align-items: flex-start; max-width: 1400px; margin: 0 auto; }
 .header-text { flex: 1; }
-.page-title { font-size: 32px; font-weight: 600; color: #171717; margin: 0 0 8px 0; }
-.page-desc { font-size: 15px; color: #737373; margin: 0; }
+.page-title { font-size: 24px; font-weight: 600; color: #333; margin: 0 0 8px 0; }
+.page-desc { font-size: 13px; color: #999; margin: 0; }
 .edit-btn { 
-  background: #FF7D00 !important; 
-  border-color: #FF7D00 !important; 
-  padding: 12px 24px; 
-  border-radius: 8px; 
+  background: #FF6B00 !important; 
+  border-color: #FF6B00 !important; 
+  padding: 8px 20px; 
+  border-radius: 4px; 
   font-weight: 500;
+  font-size: 14px;
   display: inline-flex !important;
   align-items: center;
   gap: 8px;
 }
-.edit-btn:hover { background: #E67000 !important; border-color: #E67000 !important; }
+.edit-btn:hover { background: #E65E00 !important; border-color: #E65E00 !important; }
 .header-actions {
   display: flex;
   align-items: center;
@@ -891,42 +904,25 @@ onUnmounted(() => {
   gap: 12px;
   align-items: center;
 }
-.content-section { padding: 24px; }
+.content-section { padding: 20px 40px; max-width: 1400px; margin: 0 auto; }
 .info-card { 
   background: #FFFFFF; 
-  border: 1px solid #E5E5E5; 
-  border-radius: 16px; 
-  padding: 32px; 
-  margin-bottom: 32px; 
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
-}
-
-.info-card:hover {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  transform: translateY(-2px);
+  border-radius: 8px; 
+  padding: 30px; 
+  margin-bottom: 20px; 
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .card-title { 
-  font-size: 24px; 
-  font-weight: 700; 
-  color: #171717; 
-  margin: 0 0 32px 0;
-  position: relative;
-  padding-left: 16px;
+  font-size: 16px; 
+  font-weight: 600; 
+  color: #333; 
+  margin: 0 0 30px 0;
+  padding-left: 12px;
+  border-left: 4px solid #FF6B00;
+  line-height: 1.2;
 }
 
-.card-title::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 24px;
-  background: linear-gradient(135deg, #FF7D00 0%, #FFB366 100%);
-  border-radius: 2px;
-}
 .update-info {
   display: flex;
   align-items: center;
@@ -1230,22 +1226,43 @@ onUnmounted(() => {
 .uploading-text { font-size: 12px; }
 .gallery-tip { font-size: 12px; color: #737373; margin-top: 8px; }
 
+/* 联系信息和位置信息盒子样式 */
+.section-divider {
+  margin: 32px 0 24px 0;
+  text-align: center;
+  position: relative;
+}
+
+.section-divider::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, #E5E7EB 20%, #E5E7EB 80%, transparent 100%);
+}
+
+.divider-text {
+  position: relative;
+  display: inline-block;
+  padding: 0 20px;
+  background: #FAFBFC;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6B7280;
+  letter-spacing: 0.5px;
+}
+
 /* 经纬度和定位按钮样式 */
-.coord-input { 
-  flex: 1; 
-  min-width: 80px; 
-  max-width: 120px;
-}
-.coord-separator { 
-  color: #737373; 
-  font-weight: 500; 
-  margin: 0 4px;
-}
 .locate-btn { 
-  padding: 8px 12px; 
+  padding: 8px 16px; 
   background: #FF7D00; 
   border-color: #FF7D00;
   margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 .locate-btn:hover { 
   background: #E67000; 
@@ -1267,13 +1284,6 @@ onUnmounted(() => {
 }
 .location-input { 
   flex: 2; 
-  min-width: 200px;
-}
-.coordinate-section {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
   min-width: 200px;
 }
 .location-btn { background: #FF7D00; border-color: #FF7D00; padding: 10px 20px; border-radius: 8px; font-weight: 500; }
@@ -1404,12 +1414,6 @@ onUnmounted(() => {
     gap: 16px;
   }
   
-  .coordinate-section {
-    flex-direction: column;
-    gap: 12px;
-    min-width: auto;
-  }
-  
   .location-input-row {
     flex-direction: column;
     align-items: stretch;
@@ -1471,6 +1475,404 @@ onUnmounted(() => {
   
   .stat-value {
     font-size: 24px;
+  }
+}
+
+/* 新的水平布局样式 */
+.form-layout-horizontal { 
+  display: flex; 
+  gap: 50px; 
+}
+
+/* 左侧封面区域 */
+.left-cover-section { 
+  width: 280px; 
+  flex-shrink: 0; 
+}
+
+.cover-label-top {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cover-upload-box {
+  width: 100%;
+  height: 280px;
+  background-color: #fafafa;
+  border: 1px dashed #d9d9d9;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: border-color 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+.cover-upload-box:hover {
+  border-color: #FF6B00;
+}
+
+.cover-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover-placeholder-new {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #999;
+}
+
+.cover-upload-box:hover .upload-icon {
+  color: #FF6B00;
+}
+
+.upload-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.cover-hover-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: white;
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.cover-upload-box:hover .cover-hover-overlay {
+  opacity: 1;
+}
+
+.cover-hint-text {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #999;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* 右侧表单网格 */
+.right-form-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 30px;
+  row-gap: 24px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-field-full {
+  grid-column: span 2;
+}
+
+.field-label-new {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.field-input-new :deep(.el-input__wrapper) { 
+  border-radius: 4px; 
+  padding: 10px 12px; 
+  border: 1px solid #d9d9d9; 
+  transition: all 0.3s ease;
+  box-shadow: none;
+}
+
+.field-input-new :deep(.el-input__wrapper:hover) { 
+  border-color: #FF6B00; 
+}
+
+.field-input-new :deep(.el-input__wrapper.is-focus) { 
+  border-color: #FF6B00; 
+  box-shadow: 0 0 0 2px rgba(255, 107, 0, 0.1);
+}
+
+.field-input-new :deep(.el-textarea__inner) { 
+  border-radius: 4px; 
+  padding: 10px 12px; 
+  border: 1px solid #d9d9d9; 
+  transition: all 0.3s ease;
+  box-shadow: none;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.field-input-new :deep(.el-textarea__inner:hover) { 
+  border-color: #FF6B00; 
+}
+
+.field-input-new :deep(.el-textarea__inner:focus) { 
+  border-color: #FF6B00; 
+  box-shadow: 0 0 0 2px rgba(255, 107, 0, 0.1);
+}
+
+/* Readonly状态样式 - 保持白色背景和清晰文字 */
+.field-input-new :deep(.el-input__wrapper) {
+  background-color: #FFFFFF !important;
+}
+
+.field-input-new :deep(.el-input__inner[readonly]) {
+  background-color: #FFFFFF !important;
+  color: #333 !important;
+  -webkit-text-fill-color: #333 !important;
+  cursor: text !important;
+  border-color: #d9d9d9 !important;
+}
+
+.field-input-new :deep(.el-textarea__inner[readonly]) {
+  background-color: #FFFFFF !important;
+  color: #333 !important;
+  -webkit-text-fill-color: #333 !important;
+  cursor: text !important;
+  border-color: #d9d9d9 !important;
+}
+
+/* Select组件的禁用状态优化 - 强制覆盖灰色样式 */
+.field-input-new.select-readonly :deep(.el-input__wrapper),
+.field-input-new.select-readonly :deep(.el-input__wrapper.is-disabled) {
+  background-color: #FFFFFF !important;
+  cursor: default !important;
+  box-shadow: none !important;
+}
+
+.field-input-new.select-readonly :deep(.el-input__inner),
+.field-input-new.select-readonly :deep(.el-input__wrapper.is-disabled .el-input__inner) {
+  color: #333 !important;
+  -webkit-text-fill-color: #333 !important;
+  cursor: default !important;
+}
+
+.field-input-new.select-readonly :deep(.el-select__caret),
+.field-input-new.select-readonly :deep(.el-select__wrapper.is-disabled .el-select__caret) {
+  cursor: default !important;
+  color: #333 !important;
+}
+
+/* 强制覆盖 Element Plus 的 disabled 样式 */
+.field-input-new.select-readonly :deep(.el-select.is-disabled .el-input__wrapper) {
+  background-color: #FFFFFF !important;
+  box-shadow: none !important;
+}
+
+.field-input-new.select-readonly :deep(.el-select.is-disabled .el-input__inner) {
+  color: #333 !important;
+  -webkit-text-fill-color: #333 !important;
+}
+
+/* 禁用状态的按钮样式 */
+.field-input-new :deep(.el-input__wrapper.is-disabled),
+.field-input-new :deep(.el-textarea.is-disabled .el-textarea__inner),
+.field-input-new :deep(.el-select.is-disabled .el-input__wrapper) { 
+  background-color: #FFFFFF !important; 
+  color: #333 !important;
+  border-color: #d9d9d9 !important;
+  cursor: default !important;
+  box-shadow: none !important;
+}
+
+.field-input-new :deep(.el-input__wrapper.is-disabled .el-input__inner),
+.field-input-new :deep(.el-select.is-disabled .el-input__inner) { 
+  color: #333 !important; 
+  -webkit-text-fill-color: #333 !important;
+  cursor: default !important;
+}
+
+/* 额外的 Select 禁用状态覆盖 */
+.field-input-new :deep(.el-select.is-disabled) {
+  cursor: default !important;
+}
+
+.field-input-new :deep(.el-select.is-disabled .el-select__wrapper) {
+  background-color: #FFFFFF !important;
+  cursor: default !important;
+}
+
+.field-input-new :deep(.el-select.is-disabled .el-select__placeholder) {
+  color: #333 !important;
+}
+
+/* 全局覆盖 - 确保所有 select 在非编辑模式下都是白色 */
+.field-input-new :deep(.el-select .el-input.is-disabled .el-input__wrapper) {
+  background-color: #FFFFFF !important;
+  box-shadow: none !important;
+}
+
+.field-input-new :deep(.el-select .el-input.is-disabled .el-input__inner) {
+  color: #333 !important;
+  -webkit-text-fill-color: #333 !important;
+}
+
+/* 移除 disabled 状态的灰色背景 */
+.field-input-new :deep(.el-input.is-disabled .el-input__wrapper),
+.field-input-new :deep(.el-select .el-input.is-disabled .el-input__wrapper) {
+  background-color: #FFFFFF !important;
+}
+
+/* 位置输入组 */
+.location-input-group {
+  display: flex;
+  gap: 10px;
+}
+
+.location-input-flex {
+  flex: 1;
+}
+
+.locate-btn-new,
+.location-btn-new {
+  padding: 10px 15px;
+  background: #FF6B00;
+  border-color: #FF6B00;
+  border-radius: 4px;
+}
+
+.locate-btn-new:hover,
+.location-btn-new:hover {
+  background: #E65E00;
+  border-color: #E65E00;
+}
+
+.locate-btn-new.is-disabled,
+.location-btn-new.is-disabled {
+  background: #f5f5f5 !important;
+  border-color: #d9d9d9 !important;
+  color: #999 !important;
+}
+
+/* 地图样式 */
+.map-wrapper-new { 
+  position: relative; 
+  margin-top: 16px; 
+  border-radius: 8px; 
+  overflow: hidden; 
+  border: 1px solid #d9d9d9; 
+}
+
+/* 商家相册网格 */
+.gallery-grid-new {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.gallery-item-new {
+  width: 100px;
+  height: 100px;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid #eee;
+}
+
+.gallery-image-new {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.gallery-image-new:hover {
+  transform: scale(1.05);
+}
+
+.gallery-delete-new {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+}
+
+.gallery-delete-new:hover {
+  background: #ff4d4f;
+}
+
+.gallery-add-new {
+  width: 100px;
+  height: 100px;
+  background-color: #fafafa;
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  color: #999;
+  transition: all 0.2s;
+}
+
+.gallery-add-new:hover {
+  border-color: #FF6B00;
+  color: #FF6B00;
+}
+
+.gallery-hint-new {
+  font-size: 12px;
+  color: #999;
+  margin-top: 8px;
+}
+
+/* 响应式 */
+@media (max-width: 900px) {
+  .form-layout-horizontal {
+    flex-direction: column;
+  }
+  
+  .left-cover-section {
+    width: 100%;
+  }
+  
+  .right-form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-field-full {
+    grid-column: span 1;
   }
 }
 </style>

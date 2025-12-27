@@ -11,9 +11,17 @@ public final class RedisKeyConstants {
     
     /** 短信验证码 */
     public static final String SMS_CODE = "sms:code:";
+    public static final String SMS_CODE_PREFIX = "sms:code:";
     
     /** 短信发送频率限制 */
     public static final String SMS_LIMIT = "sms:limit:";
+    public static final String SMS_LIMIT_PREFIX = "sms:limit:";
+    
+    /** 商家短信验证码 */
+    public static final String MERCHANT_SMS_CODE = "merchant:sms:code:";
+    
+    /** 商家短信发送频率限制 */
+    public static final String MERCHANT_SMS_LIMIT = "merchant:sms:limit:";
     
     /** 修改手机号次数限制(24小时内) */
     public static final String CHANGE_PHONE_LIMIT = "user:change:phone:limit:";

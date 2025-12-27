@@ -124,4 +124,14 @@ public class MessageController {
         Object result = messageService.getUnreadCount(userId);
         return Result.success(result);
     }
+    
+    /**
+     * 分享笔记给用户
+     */
+    @PostMapping("/share-note")
+    public Result<?> shareNote(@RequestBody @Valid com.businessreviews.model.dto.app.ShareNoteDTO request) {
+        Long userId = UserContext.requireUserId();
+        messageService.shareNoteToUsers(userId, request.getNoteId(), request.getUserIds());
+        return Result.success("分享成功");
+    }
 }

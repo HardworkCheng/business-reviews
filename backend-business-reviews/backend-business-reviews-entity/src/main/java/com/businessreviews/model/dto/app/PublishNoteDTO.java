@@ -37,5 +37,8 @@ public class PublishNoteDTO {
     
     private List<Long> topics;
     
+    // 支持自定义话题名称（优先使用topicNames，如果为空则使用topics）
+    private List<String> topicNames;
+    
     private Integer status; // 1=公开，2=仅自己可见
 }

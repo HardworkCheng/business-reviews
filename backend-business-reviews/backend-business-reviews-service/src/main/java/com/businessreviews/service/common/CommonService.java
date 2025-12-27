@@ -17,6 +17,14 @@ public interface CommonService {
     List<CategoryVO> getAllCategories();
     
     /**
+     * 获取启用的类目列表（商家运营中心使用）
+     * 只返回status=1的类目，按sort_order升序排序
+     * 
+     * @return 启用的类目列表
+     */
+    List<CategoryVO> getCategories();
+    
+    /**
      * 获取分类详情
      */
     CategoryVO getCategoryDetail(Long categoryId);

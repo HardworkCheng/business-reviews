@@ -28,9 +28,24 @@ public class CommonController {
     private final NoteService noteService;
     private final ShopService shopService;
 
+    /**
+     * 获取所有分类（移动端使用）
+     */
     @GetMapping("/categories")
     public Result<List<CategoryVO>> getAllCategories() {
         List<CategoryVO> list = commonService.getAllCategories();
+        return Result.success(list);
+    }
+
+    /**
+     * 获取启用的类目列表（商家运营中心使用）
+     * 只返回status=1的类目，按sort_order升序排序
+     * 
+     * @return 类目列表
+     */
+    @GetMapping("/api/common/categories")
+    public Result<List<CategoryVO>> getCategories() {
+        List<CategoryVO> list = commonService.getCategories();
         return Result.success(list);
     }
 

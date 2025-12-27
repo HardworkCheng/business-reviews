@@ -44,6 +44,19 @@ public class CommonServiceImpl implements CommonService {
     }
 
     @Override
+    public List<CategoryVO> getCategories() {
+        // 查询启用的类目（status=1），按sort_order升序排序
+        LambdaQueryWrapper<CategoryDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CategoryDO::getStatus, 1)
+               .orderByAsc(CategoryDO::getSortOrder);
+        List<CategoryDO> categories = categoryMapper.selectList(wrapper);
+        
+        return categories.stream()
+                .map(this::convertToCategoryVO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public CategoryVO getCategoryDetail(Long categoryId) {
         CategoryDO category = categoryMapper.selectById(categoryId);
         if (category == null) {
@@ -109,10 +122,11 @@ public class CommonServiceImpl implements CommonService {
 
     private CategoryVO convertToCategoryVO(CategoryDO category) {
         CategoryVO response = new CategoryVO();
-        response.setId(category.getId().toString());
+        response.setId(category.getId());
         response.setName(category.getName());
         response.setIcon(category.getIcon());
-        response.setSort(category.getSortOrder());
+        response.setColor(category.getColor());
+        response.setSortOrder(category.getSortOrder());
         return response;
     }
 

@@ -4,7 +4,7 @@
 		<view class="navbar">
 			<view class="navbar-content">
 				<view class="nav-left" @click="goBack">
-					<text class="icon">←</text>
+					<image src="/static/icons/back.png" class="back-icon" mode="aspectFit"></image>
 				</view>
 				<view class="nav-title">设置</view>
 				<view class="nav-right"></view>
@@ -14,91 +14,103 @@
 		<!-- 头像展示区 -->
 		<view class="avatar-section">
 			<view class="avatar-container" @click="editAvatar">
-				<image class="avatar-large" :src="avatarUrl"></image>
-				<view class="avatar-edit-tip">
-					<text>📷 点击修改</text>
+				<image class="avatar-large" :src="avatarUrl" mode="aspectFill"></image>
+				<view class="avatar-edit-badge">
+					<image src="/static/icons/camera.png" class="camera-icon" mode="aspectFit"></image>
 				</view>
 			</view>
 			<text class="username-display">{{ userInfo.username || '未设置' }}</text>
+			<text class="edit-tip">点击头像可修改</text>
 		</view>
 
 		<!-- 个人信息设置 -->
 		<view class="section">
-			<view class="section-title">个人信息</view>
-			<view class="setting-item clay-shadow" @click="editUsername">
-				<text class="item-label">用户名</text>
-				<view class="item-right">
-					<text class="item-value">{{ userInfo.username || '未设置' }}</text>
-					<text class="arrow">›</text>
-				</view>
+			<view class="section-header">
+				<text class="section-title">个人信息</text>
 			</view>
-			<view class="setting-item clay-shadow" @click="editGender">
-				<text class="item-label">性别</text>
-				<view class="item-right">
-					<text class="item-value">{{ getGenderText(userInfo.gender) }}</text>
-					<text class="arrow">›</text>
-				</view>
-			</view>
-			<view class="setting-item clay-shadow">
-				<text class="item-label">生日</text>
-				<picker 
-					mode="date" 
-					:value="userInfo.birthday || '1990-01-01'" 
-					:start="'1900-01-01'" 
-					:end="getCurrentDate()"
-					@change="onBirthdayChange"
-				>
+			<view class="settings-group">
+				<view class="setting-item" @click="editUsername">
+					<text class="item-label">用户名</text>
 					<view class="item-right">
-						<text class="item-value">{{ userInfo.birthday || '未设置' }}</text>
-						<text class="arrow">›</text>
+						<text class="item-value">{{ userInfo.username || '未设置' }}</text>
+						<image src="/static/icons/arrow-right.png" class="arrow-icon" mode="aspectFit"></image>
 					</view>
-				</picker>
-			</view>
-			<view class="setting-item clay-shadow" @click="editBio">
-				<text class="item-label">个人简介</text>
-				<view class="item-right">
-					<text class="item-value">{{ userInfo.bio || '未设置' }}</text>
-					<text class="arrow">›</text>
+				</view>
+				<view class="setting-item" @click="editGender">
+					<text class="item-label">性别</text>
+					<view class="item-right">
+						<text class="item-value">{{ getGenderText(userInfo.gender) }}</text>
+						<image src="/static/icons/arrow-right.png" class="arrow-icon" mode="aspectFit"></image>
+					</view>
+				</view>
+				<view class="setting-item">
+					<text class="item-label">生日</text>
+					<picker 
+						mode="date" 
+						:value="userInfo.birthday || '1990-01-01'" 
+						:start="'1900-01-01'" 
+						:end="getCurrentDate()"
+						@change="onBirthdayChange"
+					>
+						<view class="item-right">
+							<text class="item-value">{{ userInfo.birthday || '未设置' }}</text>
+							<image src="/static/icons/arrow-right.png" class="arrow-icon" mode="aspectFit"></image>
+						</view>
+					</picker>
+				</view>
+				<view class="setting-item" @click="editBio">
+					<text class="item-label">个人简介</text>
+					<view class="item-right">
+						<text class="item-value">{{ userInfo.bio || '未设置' }}</text>
+						<image src="/static/icons/arrow-right.png" class="arrow-icon" mode="aspectFit"></image>
+					</view>
 				</view>
 			</view>
 		</view>
 
 		<!-- 账号与安全 -->
 		<view class="section">
-			<view class="section-title">账号与安全</view>
-			<view class="setting-item clay-shadow" @click="editPhone">
-				<text class="item-label">手机号</text>
-				<view class="item-right">
-					<text class="item-value">{{ formatPhone(userInfo.phone) }}</text>
-					<text class="arrow">›</text>
-				</view>
+			<view class="section-header">
+				<text class="section-title">账号与安全</text>
 			</view>
-			<view class="setting-item clay-shadow" @click="editPassword">
-				<text class="item-label">修改密码</text>
-				<view class="item-right">
-					<text class="item-value">••••••</text>
-					<text class="arrow">›</text>
+			<view class="settings-group">
+				<view class="setting-item" @click="editPhone">
+					<text class="item-label">手机号</text>
+					<view class="item-right">
+						<text class="item-value">{{ formatPhone(userInfo.phone) }}</text>
+						<image src="/static/icons/arrow-right.png" class="arrow-icon" mode="aspectFit"></image>
+					</view>
+				</view>
+				<view class="setting-item" @click="editPassword">
+					<text class="item-label">修改密码</text>
+					<view class="item-right">
+						<text class="item-value">••••••</text>
+						<image src="/static/icons/arrow-right.png" class="arrow-icon" mode="aspectFit"></image>
+					</view>
 				</view>
 			</view>
 		</view>
 
-		<!-- 退出登录按钮 -->
-		<view class="logout-section">
-			<view class="save-btn clay-shadow" @click="handleSave">
-				<text class="save-text">保存修改</text>
+		<!-- 按钮区 -->
+		<view class="footer-actions">
+			<view class="btn-save" @click="handleSave" :class="{ disabled: !hasChanges }">
+				<text class="btn-text">完成编辑</text>
 			</view>
-			<view class="logout-btn clay-shadow" @click="handleLogout">
-				<text class="logout-text">退出登录</text>
+			<view class="btn-logout" @click="handleLogout">
+				<text class="logout-text">切换账号 / 退出登录</text>
 			</view>
 		</view>
 	</view>
 </template>
+
 
 <script setup>
 import { ref, nextTick, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { logout } from '../../api/auth'
 import { getUserInfo, updateUserInfo } from '../../api/user'
+import { getImageUrl } from '../../utils/placeholder'
+
 
 const userInfo = ref({})
 const originalUserInfo = ref({})
@@ -202,11 +214,9 @@ const getGenderText = (gender) => {
 
 // 获取头像完整URL
 const getAvatarUrl = (avatar) => {
-	if (!avatar) {
-		return 'https://via.placeholder.com/200/FFD166/FFFFFF?text=User'
-	}
-	return avatar
+	return getImageUrl(avatar)
 }
+
 
 // 编辑头像
 const editAvatar = () => {
@@ -465,35 +475,42 @@ const handleLogout = () => {
 
 <style lang="scss" scoped>
 .container {
-	background: #F7F9FC;
+	background-color: #F8FAFC;
 	min-height: 100vh;
+	padding-bottom: 60rpx;
 }
 
 .navbar {
 	background: white;
+	position: sticky;
+	top: 0;
+	z-index: 100;
 	padding-top: calc(var(--status-bar-height) + 10rpx);
-	box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+	box-shadow: 0 1rpx 0 rgba(0,0,0,0.05);
 }
 
 .navbar-content {
+	height: 88rpx;
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
-	padding: 20rpx 30rpx;
+	padding: 0 30rpx;
 }
 
 .nav-left {
 	width: 80rpx;
 }
 
-.icon {
-	font-size: 48rpx;
-	color: #333;
+.back-icon {
+	width: 40rpx;
+	height: 40rpx;
+	opacity: 0.7;
 }
 
 .nav-title {
-	font-size: 36rpx;
-	font-weight: 500;
+	flex: 1;
+	text-align: center;
+	font-size: 34rpx;
+	font-weight: 600;
 	color: #333;
 }
 
@@ -502,119 +519,176 @@ const handleLogout = () => {
 }
 
 .avatar-section {
-	background: linear-gradient(to bottom, rgba(255, 158, 100, 0.15), transparent);
-	padding: 50rpx 0;
+	padding: 60rpx 0;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+	background: white;
+	border-bottom: 20rpx solid #F8FAFC;
 }
 
 .avatar-container {
 	position: relative;
-	margin-bottom: 20rpx;
+	margin-bottom: 24rpx;
 }
 
 .avatar-large {
-	width: 180rpx;
-	height: 180rpx;
+	width: 160rpx;
+	height: 160rpx;
 	border-radius: 50%;
-	border: 6rpx solid white;
-	box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.15);
+	border: 6rpx solid #fff;
+	box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.08);
 }
 
-.avatar-edit-tip {
+.avatar-edit-badge {
 	position: absolute;
-	bottom: 0;
 	right: 0;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	color: white;
-	font-size: 20rpx;
-	padding: 8rpx 16rpx;
-	border-radius: 20rpx;
-	box-shadow: 0 4rpx 10rpx rgba(102, 126, 234, 0.4);
+	bottom: 0;
+	width: 48rpx;
+	height: 48rpx;
+	background: #FF9E64;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 4rpx solid #fff;
+	box-shadow: 0 2rpx 8rpx rgba(255, 158, 100, 0.4);
+}
+
+.camera-icon {
+	width: 24rpx;
+	height: 24rpx;
 }
 
 .username-display {
 	font-size: 36rpx;
-	font-weight: 500;
+	font-weight: 700;
 	color: #333;
+	margin-bottom: 12rpx;
+}
+
+.edit-tip {
+	font-size: 24rpx;
+	color: #999;
 }
 
 .section {
-	margin-top: 40rpx;
-	padding: 0 30rpx;
+	background: white;
+	margin-bottom: 20rpx;
+}
+
+.section-header {
+	padding: 30rpx 30rpx 10rpx;
 }
 
 .section-title {
-	font-size: 28rpx;
+	font-size: 26rpx;
+	font-weight: 600;
 	color: #999;
-	margin-bottom: 20rpx;
-	padding-left: 10rpx;
+	letter-spacing: 2rpx;
+	text-transform: uppercase;
+}
+
+.settings-group {
+	padding: 0 30rpx;
 }
 
 .setting-item {
-	background: white;
-	border-radius: 30rpx;
-	padding: 35rpx 30rpx;
-	margin-bottom: 20rpx;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
+	padding: 36rpx 0;
+	border-bottom: 1rpx solid #F1F5F9;
+	
+	&:last-child {
+		border-bottom: none;
+	}
+	
+	&:active {
+		opacity: 0.6;
+	}
 }
 
 .item-label {
-	font-size: 32rpx;
+	font-size: 30rpx;
 	color: #333;
+	font-weight: 500;
 }
 
 .item-right {
 	display: flex;
 	align-items: center;
+	gap: 12rpx;
 }
 
 .item-value {
 	font-size: 28rpx;
-	color: #999;
-	margin-right: 15rpx;
-	max-width: 300rpx;
+	color: #666;
+	max-width: 340rpx;
+	text-align: right;
+	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	white-space: nowrap;
 }
 
-.arrow {
-	font-size: 40rpx;
-	color: #ccc;
+.arrow-icon {
+	width: 24rpx;
+	height: 24rpx;
+	opacity: 0.3;
 }
 
-.logout-section {
-	padding: 60rpx 30rpx;
+.footer-actions {
+	padding: 60rpx 40rpx;
+	display: flex;
+	flex-direction: column;
+	gap: 30rpx;
 }
 
-.save-btn {
-	background: linear-gradient(135deg, #FF9E64 0%, #FF7A45 100%);
-	border-radius: 40rpx;
-	padding: 35rpx;
-	text-align: center;
-	margin-bottom: 20rpx;
+.btn-save {
+	height: 100rpx;
+	background: linear-gradient(90deg, #FF9E64, #FF7A45);
+	border-radius: 50rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 8rpx 20rpx rgba(255, 158, 100, 0.3);
+	transition: all 0.3s;
+	
+	&.disabled {
+		opacity: 0.5;
+		filter: grayscale(0.5);
+	}
+	
+	&:active:not(.disabled) {
+		transform: scale(0.98);
+		box-shadow: 0 4rpx 10rpx rgba(255, 158, 100, 0.2);
+	}
 }
 
-.save-text {
-	font-size: 32rpx;
+.btn-text {
 	color: white;
-	font-weight: 500;
+	font-size: 32rpx;
+	font-weight: 600;
 }
 
-.logout-btn {
-	background: white;
-	border-radius: 40rpx;
-	padding: 35rpx;
-	text-align: center;
+.btn-logout {
+	height: 100rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50rpx;
+	background: #fff;
+	border: 2rpx solid #F1F5F9;
+	
+	&:active {
+		background: #F8FAFC;
+	}
 }
 
 .logout-text {
-	font-size: 32rpx;
+	font-size: 28rpx;
 	color: #EF476F;
 	font-weight: 500;
 }
+
 </style>
