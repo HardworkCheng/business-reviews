@@ -47,14 +47,10 @@
 
 		<view v-if="currentTab === 1" class="notice-list">
 			<view class="notice-item" v-for="(notice, index) in noticeList" :key="index">
-				<view class="notice-icon clay-icon" :class="notice.type">
-					<text>{{ notice.icon }}</text>
-				</view>
+				<!-- 只显示用户头像，不显示徽章 -->
+				<image :src="notice.avatar || 'https://via.placeholder.com/100'" class="notice-avatar" mode="aspectFill"></image>
 				<view class="notice-content">
-					<text class="notice-text">
-						<text class="highlight">{{ notice.user }}</text>
-						{{ notice.action }}
-					</text>
+					<text class="notice-text">{{ notice.text }}</text>
 					<text class="notice-time">{{ notice.time }}</text>
 				</view>
 				<image v-if="notice.image" :src="notice.image" class="notice-image"></image>
@@ -143,29 +139,14 @@ const fetchNoticeList = async () => {
 		
 		if (result && result.list) {
 			noticeList.value = result.list.map(notice => {
-				let icon = '📢'
-				let type = 'system'
-				
-				// 根据通知类型设置图标和样式
-				if (notice.type === 1) { // 点赞
-					icon = '❤️'
-					type = 'like'
-				} else if (notice.type === 2) { // 评论
-					icon = '💬'
-					type = 'comment'
-				} else if (notice.type === 3) { // 关注
-					icon = '👤'
-					type = 'follow'
-				}
-				
+				// 直接使用后端返回的content，不需要拼接用户名
+				// 因为后端的content已经包含了完整的通知文本（例如："7798 关注了你"）
 				return {
 					id: notice.id,
-					icon: icon,
-					type: type,
-					user: notice.title || '',
-					action: notice.content || '',
+					avatar: notice.fromAvatar || 'https://via.placeholder.com/100',
+					text: notice.content || '',  // 直接使用content字段
 					time: formatTime(notice.createdAt),
-					image: notice.image || null
+					image: notice.noteImage || notice.image || null
 				}
 			})
 		}
@@ -384,23 +365,12 @@ const formatTime = (dateStr) => {
 	border-bottom: 1rpx solid #f5f5f5;
 }
 
-.notice-icon {
-	width: 80rpx;
-	height: 80rpx;
-	font-size: 36rpx;
+.notice-avatar {
+	width: 100rpx;
+	height: 100rpx;
+	border-radius: 50%;
 	margin-right: 25rpx;
-}
-
-.notice-icon.like {
-	background: rgba(239, 71, 111, 0.2);
-}
-
-.notice-icon.comment {
-	background: rgba(6, 214, 160, 0.2);
-}
-
-.notice-icon.follow {
-	background: rgba(255, 158, 100, 0.2);
+	flex-shrink: 0;
 }
 
 .notice-content {
@@ -412,10 +382,6 @@ const formatTime = (dateStr) => {
 .notice-text {
 	font-size: 28rpx;
 	margin-bottom: 8rpx;
-}
-
-.highlight {
-	font-weight: 500;
 }
 
 .notice-time {
