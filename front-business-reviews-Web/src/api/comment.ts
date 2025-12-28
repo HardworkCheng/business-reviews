@@ -42,7 +42,7 @@ export function topComment(id: number, isTop: boolean) {
 
 // 导出评论数据
 export function exportComments(params: any) {
-  return request.get('/merchant/comments/export', { 
+  return request.get('/merchant/comments/export', {
     params,
     responseType: 'blob'
   })
@@ -51,4 +51,21 @@ export function exportComments(params: any) {
 // 获取商家门店列表
 export function getMerchantShops() {
   return request.get('/merchant/shops')
+}
+
+// AI 智能分析周报
+export interface WeeklyReportData {
+  sentimentScore: number      // 情感评分 (0-10)
+  summary: string             // 总体摘要
+  pros: string[]              // 优点列表
+  cons: string[]              // 缺点列表
+  advice: string              // 改进建议
+  reviewCount: number         // 分析的评论数量
+  generatedAt: string         // 报告生成时间
+  period: string              // 统计期间
+}
+
+// 获取AI智能分析周报
+export function getAIWeeklyReport(shopId: number) {
+  return request.get<WeeklyReportData>(`/merchant/analytics/weekly-report/${shopId}`)
 }

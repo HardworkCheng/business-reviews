@@ -101,3 +101,22 @@ logging:
     org.springframework.web: info
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{50} - %msg%n"
+
+# LangChain4j AI 配置
+langchain4j:
+  open-ai:
+    chat-model:
+      # DeepSeek API 配置（使用 OpenAI 兼容接口）
+      # 请将 YOUR_DEEPSEEK_API_KEY 替换为您的实际 API Key
+      api-key: ${DEEPSEEK_API_KEY:sk-f7925339577c4bc087fcd2ded04b3d73}
+      base-url: https://api.deepseek.com
+      model-name: deepseek-chat
+      # 或使用 OpenAI 原生 API:
+      # api-key: ${OPENAI_API_KEY:sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}
+      # base-url: https://api.openai.com/v1
+      # model-name: gpt-3.5-turbo
+      temperature: 0.3
+      max-tokens: 2000
+      timeout: 60s
+      log-requests: true
+      log-responses: true

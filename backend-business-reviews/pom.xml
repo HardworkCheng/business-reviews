@@ -37,6 +37,8 @@
         <aliyun-oss.version>3.17.2</aliyun-oss.version>
         <aliyun-sms.version>2.0.24</aliyun-sms.version>
         <druid.version>1.2.20</druid.version>
+        <langchain4j.version>0.36.2</langchain4j.version>
+        <fastjson2.version>2.0.43</fastjson2.version>
     </properties>
     
     <!-- 依赖版本管理 -->
@@ -119,6 +121,27 @@
                 <groupId>com.aliyun</groupId>
                 <artifactId>dysmsapi20170525</artifactId>
                 <version>${aliyun-sms.version}</version>
+            </dependency>
+            
+            <!-- LangChain4j Spring Boot Starter -->
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-spring-boot-starter</artifactId>
+                <version>${langchain4j.version}</version>
+            </dependency>
+            
+            <!-- LangChain4j OpenAI Spring Boot Starter (支持 DeepSeek) -->
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-open-ai-spring-boot-starter</artifactId>
+                <version>${langchain4j.version}</version>
+            </dependency>
+            
+            <!-- FastJSON2 -->
+            <dependency>
+                <groupId>com.alibaba.fastjson2</groupId>
+                <artifactId>fastjson2</artifactId>
+                <version>${fastjson2.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

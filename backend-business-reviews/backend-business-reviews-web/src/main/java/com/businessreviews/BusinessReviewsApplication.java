@@ -1,8 +1,10 @@
 package com.businessreviews;
 
+import dev.langchain4j.service.spring.AiServicesAutoConfig;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Import;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
@@ -19,8 +21,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @MapperScan("com.businessreviews.mapper")
 @EnableAsync
 @EnableScheduling
+@Import(AiServicesAutoConfig.class)
 public class BusinessReviewsApplication {
-    
+
     public static void main(String[] args) {
         SpringApplication.run(BusinessReviewsApplication.class, args);
     }

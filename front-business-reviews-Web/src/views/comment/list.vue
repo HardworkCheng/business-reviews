@@ -114,6 +114,16 @@
             <el-icon><Download /></el-icon>
             导出数据
           </el-button>
+          <el-button 
+            type="success" 
+            size="default" 
+            @click="handleAIAnalysis"
+            :disabled="!selectedShopId"
+            :loading="aiAnalysisLoading"
+          >
+            <el-icon><MagicStick /></el-icon>
+            AI智能分析
+          </el-button>
         </div>
       </div>
 
@@ -257,6 +267,90 @@
         <el-button type="primary" @click="submitReply" :loading="replyLoading">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- AI分析报告弹窗 -->
+    <el-dialog 
+      v-model="aiReportDialogVisible" 
+      title="" 
+      width="680px"
+      :show-close="true"
+      class="ai-report-dialog"
+      :close-on-click-modal="false"
+    >
+      <div class="ai-report-container">
+        <!-- 报告头部 -->
+        <div class="report-header">
+          <div class="header-icon">
+            <el-icon :size="32" color="#fff"><MagicStick /></el-icon>
+          </div>
+          <div class="header-content">
+            <h2 class="report-title">AI 智能分析周报</h2>
+            <p class="report-subtitle">{{ aiReportData?.period || '本周' }} · 共分析 {{ aiReportData?.reviewCount || 0 }} 条评论</p>
+          </div>
+        </div>
+
+        <!-- 情感评分 -->
+        <div class="score-section">
+          <div class="score-circle" :style="{ '--score-color': getScoreColor(aiReportData?.sentimentScore || 0) }">
+            <div class="score-value">{{ aiReportData?.sentimentScore || 0 }}</div>
+            <div class="score-label">情感评分</div>
+          </div>
+          <div class="score-description">
+            <span class="score-text" :style="{ color: getScoreColor(aiReportData?.sentimentScore || 0) }">
+              {{ getScoreDescription(aiReportData?.sentimentScore || 0) }}
+            </span>
+            <p class="summary-text">{{ aiReportData?.summary || '暂无摘要' }}</p>
+          </div>
+        </div>
+
+        <!-- 优点分析 -->
+        <div class="analysis-section pros-section">
+          <div class="section-header">
+            <el-icon :size="20" color="#10B981"><CircleCheckFilled /></el-icon>
+            <h3>优势亮点</h3>
+          </div>
+          <ul class="analysis-list">
+            <li v-for="(pro, index) in (aiReportData?.pros || [])" :key="index" class="pros-item">
+              <span class="item-bullet pros-bullet"></span>
+              {{ pro }}
+            </li>
+            <li v-if="!aiReportData?.pros?.length" class="empty-item">暂无优势分析</li>
+          </ul>
+        </div>
+
+        <!-- 缺点分析 -->
+        <div class="analysis-section cons-section">
+          <div class="section-header">
+            <el-icon :size="20" color="#EF4444"><WarningFilled /></el-icon>
+            <h3>待改进项</h3>
+          </div>
+          <ul class="analysis-list">
+            <li v-for="(con, index) in (aiReportData?.cons || [])" :key="index" class="cons-item">
+              <span class="item-bullet cons-bullet"></span>
+              {{ con }}
+            </li>
+            <li v-if="!aiReportData?.cons?.length" class="empty-item">暂无待改进项</li>
+          </ul>
+        </div>
+
+        <!-- 建议 -->
+        <div class="advice-section">
+          <div class="section-header">
+            <el-icon :size="20" color="#3B82F6"><Promotion /></el-icon>
+            <h3>智能建议</h3>
+          </div>
+          <div class="advice-content">
+            <p>{{ aiReportData?.advice || '暂无建议' }}</p>
+          </div>
+        </div>
+
+        <!-- 报告底部 -->
+        <div class="report-footer">
+          <span class="generated-time">生成时间：{{ aiReportData?.generatedAt || '-' }}</span>
+          <span class="powered-by">Powered by DeepSeek AI</span>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -274,7 +368,11 @@ import {
   Search,
   Download,
   ChatDotRound,
-  Delete
+  Delete,
+  MagicStick,
+  CircleCheckFilled,
+  WarningFilled,
+  Promotion
 } from '@element-plus/icons-vue'
 import { 
   getCommentDashboard,
@@ -283,7 +381,9 @@ import {
   deleteComment as deleteCommentApi,
   topComment as topCommentApi,
   exportComments as exportCommentsApi,
-  getMerchantShops
+  getMerchantShops,
+  getAIWeeklyReport,
+  type WeeklyReportData
 } from '@/api/comment'
 
 // 门店列表
@@ -348,6 +448,55 @@ const replyRules = {
     { required: true, message: '请输入回复内容', trigger: 'blur' },
     { min: 5, max: 500, message: '回复内容长度在 5 到 500 个字符', trigger: 'blur' }
   ]
+}
+
+// AI分析相关
+const aiAnalysisLoading = ref(false)
+const aiReportDialogVisible = ref(false)
+const aiReportData = ref<WeeklyReportData | null>(null)
+
+// AI分析处理
+const handleAIAnalysis = async () => {
+  if (!selectedShopId.value) {
+    ElMessage.warning('请先选择一个门店进行分析')
+    return
+  }
+  
+  try {
+    aiAnalysisLoading.value = true
+    ElMessage.info('正在生成AI分析报告，请稍候...')
+    
+    const res = await getAIWeeklyReport(selectedShopId.value)
+    aiReportData.value = res
+    aiReportDialogVisible.value = true
+    
+    ElMessage.success('AI分析报告生成成功')
+  } catch (error: any) {
+    console.error('AI分析失败:', error)
+    ElMessage.error(error.message || 'AI分析失败，请稍后重试')
+  } finally {
+    aiAnalysisLoading.value = false
+  }
+}
+
+// 根据评分获取颜色
+const getScoreColor = (score: number): string => {
+  if (score >= 8) return '#10B981'  // 优秀 - 绿色
+  if (score >= 6) return '#3B82F6'  // 良好 - 蓝色
+  if (score >= 4) return '#F59E0B'  // 一般 - 橙色
+  return '#EF4444'                   // 较差 - 红色
+}
+
+// 根据评分获取描述
+const getScoreDescription = (score: number): string => {
+  if (score >= 9) return '🌟 顾客口碑极佳'
+  if (score >= 8) return '😊 整体评价优秀'
+  if (score >= 7) return '👍 评价较为积极'
+  if (score >= 6) return '📊 评价中等偏上'
+  if (score >= 5) return '📈 评价表现一般'
+  if (score >= 4) return '⚠️ 存在改进空间'
+  if (score >= 3) return '😕 需要重点关注'
+  return '🚨 亟需改善提升'
 }
 
 // 搜索防抖定时器
@@ -642,5 +791,254 @@ onMounted(() => {
   margin: 0 auto;
   background-color: #f9f9f9;
   min-height: 100vh;
+}
+
+// AI分析报告弹窗样式
+.ai-report-container {
+  padding: 0;
+  
+  .report-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    margin-bottom: 24px;
+    
+    .header-icon {
+      width: 56px;
+      height: 56px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+    }
+    
+    .header-content {
+      .report-title {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 700;
+        color: #fff;
+        letter-spacing: 1px;
+      }
+      
+      .report-subtitle {
+        margin: 6px 0 0;
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.85);
+      }
+    }
+  }
+  
+  .score-section {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 24px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    
+    .score-circle {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: conic-gradient(
+        var(--score-color) calc(var(--score-color) * 10%),
+        #e2e8f0 0
+      );
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      
+      &::before {
+        content: '';
+        position: absolute;
+        width: 80px;
+        height: 80px;
+        background: #fff;
+        border-radius: 50%;
+      }
+      
+      .score-value {
+        position: relative;
+        z-index: 1;
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--score-color);
+        line-height: 1;
+      }
+      
+      .score-label {
+        position: relative;
+        z-index: 1;
+        font-size: 11px;
+        color: #64748b;
+        margin-top: 4px;
+      }
+    }
+    
+    .score-description {
+      flex: 1;
+      
+      .score-text {
+        font-size: 18px;
+        font-weight: 600;
+      }
+      
+      .summary-text {
+        margin: 8px 0 0;
+        font-size: 14px;
+        color: #475569;
+        line-height: 1.6;
+      }
+    }
+  }
+  
+  .analysis-section {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    border: 1px solid #e2e8f0;
+    
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      
+      h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: #1e293b;
+      }
+    }
+    
+    .analysis-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      
+      li {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 10px 0;
+        font-size: 14px;
+        color: #334155;
+        line-height: 1.5;
+        border-bottom: 1px dashed #e2e8f0;
+        
+        &:last-child {
+          border-bottom: none;
+        }
+      }
+      
+      .item-bullet {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-top: 6px;
+        flex-shrink: 0;
+      }
+      
+      .pros-bullet {
+        background: linear-gradient(135deg, #10B981 0%, #34D399 100%);
+      }
+      
+      .cons-bullet {
+        background: linear-gradient(135deg, #EF4444 0%, #F87171 100%);
+      }
+      
+      .empty-item {
+        color: #94a3b8;
+        font-style: italic;
+      }
+    }
+  }
+  
+  .pros-section {
+    background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+    border-color: #bbf7d0;
+  }
+  
+  .cons-section {
+    background: linear-gradient(135deg, #fef2f2 0%, #fff1f2 100%);
+    border-color: #fecaca;
+  }
+  
+  .advice-section {
+    background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    border: 1px solid #bfdbfe;
+    
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      
+      h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: #1e293b;
+      }
+    }
+    
+    .advice-content {
+      p {
+        margin: 0;
+        font-size: 14px;
+        color: #334155;
+        line-height: 1.7;
+        padding: 16px;
+        background: #fff;
+        border-radius: 8px;
+        border-left: 4px solid #3B82F6;
+      }
+    }
+  }
+  
+  .report-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 16px;
+    border-top: 1px solid #e2e8f0;
+    
+    .generated-time {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    
+    .powered-by {
+      font-size: 12px;
+      color: #94a3b8;
+      font-style: italic;
+    }
+  }
+}
+
+// 覆盖弹窗默认样式
+:deep(.ai-report-dialog) {
+  .el-dialog__header {
+    display: none;
+  }
+  
+  .el-dialog__body {
+    padding: 24px;
+  }
 }
 </style>

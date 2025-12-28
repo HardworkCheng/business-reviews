@@ -52,6 +52,24 @@
             <artifactId>aliyun-sdk-oss</artifactId>
         </dependency>
         
+        <!-- LangChain4j Spring Boot Starter -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-spring-boot-starter</artifactId>
+        </dependency>
+        
+        <!-- LangChain4j OpenAI Spring Boot Starter (支持 DeepSeek) -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-open-ai-spring-boot-starter</artifactId>
+        </dependency>
+        
+        <!-- FastJSON2 用于解析 AI 返回的 JSON -->
+        <dependency>
+            <groupId>com.alibaba.fastjson2</groupId>
+            <artifactId>fastjson2</artifactId>
+        </dependency>
+        
         <!-- Reflections for package scanning in tests -->
         <dependency>
             <groupId>org.reflections</groupId>
