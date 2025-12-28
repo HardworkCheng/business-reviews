@@ -69,7 +69,7 @@ public class MerchantCommentController {
         Map<String, Object> stats = merchantCommentService.getCommentStats(merchantId);
         return Result.success(stats);
     }
-    
+
     /**
      * 获取数据概览
      */
@@ -79,7 +79,7 @@ public class MerchantCommentController {
         Map<String, Object> dashboard = merchantCommentService.getDashboard(merchantId, shopId);
         return Result.success(dashboard);
     }
-    
+
     /**
      * 置顶评论
      */
@@ -89,5 +89,18 @@ public class MerchantCommentController {
         Boolean isTop = request.get("isTop");
         merchantCommentService.topComment(merchantId, id, isTop);
         return Result.success("操作成功");
+    }
+
+    /**
+     * 导出评论
+     */
+    @GetMapping("/export")
+    public void exportComments(
+            jakarta.servlet.http.HttpServletResponse response,
+            @RequestParam(required = false) Long shopId,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String keyword) {
+        Long merchantId = MerchantContext.requireMerchantId();
+        merchantCommentService.exportComments(merchantId, response, shopId, status, keyword);
     }
 }

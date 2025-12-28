@@ -1,18 +1,16 @@
 <template>
   <div class="shop-create">
-    <el-card>
-      <template #header>
-        <div class="card-header">
-          <span>{{ isEdit ? '编辑门店' : '新增门店' }}</span>
-        </div>
-      </template>
+    <div class="info-card">
+      <div class="card-header">
+        <span>{{ isEdit ? '编辑门店' : '新增门店' }}</span>
+      </div>
       
       <el-form 
         :model="form" 
         :rules="rules" 
         ref="formRef" 
         label-width="120px"
-        style="max-width: 600px;"
+        style="max-width: 800px;"
       >
         <el-form-item label="门店名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入门店名称" />
@@ -34,8 +32,8 @@
         </el-form-item>
         
         <el-form-item label="人均消费">
-          <el-input-number v-model="form.averagePrice" :min="0" :max="9999" placeholder="人均消费" />
-          <span style="margin-left: 10px;">元</span>
+          <el-input-number v-model="form.averagePrice" :min="0" :max="9999" placeholder="人均消费" controls-position="right" />
+          <span style="margin-left: 10px; color: #5c5e62;">元 / 人</span>
         </el-form-item>
         
         <el-form-item label="联系电话" prop="phone">
@@ -50,8 +48,8 @@
           <el-input 
             v-model="form.description" 
             type="textarea" 
-            :rows="3" 
-            placeholder="请输入门店描述" 
+            :rows="4" 
+            placeholder="请输入门店描述，吸引更多客户..." 
           />
         </el-form-item>
         
@@ -63,11 +61,12 @@
             :before-upload="beforeAvatarUpload"
           >
             <img v-if="form.avatar" :src="form.avatar" class="avatar" />
-            <el-icon v-else class="avatar-uploader-icon">
-              <Plus v-if="!avatarUploading" />
+            <div v-else class="avatar-uploader-icon">
+              <el-icon v-if="!avatarUploading"><Plus /></el-icon>
               <span v-else>上传中...</span>
-            </el-icon>
+            </div>
           </el-upload>
+          <div class="form-tip" style="margin-top: 8px;">建议尺寸：200x200px，展示在搜索列表</div>
         </el-form-item>
         
         <el-form-item label="门店封面">
@@ -78,28 +77,29 @@
             :before-upload="beforeCoverUpload"
           >
             <img v-if="form.cover" :src="form.cover" class="cover" />
-            <el-icon v-else class="cover-uploader-icon">
-              <Plus v-if="!coverUploading" />
+            <div v-else class="cover-uploader-icon">
+              <el-icon v-if="!coverUploading"><Plus /></el-icon>
               <span v-else>上传中...</span>
-            </el-icon>
+            </div>
           </el-upload>
+          <div class="form-tip" style="margin-top: 8px;">建议尺寸：750x450px，展示在店铺详情页顶部</div>
         </el-form-item>
         
-        <el-form-item label="状态" prop="status">
+        <el-form-item label="营业状态" prop="status">
           <el-radio-group v-model="form.status">
-            <el-radio :label="1">正常</el-radio>
-            <el-radio :label="0">停用</el-radio>
+            <el-radio :label="1">正在营业</el-radio>
+            <el-radio :label="0">暂停营业</el-radio>
           </el-radio-group>
         </el-form-item>
         
-        <el-form-item>
-          <el-button type="primary" @click="submitForm" :loading="loading">
-            {{ isEdit ? '更新' : '创建' }}
+        <el-form-item style="margin-top: 40px;">
+          <el-button type="primary" class="primary-btn" @click="submitForm" :loading="loading">
+            {{ isEdit ? '保存更新' : '立即创建' }}
           </el-button>
-          <el-button @click="$router.back()">取消</el-button>
+          <el-button class="cancel-btn" @click="$router.back()">返回</el-button>
         </el-form-item>
       </el-form>
-    </el-card>
+    </div>
   </div>
 </template>
 
@@ -302,62 +302,118 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.shop-create { 
+  max-width: 1400px; 
+  margin: 0 auto; 
+  padding: 40px; 
+  background-color: #f9f9f9;
+  min-height: 100vh;
+}
+
+.info-card { 
+  background: white; 
+  border-radius: 8px; 
+  padding: 40px; 
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02); 
+  border: 1px solid #e5e5e5;
+}
+
 .card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  font-size: 24px;
+  font-weight: 600;
+  color: #171a20;
+  margin-bottom: 32px;
+  padding-left: 12px;
+  border-left: 3px solid #3e6ae1;
+  line-height: 1.2;
 }
 
-.avatar-uploader {
-  border: 1px dashed #d9d9d9;
-  border-radius: 6px;
+/* 表单输入框样式 */
+:deep(.el-input__wrapper),
+:deep(.el-textarea__inner),
+:deep(.el-input-number__wrapper) { 
+  border-radius: 4px; 
+  box-shadow: none !important;
+  border: 1px solid #dcdfe6;
+  background-color: #f4f4f4;
+  transition: all 0.2s;
+}
+
+:deep(.el-input__wrapper:hover),
+:deep(.el-textarea__inner:hover) {
+  background-color: #e8e8e8;
+}
+
+:deep(.el-input__wrapper.is-focus),
+:deep(.el-textarea__inner:focus) {
+  background-color: #fff;
+  border-color: #8e8e8e;
+}
+
+/* 上传器共同样式 */
+.avatar-uploader, .cover-uploader {
+  border: 1px dashed #cccccc;
+  border-radius: 4px;
   cursor: pointer;
   position: relative;
   overflow: hidden;
-  width: 120px;
-  height: 120px;
+  background-color: #fafafa;
+  transition: all 0.3s;
 }
 
-.avatar-uploader:hover {
-  border-color: #409eff;
+.avatar-uploader:hover, .cover-uploader:hover {
+  border-color: #3e6ae1;
+  background-color: #f0f4ff;
 }
 
-.avatar-uploader .avatar {
-  width: 120px;
-  height: 120px;
-  display: block;
-  object-fit: cover;
-}
+.avatar-uploader { width: 120px; height: 120px; }
+.cover-uploader { width: 300px; height: 180px; }
 
-.cover-uploader {
-  border: 1px dashed #d9d9d9;
-  border-radius: 6px;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  width: 300px;
-  height: 200px;
-}
+.avatar { width: 120px; height: 120px; object-fit: cover; }
+.cover { width: 300px; height: 180px; object-fit: cover; }
 
-.cover-uploader:hover {
-  border-color: #409eff;
-}
-
-.cover-uploader .cover {
-  width: 300px;
-  height: 200px;
-  display: block;
-  object-fit: cover;
-}
-
-.avatar-uploader-icon,
-.cover-uploader-icon {
-  font-size: 28px;
-  color: #8c939d;
+.avatar-uploader-icon, .cover-uploader-icon {
+  font-size: 24px;
+  color: #8e8e8e;
   width: 100%;
   height: 100%;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
+  gap: 8px;
+}
+
+.avatar-uploader-icon span, .cover-uploader-icon span {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* 按钮样式 */
+.primary-btn {
+  background-color: #3e6ae1 !important;
+  border-color: #3e6ae1 !important;
+  padding: 12px 32px;
+  border-radius: 4px;
+}
+
+.cancel-btn {
+  padding: 12px 32px;
+  border-radius: 4px;
+}
+
+:deep(.el-form-item__label) {
+  font-weight: 500;
+  color: #393c41;
+}
+
+:deep(.el-radio__input.is-checked .el-radio__inner) {
+  background-color: #3e6ae1;
+  border-color: #3e6ae1;
+}
+
+:deep(.el-radio__input.is-checked + .el-radio__label) {
+  color: #3e6ae1;
 }
 </style>
+```

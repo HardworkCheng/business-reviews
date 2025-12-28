@@ -74,6 +74,17 @@ public class MerchantAuthController {
     }
 
     /**
+     * 更新当前用户信息
+     */
+    @PutMapping("/profile")
+    public com.businessreviews.common.Result<?> updateProfile(
+            @RequestBody com.businessreviews.model.dto.merchant.MerchantUpdateDTO request) {
+        Long userId = MerchantContext.requireUserId();
+        merchantAuthService.updateProfile(userId, request);
+        return com.businessreviews.common.Result.success("更新成功");
+    }
+
+    /**
      * 退出登录
      */
     @PostMapping("/logout")

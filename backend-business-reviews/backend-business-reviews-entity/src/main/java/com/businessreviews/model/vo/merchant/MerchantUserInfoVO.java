@@ -14,31 +14,40 @@ import java.util.List;
 public class MerchantUserInfoVO implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
-    
+
     /** 用户ID */
     private String userId;
-    
+
     /** 商家ID */
     private String merchantId;
-    
+
     /** 商家名称 */
     private String merchantName;
-    
+
     /** 商家Logo */
     private String merchantLogo;
-    
+
     /** 用户姓名 */
     private String name;
-    
+
     /** 手机号 */
     private String phone;
-    
+
+    /** 联系邮箱 */
+    private String contactEmail;
+
     /** 头像 */
     private String avatar;
-    
+
     /** 角色名称 */
     private String roleName;
-    
+
     /** 权限列表 */
     private List<String> permissions;
+
+    /** 营业执照号 */
+    private String licenseNo;
+
+    /** 营业执照图片 */
+    private String licenseImage;
 }

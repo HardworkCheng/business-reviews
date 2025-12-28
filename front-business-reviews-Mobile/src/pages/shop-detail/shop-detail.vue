@@ -2,16 +2,17 @@
 	<view class="container">
 		<view class="shop-header">
 			<image :src="shopData.headerImage || 'https://via.placeholder.com/800x600/FF9E64/FFFFFF?text=Shop'" class="header-image" mode="aspectFill" @error="handleImageError"></image>
+			<view class="header-overlay"></view>
 			<view class="header-actions">
-				<view class="action-btn clay-icon" @click="goBack">
-					<text>←</text>
+				<view class="action-btn" @click="goBack">
+					<image src="/static/icons/back.png" class="icon-img" mode="aspectFit"></image>
 				</view>
 				<view class="action-btns-right">
-					<view class="action-btn clay-icon" @click="shareShop">
-						<text>📤</text>
+					<view class="action-btn" @click="shareShop">
+						<image src="/static/icons/share.png" class="icon-img" mode="aspectFit"></image>
 					</view>
-					<view class="action-btn clay-icon" :class="{ favorited: isFavorited }" @click="toggleFavorite">
-						<text>❤️</text>
+					<view class="action-btn" :class="{ favorited: isFavorited }" @click="toggleFavorite">
+						<image :src="isFavorited ? '/static/icons/like-active.png' : '/static/icons/like.png'" class="icon-img" mode="aspectFit"></image>
 					</view>
 				</view>
 			</view>
@@ -20,8 +21,8 @@
 		<view class="shop-info">
 			<text class="shop-name">{{ shopData.name || '商家名称' }}</text>
 			<view class="rating-section">
-				<text class="rating-score text-primary">{{ shopData.rating || 0 }}</text>
-				<text class="rating-stars">⭐⭐⭐⭐⭐</text>
+				<text class="rating-score">{{ shopData.rating || 0 }}</text>
+				<text class="rating-stars">{{ getStarDisplay(shopData.rating) }}</text>
 				<text class="review-count">{{ shopData.reviewCount || 0 }}条评价</text>
 			</view>
 
@@ -41,7 +42,9 @@
 			</view>
 
 			<view class="info-item">
-				<text class="icon">📍</text>
+				<view class="icon-box">
+					<image src="/static/icons/location.png" class="info-icon" mode="aspectFit"></image>
+				</view>
 				<view class="info-content">
 					<text class="label">地址</text>
 					<text class="value">{{ shopData.address || '暂无地址' }}</text>
@@ -49,7 +52,9 @@
 			</view>
 
 			<view class="info-item">
-				<text class="icon">🕐</text>
+				<view class="icon-box">
+					<text style="font-size: 32rpx; line-height: 1;">🕐</text>
+				</view>
 				<view class="info-content">
 					<text class="label">营业时间</text>
 					<text class="value">{{ shopData.businessHours || '暂无营业时间' }}</text>
@@ -82,64 +87,70 @@
 			<text class="section-title">用户评价 ({{ shopData.reviewCount || 0 }})</text>
 			
 			<!-- 评价输入框 -->
-			<view class="review-input-section clay-shadow">
-				<view class="rating-input">
-					<text class="rating-label">评分：</text>
-					<view class="stars-input">
+			<view class="review-input-section">
+				<view class="main-rating-box">
+					<text class="rating-title">整体评价</text>
+					<view class="stars-row big-stars">
 						<text 
 							v-for="star in 5" 
 							:key="star" 
 							class="star-btn"
 							:class="{ active: star <= reviewForm.rating }"
 							@click="setRating(star)"
-						>⭐</text>
+						>★</text>
 					</view>
 				</view>
-				<view class="score-inputs">
-					<view class="score-item">
+				
+				<view class="sub-scores-list">
+					<view class="sub-score-row">
 						<text class="score-label">口味</text>
-						<view class="score-btns">
+						<view class="stars-selection">
 							<text 
 								v-for="s in 5" 
 								:key="s" 
-								class="mini-star"
+								class="mini-star-btn"
 								:class="{ active: s <= reviewForm.tasteScore }"
-								@click="reviewForm.tasteScore = s"
-							>⭐</text>
+								@click="setSubScore('tasteScore', s)"
+							>★</text>
 						</view>
 					</view>
-					<view class="score-item">
+					<view class="sub-score-row">
 						<text class="score-label">环境</text>
-						<view class="score-btns">
+						<view class="stars-selection">
 							<text 
 								v-for="s in 5" 
 								:key="s" 
-								class="mini-star"
+								class="mini-star-btn"
 								:class="{ active: s <= reviewForm.environmentScore }"
-								@click="reviewForm.environmentScore = s"
-							>⭐</text>
+								@click="setSubScore('environmentScore', s)"
+							>★</text>
 						</view>
 					</view>
-					<view class="score-item">
+					<view class="sub-score-row">
 						<text class="score-label">服务</text>
-						<view class="score-btns">
+						<view class="stars-selection">
 							<text 
 								v-for="s in 5" 
 								:key="s" 
-								class="mini-star"
+								class="mini-star-btn"
 								:class="{ active: s <= reviewForm.serviceScore }"
-								@click="reviewForm.serviceScore = s"
-							>⭐</text>
+								@click="setSubScore('serviceScore', s)"
+							>★</text>
 						</view>
 					</view>
 				</view>
-				<textarea 
-					class="review-textarea" 
-					v-model="reviewForm.content" 
-					placeholder="分享您的用餐体验..."
-					maxlength="500"
-				></textarea>
-				<button class="submit-review-btn bg-primary" @click="submitReview">发表评价</button>
+				
+				<view class="textarea-wrapper">
+					<textarea 
+						class="review-textarea" 
+						v-model="reviewForm.content" 
+						placeholder="口味好不好，环境怎么样？写点什么吧..."
+						maxlength="500"
+						:disable-default-padding="true"
+					></textarea>
+				</view>
+				
+				<button class="submit-review-btn" @click="submitReview">发表评价</button>
 			</view>
 			
 			<!-- 评价列表 -->
@@ -317,6 +328,17 @@ const setRating = (rating) => {
 	reviewForm.value.rating = rating
 }
 
+// 设置子评分
+const setSubScore = (type, score) => {
+	reviewForm.value[type] = score
+}
+
+// 获取星星显示
+const getStarDisplay = (rating) => {
+	const r = Math.round(rating || 0)
+	return '★'.repeat(r) + '☆'.repeat(5 - r)
+}
+
 // 提交评价
 const submitReview = async () => {
 	if (!shopId.value) {
@@ -369,15 +391,15 @@ const submitReview = async () => {
 
 <style lang="scss" scoped>
 .container {
-	background: #F7F9FC;
+	background: #F5F7FA;
 	min-height: 100vh;
-	padding-bottom: 100rpx;
+	padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
 }
 
 .shop-header {
 	position: relative;
 	width: 100%;
-	height: 500rpx;
+	height: 560rpx;
 }
 
 .header-image {
@@ -385,184 +407,294 @@ const submitReview = async () => {
 	height: 100%;
 }
 
+.header-overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 160rpx;
+	background: linear-gradient(to bottom, rgba(0,0,0,0.3), transparent);
+	pointer-events: none;
+}
+
 .header-actions {
 	position: absolute;
-	top: 30rpx;
+	top: calc(var(--status-bar-height) + 20rpx);
 	left: 0;
 	right: 0;
 	display: flex;
 	justify-content: space-between;
-	padding: 0 30rpx;
+	padding: 0 32rpx;
+	z-index: 100;
 }
 
 .action-btns-right {
 	display: flex;
-	gap: 20rpx;
+	gap: 24rpx;
 }
 
 .action-btn {
-	width: 70rpx;
-	height: 70rpx;
-	background: rgba(255, 255, 255, 0.8);
-	backdrop-filter: blur(10rpx);
-	font-size: 32rpx;
+	width: 72rpx;
+	height: 72rpx;
+	background: rgba(255, 255, 255, 0.95);
+	backdrop-filter: blur(8px);
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.1);
+	transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.action-btn.favorited {
-	background: #EF476F;
-	color: white;
+.action-btn:active {
+	transform: scale(0.92);
+	background: rgba(255, 255, 255, 1);
 }
 
+.icon-img {
+	width: 40rpx;
+	height: 40rpx;
+}
+
+/* Shop Info Card */
 .shop-info {
+	position: relative;
+	margin-top: -60rpx;
 	background: white;
-	padding: 30rpx;
+	border-radius: 40rpx 40rpx 0 0;
+	padding: 40rpx 32rpx;
+	z-index: 10;
+	box-shadow: 0 -4rpx 20rpx rgba(0,0,0,0.02);
 }
 
 .shop-name {
 	display: block;
-	font-size: 40rpx;
-	font-weight: bold;
-	margin-bottom: 20rpx;
+	font-size: 44rpx;
+	font-weight: 700;
+	color: #1A1A1A;
+	margin-bottom: 24rpx;
+	line-height: 1.3;
 }
 
 .rating-section {
 	display: flex;
-	align-items: center;
-	margin-bottom: 25rpx;
+	align-items: baseline;
+	margin-bottom: 40rpx;
 }
 
 .rating-score {
-	font-size: 48rpx;
-	font-weight: bold;
-	margin-right: 15rpx;
+	font-size: 56rpx;
+	font-weight: 800;
+	color: #FF8F1F; /* Vivid Orange */
+	margin-right: 12rpx;
+	line-height: 1;
 }
 
 .rating-stars {
-	margin-right: 15rpx;
+	margin-right: 16rpx;
 	font-size: 24rpx;
+	color: #FF8F1F;
 }
 
 .review-count {
 	font-size: 26rpx;
-	color: #999;
+	color: #909399;
 }
 
 .rating-details {
-	display: grid;
-	grid-template-columns: repeat(3, 1fr);
+	display: flex;
+	justify-content: space-between;
 	gap: 20rpx;
-	margin-bottom: 30rpx;
+	margin-bottom: 40rpx;
 }
 
 .detail-item {
-	background: #f5f5f5;
-	padding: 20rpx;
-	border-radius: 15rpx;
+	flex: 1;
+	background: #FFFBF5; /* Start with faint orange tint */
+	padding: 24rpx 10rpx;
+	border-radius: 20rpx;
 	text-align: center;
+	transition: transform 0.2s;
+}
+
+.detail-item:active {
+	transform: scale(0.98);
 }
 
 .detail-item .label {
 	display: block;
-	font-size: 26rpx;
+	font-size: 24rpx;
+	color: #666;
 	margin-bottom: 8rpx;
 }
 
 .detail-item .value {
 	display: block;
-	font-size: 32rpx;
-	font-weight: bold;
+	font-size: 34rpx;
+	font-weight: 700;
+	color: #333;
 }
 
+.text-primary {
+	color: #333; /* Override original text-primary for card value, keep simple */
+}
+
+/* Info Items */
 .info-item {
 	display: flex;
-	margin-bottom: 25rpx;
+	align-items: center;
+	padding: 24rpx 0;
+	border-bottom: 1rpx solid #F5F7FA;
+}
+
+.info-item:last-child {
+	border-bottom: none;
+}
+
+.icon-box {
+	width: 60rpx;
+	height: 60rpx;
+	background: #F0F4FF;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-right: 24rpx;
 }
 
 .info-item .icon {
-	font-size: 36rpx;
-	margin-right: 20rpx;
-	margin-top: 5rpx;
+	font-size: 36rpx; /* Fallback for emoji */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 60rpx;
+	margin-right: 24rpx;
+}
+
+.info-icon {
+	width: 32rpx;
+	height: 32rpx;
 }
 
 .info-content {
 	flex: 1;
-	display: flex;
-	flex-direction: column;
 }
 
 .info-content .label {
-	font-size: 28rpx;
-	font-weight: 500;
-	margin-bottom: 8rpx;
+	display: block;
+	font-size: 24rpx;
+	color: #909399;
+	margin-bottom: 4rpx;
 }
 
 .info-content .value {
-	font-size: 26rpx;
-	color: #666;
+	font-size: 28rpx;
+	color: #303133;
+	line-height: 1.5;
 }
 
+/* Tags */
 .tags {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 15rpx;
-	margin-bottom: 30rpx;
+	gap: 16rpx;
+	margin: 30rpx 0 40rpx;
 }
 
 .tag {
-	padding: 10rpx 25rpx;
-	background: #f5f5f5;
-	border-radius: 30rpx;
+	padding: 10rpx 24rpx;
+	background: #F2F3F5;
+	border-radius: 8rpx;
 	font-size: 24rpx;
+	color: #606266;
 }
 
+/* Action Buttons */
 .action-buttons {
 	display: flex;
-	gap: 20rpx;
+	gap: 24rpx;
+	margin-top: 20rpx;
 }
 
 .btn {
 	flex: 1;
-	padding: 25rpx;
+	height: 88rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	border-radius: 20rpx;
 	font-size: 32rpx;
-	font-weight: 500;
+	font-weight: 600;
 	border: none;
+	position: relative;
+	overflow: hidden;
 }
 
 .btn-primary {
+	background: linear-gradient(135deg, #FF8F1F 0%, #FF7043 100%);
 	color: white;
-	box-shadow: 10rpx 10rpx 0rpx rgba(0, 0, 0, 0.1);
+	box-shadow: 0 8rpx 20rpx rgba(255, 143, 31, 0.25);
+}
+
+.btn-primary:active {
+	opacity: 0.9;
+	transform: translateY(2rpx);
 }
 
 .btn-secondary {
-	background: white;
-	border: 3rpx solid #000;
-	box-shadow: 10rpx 10rpx 0rpx rgba(0, 0, 0, 0.1);
+	background: #fff;
+	color: #333;
+	border: 1rpx solid #E4E7ED;
+	box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.05);
 }
 
-/* 商家相册样式 */
+.btn-secondary:active {
+	background: #f9f9f9;
+}
+
+/* Gallery */
 .gallery-section {
 	background: white;
-	margin-top: 20rpx;
-	padding: 30rpx;
+	margin: 24rpx 32rpx;
+	padding: 32rpx;
+	border-radius: 24rpx;
+}
+
+.section-title {
+	font-size: 34rpx;
+	font-weight: 700;
+	color: #1A1A1A;
+	margin-bottom: 24rpx;
+	display: flex;
+	align-items: center;
+}
+
+.section-title::before {
+	content: '';
+	display: block;
+	width: 8rpx;
+	height: 32rpx;
+	background: #FF8F1F;
+	border-radius: 4rpx;
+	margin-right: 12rpx;
 }
 
 .gallery-scroll {
 	width: 100%;
-	white-space: nowrap;
 }
 
 .gallery-grid {
 	display: flex;
-	gap: 20rpx;
+	gap: 16rpx;
 }
 
 .gallery-item {
 	flex-shrink: 0;
-	width: 200rpx;
-	height: 200rpx;
+	width: 220rpx;
+	height: 220rpx;
 	border-radius: 16rpx;
 	overflow: hidden;
+	box-shadow: 0 4rpx 10rpx rgba(0,0,0,0.05);
 }
 
 .gallery-image {
@@ -570,154 +702,170 @@ const submitReview = async () => {
 	height: 100%;
 }
 
+/* Reviews */
 .reviews-section {
 	background: white;
-	margin-top: 20rpx;
-	padding: 30rpx;
-}
-
-.section-title {
-	display: block;
-	font-size: 36rpx;
-	font-weight: bold;
-	margin-bottom: 30rpx;
+	margin: 0 32rpx 32rpx;
+	padding: 32rpx;
+	border-radius: 24rpx;
 }
 
 .review-item {
-	display: flex;
-	margin-bottom: 30rpx;
-	padding-bottom: 30rpx;
-	border-bottom: 1rpx solid #f0f0f0;
+	padding: 32rpx 0;
+	border-bottom: 1rpx solid #F5F7FA;
 }
 
 .review-avatar {
 	width: 80rpx;
 	height: 80rpx;
 	border-radius: 50%;
-	margin-right: 20rpx;
-}
-
-.review-content {
-	flex: 1;
-}
-
-.review-header {
-	display: flex;
-	justify-content: space-between;
-	margin-bottom: 10rpx;
+	margin-right: 24rpx;
+	border: 2rpx solid #fff;
+	box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.1);
 }
 
 .review-author {
-	font-size: 28rpx;
-	font-weight: 500;
+	font-size: 30rpx;
+	font-weight: 600;
+	color: #333;
 }
 
 .review-rating {
 	font-size: 24rpx;
-	color: #FFD166;
-}
-
-.review-date {
-	display: block;
-	font-size: 24rpx;
-	color: #999;
-	margin-bottom: 15rpx;
+	color: #FF8F1F;
 }
 
 .review-text {
-	display: block;
 	font-size: 28rpx;
+	color: #444;
 	line-height: 1.6;
+	margin-top: 12rpx;
 }
 
+.review-date {
+	color: #C0C4CC;
+	font-size: 24rpx;
+}
+
+/* Review Input */
 .review-input-section {
-	background: white;
-	border-radius: 20rpx;
-	padding: 30rpx;
-	margin-bottom: 30rpx;
+	background: #fff;
+	border-radius: 24rpx;
+	padding: 40rpx 32rpx;
+	margin-bottom: 40rpx;
+	border: 1rpx solid #F0F2F5;
+	box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.03);
 }
 
-.rating-input {
-	display: flex;
-	align-items: center;
-	margin-bottom: 20rpx;
-}
-
-.rating-label {
-	font-size: 28rpx;
-	margin-right: 20rpx;
-}
-
-.stars-input {
-	display: flex;
-	gap: 10rpx;
-}
-
-.star-btn {
-	font-size: 40rpx;
-	opacity: 0.3;
-}
-
-.star-btn.active {
-	opacity: 1;
-}
-
-.score-inputs {
-	display: flex;
-	justify-content: space-between;
-	margin-bottom: 20rpx;
-}
-
-.score-item {
+.main-rating-box {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+	margin-bottom: 40rpx;
+}
+
+.rating-title {
+	font-size: 32rpx;
+	font-weight: 600;
+	color: #333;
+	margin-bottom: 20rpx;
+}
+
+.stars-row {
+	display: flex;
+	gap: 12rpx;
+}
+
+.star-btn {
+	font-size: 64rpx;
+	color: #E4E7ED;
+	transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+	line-height: 1;
+}
+
+.mini-star-btn {
+	font-size: 40rpx;
+	color: #E4E7ED;
+	line-height: 1;
+	padding: 0 4rpx;
+}
+
+.star-btn.active, .mini-star-btn.active {
+	color: #FFB400;
+	text-shadow: 0 2rpx 8rpx rgba(255, 180, 0, 0.3);
+}
+
+.star-btn:active {
+	transform: scale(0.9);
+}
+
+.sub-scores-list {
+	background: #F8F9FB;
+	border-radius: 16rpx;
+	padding: 24rpx 32rpx;
+	margin-bottom: 32rpx;
+}
+
+.sub-score-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 16rpx 0;
+	border-bottom: 1rpx dashed #E4E7ED;
+}
+
+.sub-score-row:last-child {
+	border-bottom: none;
 }
 
 .score-label {
-	font-size: 24rpx;
-	color: #666;
-	margin-bottom: 10rpx;
+	font-size: 28rpx;
+	color: #333;
+	font-weight: 500;
+	min-width: 100rpx;
 }
 
-.score-btns {
+.stars-selection {
 	display: flex;
+	gap: 20rpx;
 }
 
-.mini-star {
-	font-size: 24rpx;
-	opacity: 0.3;
-}
-
-.mini-star.active {
-	opacity: 1;
+.textarea-wrapper {
+	background: #F8F9FB;
+	border-radius: 16rpx;
+	padding: 24rpx;
+	margin-bottom: 32rpx;
+	border: 1rpx solid #E4E7ED;
 }
 
 .review-textarea {
 	width: 100%;
-	height: 200rpx;
-	border: 1rpx solid #eee;
-	border-radius: 15rpx;
-	padding: 20rpx;
+	height: 180rpx;
 	font-size: 28rpx;
-	margin-bottom: 20rpx;
-	box-sizing: border-box;
+	color: #333;
+	background: transparent;
+	border: none;
+	padding: 0;
+	line-height: 1.5;
 }
 
 .submit-review-btn {
-	width: 100%;
-	height: 80rpx;
-	line-height: 80rpx;
-	border-radius: 40rpx;
+	background: linear-gradient(135deg, #FF8F1F 0%, #FF7043 100%);
 	color: white;
-	font-size: 30rpx;
-	border: none;
+	border-radius: 44rpx;
+	font-size: 32rpx;
+	font-weight: 600;
+	box-shadow: 0 8rpx 20rpx rgba(255, 143, 31, 0.25);
+}
+
+.submit-review-btn:active {
+	opacity: 0.9;
+	transform: translateY(2rpx);
 }
 
 .empty-reviews {
 	text-align: center;
 	padding: 60rpx 0;
-	color: #999;
-	font-size: 28rpx;
+	color: #C0C4CC;
 }
 </style>

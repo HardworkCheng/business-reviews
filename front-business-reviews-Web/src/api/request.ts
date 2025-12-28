@@ -41,12 +41,12 @@ service.interceptors.request.use(
     if (token) {
       config.headers.set('Authorization', `Bearer ${token}`)
     }
-    
+
     // 如果是FormData，删除Content-Type让浏览器自动设置
     if (config.data instanceof FormData) {
       config.headers.delete('Content-Type')
     }
-    
+
     return config
   },
   (error) => {
@@ -57,8 +57,14 @@ service.interceptors.request.use(
 // 响应拦截器
 service.interceptors.response.use(
   (response: AxiosResponse) => {
+    // 如果是Blob类型（文件下载），直接返回
+    if (response.data instanceof Blob || response.config.responseType === 'blob') {
+      console.log('📦 文件下载响应')
+      return response.data
+    }
+
     const { code, data, msg } = response.data
-    
+
     console.log('📡 API响应:', {
       url: response.config.url,
       method: response.config.method,
@@ -66,7 +72,7 @@ service.interceptors.response.use(
       code,
       dataSize: JSON.stringify(data || {}).length
     })
-    
+
     if (code === 200) {
       return data
     } else if (code === 401) {
@@ -91,7 +97,7 @@ service.interceptors.response.use(
       url: error.config?.url,
       method: error.config?.method
     })
-    
+
     // 如果是401错误，检查是否需要清除token
     if (error.response?.status === 401) {
       const isLoginApi = error.config?.url?.includes('/auth/login')
@@ -102,10 +108,10 @@ service.interceptors.response.use(
       }
       return Promise.reject(new Error('登录已过期'))
     }
-    
+
     // 网络错误处理
     let errorMessage = '请求失败'
-    
+
     if (error.code === 'NETWORK_ERROR' || !error.response) {
       errorMessage = '网络连接失败，请检查网络设置'
     } else if (error.code === 'ECONNABORTED') {
@@ -135,7 +141,7 @@ service.interceptors.response.use(
           errorMessage = `服务器错误 (${status})`
       }
     }
-    
+
     return Promise.reject(new Error(errorMessage))
   }
 )

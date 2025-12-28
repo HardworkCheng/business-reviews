@@ -1,6 +1,5 @@
 package com.businessreviews.service.impl.merchant;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.businessreviews.model.dto.merchant.MerchantLoginDTO;
 import com.businessreviews.model.dto.merchant.MerchantRegisterDTO;
 import com.businessreviews.model.vo.merchant.MerchantLoginVO;
@@ -16,6 +15,7 @@ import com.businessreviews.constants.RedisKeyConstants;
 import com.businessreviews.service.merchant.MerchantAuthService;
 import com.businessreviews.util.JwtUtil;
 import com.businessreviews.util.RedisUtil;
+import com.businessreviews.util.PasswordUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -93,8 +93,8 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
             throw new BusinessException(40401, "账号不存在");
         }
 
-        // 验证密码（实际项目应使用BCrypt加密比对）
-        if (!request.getPassword().equals(merchant.getPassword())) {
+        // 验证密码（使用密码加密工具类）
+        if (!PasswordUtil.verifyPassword(request.getPassword(), merchant.getPassword())) {
             throw new BusinessException(40003, "密码错误");
         }
 
@@ -117,9 +117,12 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         response.setMerchantId(merchant.getId().toString());
         response.setMerchantName(merchant.getName());
         response.setMerchantLogo(merchant.getLogo());
-        response.setName(merchant.getContactName());
+        response.setName(merchant.getMerchantOwnerName());
         response.setPhone(maskPhone(merchant.getContactPhone()));
+        response.setContactEmail(merchant.getContactEmail());
         response.setAvatar(merchant.getAvatar());
+        response.setLicenseNo(merchant.getLicenseNo());
+        response.setLicenseImage(merchant.getLicenseImage());
         response.setRoleName("管理员"); // TODO: 根据角色ID查询
         response.setPermissions(Arrays.asList("shop:*", "note:*", "coupon:*", "dashboard:*"));
 
@@ -155,34 +158,35 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
 
         // 创建商家（整合了原merchant_users表的所有信息）
         MerchantDO merchant = new MerchantDO();
-        
+
         // 基本信息
         merchant.setName(request.getMerchantName());
+        merchant.setMerchantOwnerName(request.getMerchantOwnerName());
         merchant.setLogo(request.getLogo());
         merchant.setAvatar(request.getAvatar());
-        
+
         // 联系人信息
-        merchant.setContactName(request.getContactName());
+
         merchant.setContactPhone(request.getPhone());
         merchant.setContactEmail(request.getContactEmail());
-        
+
         // 营业资质信息
         merchant.setLicenseNo(request.getLicenseNo());
         merchant.setLicenseImage(request.getLicenseImage());
-        
-        // 登录信息（原merchant_users表字段）
-        merchant.setPassword(request.getPassword()); // TODO: 应使用BCrypt加密
+
+        // 登录信息（使用密码加密）
+        merchant.setPassword(PasswordUtil.encryptPassword(request.getPassword()));
         merchant.setLastLoginAt(LocalDateTime.now());
-        
+
         // 状态
         merchant.setStatus(1); // 1正常
-        
+
         merchantMapper.insert(merchant);
         log.info("商家入驻成功: merchantId={}, name={}", merchant.getId(), merchant.getName());
 
         // 自动在UniApp用户表(users)中创建商家账号
         createUniAppUser(merchant, request);
-        
+
         // 自动创建默认门店，将商家信息注入到门店管理中
         createDefaultShop(merchant, request);
 
@@ -207,7 +211,7 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
             log.info("UniApp用户已存在，跳过创建: phone={}", request.getPhone());
             return;
         }
-        
+
         UserDO user = new UserDO();
         user.setPhone(request.getPhone());
         user.setUsername(request.getMerchantName());
@@ -220,11 +224,11 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         user.setStatus(1); // 正常
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
-        
+
         userMapper.insert(user);
         log.info("自动创建UniApp用户成功: userId={}, phone={}, username={}", user.getId(), user.getPhone(), user.getUsername());
     }
-    
+
     /**
      * 自动创建默认门店，将商家注册信息注入到门店管理中
      * 避免商家二次填写重复信息
@@ -247,7 +251,7 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         shop.setPopularity(0);
         shop.setCreatedAt(LocalDateTime.now());
         shop.setUpdatedAt(LocalDateTime.now());
-        
+
         shopMapper.insert(shop);
         log.info("自动创建默认门店成功: shopId={}, merchantId={}, name={}", shop.getId(), merchant.getId(), shop.getName());
     }
@@ -261,6 +265,56 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         response.setUserInfo(getCurrentUserInfo(merchant.getId()));
 
         return response;
+    }
+
+    @Override
+    public void updateProfile(Long merchantId, com.businessreviews.model.dto.merchant.MerchantUpdateDTO request) {
+        MerchantDO merchant = merchantMapper.selectById(merchantId);
+        if (merchant == null) {
+            throw new BusinessException(40401, "商家不存在");
+        }
+
+        if (request.getMerchantName() != null)
+            merchant.setName(request.getMerchantName());
+        if (request.getMerchantOwnerName() != null)
+            merchant.setMerchantOwnerName(request.getMerchantOwnerName());
+        if (request.getAvatar() != null)
+            merchant.setAvatar(request.getAvatar());
+
+        if (request.getContactEmail() != null)
+            merchant.setContactEmail(request.getContactEmail());
+        if (request.getLicenseNo() != null)
+            merchant.setLicenseNo(request.getLicenseNo());
+        if (request.getLicenseImage() != null)
+            merchant.setLicenseImage(request.getLicenseImage());
+        // 允许修改手机号，但实际业务中通常需要验证码验证。此处直接修改。
+        if (request.getPhone() != null)
+            merchant.setContactPhone(request.getPhone());
+
+        merchant.setUpdatedAt(LocalDateTime.now());
+        merchantMapper.updateById(merchant);
+
+        // 同步商家名称和联系电话到关联的门店
+        if (request.getMerchantName() != null || request.getPhone() != null) {
+            ShopDO shopUpdate = new ShopDO();
+            boolean needUpdate = false;
+
+            if (request.getMerchantName() != null) {
+                shopUpdate.setName(request.getMerchantName());
+                needUpdate = true;
+            }
+            if (request.getPhone() != null) {
+                shopUpdate.setPhone(request.getPhone());
+                needUpdate = true;
+            }
+
+            if (needUpdate) {
+                com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<ShopDO> updateWrapper = new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<>();
+                updateWrapper.eq(ShopDO::getMerchantId, merchantId);
+                shopMapper.update(shopUpdate, updateWrapper);
+                log.info("同步商家信息到门店成功: merchantId={}", merchantId);
+            }
+        }
     }
 
     private String maskPhone(String phone) {

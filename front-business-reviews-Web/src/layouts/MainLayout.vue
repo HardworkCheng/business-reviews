@@ -34,10 +34,10 @@
         <div class="header-right">
           <el-dropdown @command="handleUserCommand" trigger="click">
             <div class="user-info">
-              <el-avatar :src="userStore.getUserInfo?.avatar || ''" :size="32" class="user-avatar">
+              <el-avatar :src="userStore.getUserInfo?.avatar || userStore.getUserInfo?.merchantLogo || ''" :size="32" class="user-avatar">
                 <el-icon><UserFilled /></el-icon>
               </el-avatar>
-              <span class="username">{{ userStore.getUserInfo?.merchantName || '商家' }}</span>
+              <span class="username">{{ userStore.getUserInfo?.merchantName || userStore.getUserInfo?.name || '商家' }}</span>
               <el-icon class="dropdown-icon"><ArrowDown /></el-icon>
             </div>
             <template #dropdown>
@@ -85,13 +85,35 @@ const handleUserCommand = (command: string) => {
   else if (command === 'profile') { router.push('/settings') }
   else if (command === 'settings') { router.push('/settings') }
 }
+
+const fetchProfile = async () => {
+  if (userStore.token && !userStore.userInfo) {
+    try {
+      const { getMerchantProfile } = await import('@/api/auth')
+      const res = await getMerchantProfile()
+      userStore.setUserInfo(res)
+    } catch (error) {
+      console.error('获取用户信息失败:', error)
+      if ((error as any).status === 401) {
+        userStore.logout()
+        router.push('/login')
+      }
+    }
+  }
+}
+
+import { onMounted } from 'vue'
+onMounted(() => {
+  fetchProfile()
+})
 </script>
 
 
 <style scoped>
 .layout-container { 
   height: 100vh; 
-  background: #F2F3F6;
+  background: #f9f9f9;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 .header { 
@@ -99,10 +121,12 @@ const handleUserCommand = (command: string) => {
   justify-content: space-between; 
   align-items: center; 
   background: #FFFFFF; 
-  border-bottom: 1px solid #E5E7EB; 
-  padding: 0 20px; 
-  height: 48px; 
-  box-shadow: none;
+  border-bottom: 1px solid #e5e5e5;
+  padding: 0 40px; 
+  height: 64px; 
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  position: relative;
+  z-index: 100;
 }
 
 .header-left { 
@@ -114,18 +138,19 @@ const handleUserCommand = (command: string) => {
 .logo { 
   display: flex; 
   align-items: center; 
-  gap: 8px; 
+  gap: 10px; 
 }
 .logo-icon { 
-  font-size: 20px; 
-  color: #FF7D00; 
+  font-size: 24px; 
+  color: #3e6ae1; 
 }
 .logo h2 { 
-  color: #333333; 
-  font-size: 16px; 
+  color: #171a20; 
+  font-size: 18px; 
   font-weight: 600; 
   margin: 0; 
   white-space: nowrap; 
+  letter-spacing: -0.5px;
 }
 
 .header-center {
@@ -139,35 +164,45 @@ const handleUserCommand = (command: string) => {
 .nav-tabs {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
 }
 
 .nav-tab {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
+  gap: 8px;
+  padding: 8px 20px;
   font-size: 14px;
-  color: #666666;
+  color: #5c5e62;
   cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.2s ease;
+  border-radius: 4px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   user-select: none;
+  font-weight: 500;
 }
 
 .nav-tab .el-icon {
-  font-size: 16px;
+  font-size: 18px;
+  transition: transform 0.2s;
 }
 
 .nav-tab:hover {
-  background: #FFF7ED;
-  color: #FF7D00;
+  background: #f4f4f4;
+  color: #171a20;
+}
+
+.nav-tab:active {
+  transform: scale(0.98);
 }
 
 .nav-tab.active {
-  background: #FF7D00;
-  color: #FFFFFF;
-  font-weight: 500;
+  background: #f4f4f4;
+  color: #171a20;
+  font-weight: 600;
+}
+
+.nav-tab.active .el-icon {
+  color: #3e6ae1;
 }
 
 .header-right { 
@@ -179,38 +214,38 @@ const handleUserCommand = (command: string) => {
 .user-info { 
   display: flex; 
   align-items: center; 
-  gap: 8px; 
+  gap: 10px; 
   cursor: pointer; 
-  padding: 6px 12px; 
-  border-radius: 6px; 
+  padding: 8px 16px; 
+  border-radius: 4px; 
   transition: all 0.2s ease; 
 }
 
 .user-info:hover { 
-  background: #F9FAFB; 
+  background: #f4f4f4; 
 }
 
 .user-avatar { 
-  border: none;
+  border: 1px solid rgba(0, 0, 0, 0.05);
   box-shadow: none;
 }
 
 .username { 
   font-size: 14px; 
   font-weight: 500; 
-  color: #333333; 
+  color: #171a20; 
 }
 
 .dropdown-icon { 
   font-size: 12px; 
-  color: #999999; 
+  color: #5c5e62; 
 }
 
 .main { 
-  background: #F2F3F6; 
+  background: #f9f9f9; 
   padding: 0; 
   overflow-y: auto; 
-  height: calc(100vh - 48px);
+  height: calc(100vh - 64px);
 }
 
 /* 响应式适配 */
@@ -219,7 +254,10 @@ const handleUserCommand = (command: string) => {
     display: none;
   }
   .nav-tab {
-    padding: 8px 12px;
+    padding: 10px;
+  }
+  .header {
+    padding: 0 20px;
   }
 }
 
@@ -228,7 +266,10 @@ const handleUserCommand = (command: string) => {
     display: none;
   }
   .header-center {
-    margin: 0 20px;
+    margin: 0 10px;
+  }
+  .nav-tabs {
+    gap: 4px;
   }
 }
 </style>

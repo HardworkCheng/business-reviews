@@ -46,25 +46,25 @@ public class MerchantShopServiceImpl implements MerchantShopService {
     private final CategoryMapper categoryMapper;
 
     @Override
-    public PageResult<ShopItemVO> getShopList(Long merchantId, Integer pageNum, Integer pageSize, 
+    public PageResult<ShopItemVO> getShopList(Long merchantId, Integer pageNum, Integer pageSize,
             Integer status, String keyword) {
-        log.info("获取门店列表: merchantId={}, pageNum={}, pageSize={}, status={}, keyword={}", 
+        log.info("获取门店列表: merchantId={}, pageNum={}, pageSize={}, status={}, keyword={}",
                 merchantId, pageNum, pageSize, status, keyword);
-        
+
         // 验证商家
         validateMerchant(merchantId);
-        
+
         // 构建查询条件 - 根据商家关联的门店查询
         LambdaQueryWrapper<ShopDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ShopDO::getMerchantId, merchantId);
-        
+
         // 检查是否有关联的店铺，如果没有则创建默认店铺
         long shopCount = shopMapper.selectCount(wrapper);
         if (shopCount == 0) {
             log.info("商家{}没有关联的店铺，创建默认店铺", merchantId);
             createDefaultShop(merchantId);
         }
-        
+
         if (status != null) {
             wrapper.eq(ShopDO::getStatus, status);
         }
@@ -73,16 +73,16 @@ public class MerchantShopServiceImpl implements MerchantShopService {
                     .or().like(ShopDO::getAddress, keyword));
         }
         wrapper.orderByDesc(ShopDO::getCreatedAt);
-        
+
         // 分页查询
         Page<ShopDO> page = new Page<>(pageNum, pageSize);
         Page<ShopDO> shopPage = shopMapper.selectPage(page, wrapper);
-        
+
         // 转换结果
         List<ShopItemVO> list = shopPage.getRecords().stream()
                 .map(this::convertToShopItemVO)
                 .collect(Collectors.toList());
-        
+
         PageResult<ShopItemVO> result = new PageResult<>();
         result.setList(list);
         result.setTotal(shopPage.getTotal());
@@ -102,7 +102,7 @@ public class MerchantShopServiceImpl implements MerchantShopService {
                 log.error("商家不存在: merchantId={}", merchantId);
                 return;
             }
-            
+
             // 创建默认店铺
             ShopDO shop = new ShopDO();
             shop.setMerchantId(merchantId);
@@ -119,7 +119,7 @@ public class MerchantShopServiceImpl implements MerchantShopService {
             shop.setPopularity(0);
             shop.setCreatedAt(LocalDateTime.now());
             shop.setUpdatedAt(LocalDateTime.now());
-            
+
             shopMapper.insert(shop);
             log.info("为商家{}创建默认店铺成功: shopId={}", merchantId, shop.getId());
         } catch (Exception e) {
@@ -130,16 +130,16 @@ public class MerchantShopServiceImpl implements MerchantShopService {
     @Override
     public ShopDetailVO getShopDetail(Long merchantId, Long shopId) {
         log.info("获取门店详情: merchantId={}, shopId={}", merchantId, shopId);
-        
+
         // 验证商家
         validateMerchant(merchantId);
-        
+
         // 查询门店
         ShopDO shop = shopMapper.selectById(shopId);
         if (shop == null) {
             throw new BusinessException(40404, "门店不存在");
         }
-        
+
         return convertToShopDetailVO(shop);
     }
 
@@ -147,10 +147,10 @@ public class MerchantShopServiceImpl implements MerchantShopService {
     @Transactional
     public Long createShop(Long merchantId, Long operatorId, Map<String, Object> request) {
         log.info("创建门店: merchantId={}, operatorId={}", merchantId, operatorId);
-        
+
         // 验证商家
         validateMerchant(merchantId);
-        
+
         // 创建门店
         ShopDO shop = new ShopDO();
         shop.setMerchantId(merchantId); // 关联商家ID
@@ -161,7 +161,7 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         shop.setDescription((String) request.get("description"));
         shop.setHeaderImage((String) request.get("avatar"));
         shop.setImages((String) request.get("cover"));
-        
+
         // 设置默认值
         shop.setStatus(request.get("status") != null ? (Integer) request.get("status") : 1);
         shop.setRating(BigDecimal.valueOf(5.0));
@@ -172,7 +172,7 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         shop.setPopularity(0);
         shop.setCreatedAt(LocalDateTime.now());
         shop.setUpdatedAt(LocalDateTime.now());
-        
+
         // 处理位置信息
         if (request.get("latitude") != null) {
             shop.setLatitude(new BigDecimal(request.get("latitude").toString()));
@@ -193,10 +193,10 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         if (request.get("averagePrice") != null) {
             shop.setAveragePrice(new BigDecimal(request.get("averagePrice").toString()));
         }
-        
+
         shopMapper.insert(shop);
         log.info("门店创建成功: shopId={}", shop.getId());
-        
+
         return shop.getId();
     }
 
@@ -204,21 +204,21 @@ public class MerchantShopServiceImpl implements MerchantShopService {
     @Transactional
     public void updateShop(Long merchantId, Long operatorId, Long shopId, Map<String, Object> request) {
         log.info("更新门店: merchantId={}, shopId={}", merchantId, shopId);
-        
+
         // 验证商家
         validateMerchant(merchantId);
-        
+
         // 查询门店
         ShopDO shop = shopMapper.selectById(shopId);
         if (shop == null) {
             throw new BusinessException(40404, "门店不存在");
         }
-        
+
         // 验证商家权限 - 确保商家只能更新自己的店铺
         if (!merchantId.equals(shop.getMerchantId())) {
             throw new BusinessException(40403, "无权限操作此门店");
         }
-        
+
         // 更新门店信息
         if (request.get("name") != null) {
             shop.setName((String) request.get("name"));
@@ -271,15 +271,37 @@ public class MerchantShopServiceImpl implements MerchantShopService {
                 log.warn("人均消费格式错误: {}", request.get("averagePrice"));
             }
         }
-        
+
         shop.setUpdatedAt(LocalDateTime.now());
-        
+
         // 记录更新的字段
         log.info("更新门店字段: shopId={}, 更新内容={}", shopId, request.keySet());
-        
+
         int updateResult = shopMapper.updateById(shop);
         if (updateResult > 0) {
             log.info("门店更新成功: shopId={}, 影响行数={}", shopId, updateResult);
+
+            // 同步门店名称和联系电话到商家基本信息
+            // 注意：这里假设商家只有一个主门店，或者用户希望同步修改商家信息
+            if (request.containsKey("name") || request.containsKey("phone")) {
+                MerchantDO merchantUpdate = new MerchantDO();
+                merchantUpdate.setId(merchantId);
+                boolean needSync = false;
+
+                if (request.containsKey("name")) {
+                    merchantUpdate.setName((String) request.get("name"));
+                    needSync = true;
+                }
+                if (request.containsKey("phone")) {
+                    merchantUpdate.setContactPhone((String) request.get("phone"));
+                    needSync = true;
+                }
+
+                if (needSync) {
+                    merchantMapper.updateById(merchantUpdate);
+                    log.info("同步门店信息到商家成功: merchantId={}, shopId={}", merchantId, shopId);
+                }
+            }
         } else {
             log.error("门店更新失败: shopId={}, 影响行数={}", shopId, updateResult);
             throw new BusinessException(50000, "门店更新失败");
@@ -290,21 +312,21 @@ public class MerchantShopServiceImpl implements MerchantShopService {
     @Transactional
     public void updateShopStatus(Long merchantId, Long operatorId, Long shopId, Integer status) {
         log.info("更新门店状态: merchantId={}, shopId={}, status={}", merchantId, shopId, status);
-        
+
         // 验证商家
         validateMerchant(merchantId);
-        
+
         // 查询门店
         ShopDO shop = shopMapper.selectById(shopId);
         if (shop == null) {
             throw new BusinessException(40404, "门店不存在");
         }
-        
+
         // 验证门店归属
         if (!merchantId.equals(shop.getMerchantId())) {
             throw new BusinessException(40300, "无权操作此门店");
         }
-        
+
         // 更新状态
         shop.setStatus(status);
         shop.setUpdatedAt(LocalDateTime.now());
@@ -316,21 +338,21 @@ public class MerchantShopServiceImpl implements MerchantShopService {
     @Transactional
     public void deleteShop(Long merchantId, Long operatorId, Long shopId) {
         log.info("删除门店: merchantId={}, shopId={}", merchantId, shopId);
-        
+
         // 验证商家
         validateMerchant(merchantId);
-        
+
         // 查询门店
         ShopDO shop = shopMapper.selectById(shopId);
         if (shop == null) {
             throw new BusinessException(40404, "门店不存在");
         }
-        
+
         // 验证门店归属
         if (!merchantId.equals(shop.getMerchantId())) {
             throw new BusinessException(40300, "无权删除此门店");
         }
-        
+
         // 删除门店（物理删除，也可以改为逻辑删除）
         shopMapper.deleteById(shopId);
         log.info("门店删除成功: shopId={}", shopId);
@@ -339,26 +361,26 @@ public class MerchantShopServiceImpl implements MerchantShopService {
     @Override
     public Map<String, Object> getShopStats(Long merchantId, Long shopId) {
         log.info("获取门店统计: merchantId={}, shopId={}", merchantId, shopId);
-        
+
         // 验证商家
         validateMerchant(merchantId);
-        
+
         // 查询门店
         ShopDO shop = shopMapper.selectById(shopId);
         if (shop == null) {
             throw new BusinessException(40404, "门店不存在");
         }
-        
+
         // 统计笔记数量
         LambdaQueryWrapper<NoteDO> noteWrapper = new LambdaQueryWrapper<>();
         noteWrapper.eq(NoteDO::getShopId, shopId);
         Long noteCount = noteMapper.selectCount(noteWrapper);
-        
+
         // 统计评论数量
         LambdaQueryWrapper<ShopReviewDO> reviewWrapper = new LambdaQueryWrapper<>();
         reviewWrapper.eq(ShopReviewDO::getShopId, shopId);
         Long reviewCount = shopReviewMapper.selectCount(reviewWrapper);
-        
+
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalViews", shop.getPopularity() != null ? shop.getPopularity() : 0);
         stats.put("totalNotes", noteCount);
@@ -367,10 +389,10 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         stats.put("tasteScore", shop.getTasteScore() != null ? shop.getTasteScore() : 0.0);
         stats.put("environmentScore", shop.getEnvironmentScore() != null ? shop.getEnvironmentScore() : 0.0);
         stats.put("serviceScore", shop.getServiceScore() != null ? shop.getServiceScore() : 0.0);
-        
+
         return stats;
     }
-    
+
     /**
      * 验证商家是否存在
      */
@@ -383,7 +405,7 @@ public class MerchantShopServiceImpl implements MerchantShopService {
             throw new BusinessException(40300, "商家账号已被禁用");
         }
     }
-    
+
     /**
      * 验证类目ID是否有效
      * 检查类目是否存在且状态为启用(status=1)
@@ -395,17 +417,17 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         if (categoryId == null) {
             return; // 类目ID为空时不验证，使用默认值
         }
-        
+
         CategoryDO category = categoryMapper.selectById(categoryId);
         if (category == null) {
             throw new BusinessException(40400, "选择的类目不存在");
         }
-        
+
         if (category.getStatus() != 1) {
             throw new BusinessException(40400, "选择的类目已被禁用");
         }
     }
-    
+
     /**
      * 转换为门店列表项响应
      */
@@ -435,16 +457,16 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         response.setBusinessHours(shop.getBusinessHours());
         response.setCreatedAt(shop.getCreatedAt());
         response.setUpdatedAt(shop.getUpdatedAt());
-        
+
         // 统计笔记数量
         LambdaQueryWrapper<NoteDO> noteWrapper = new LambdaQueryWrapper<>();
         noteWrapper.eq(NoteDO::getShopId, shop.getId());
         Long noteCount = noteMapper.selectCount(noteWrapper);
         response.setNoteCount(noteCount.intValue());
-        
+
         return response;
     }
-    
+
     /**
      * 转换为门店详情响应
      */
@@ -466,13 +488,13 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         response.setServiceScore(shop.getServiceScore());
         response.setReviewCount(shop.getReviewCount());
         response.setFavorited(false); // 商家端不需要收藏状态
-        
+
         // 处理图片列表
         response.setImages(parseImages(shop.getImages()));
-        
+
         return response;
     }
-    
+
     /**
      * 解析图片字符串为列表
      */
@@ -480,7 +502,7 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         if (images == null || images.isEmpty()) {
             return new ArrayList<>();
         }
-        
+
         // 尝试解析JSON数组格式
         if (images.trim().startsWith("[") && images.trim().endsWith("]")) {
             try {
@@ -497,7 +519,7 @@ public class MerchantShopServiceImpl implements MerchantShopService {
                 log.warn("解析图片JSON数组失败，使用逗号分割: {}", images, e);
             }
         }
-        
+
         // 回退到逗号分割
         return java.util.Arrays.stream(images.split(","))
                 .map(String::trim)

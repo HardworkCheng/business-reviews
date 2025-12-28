@@ -7,21 +7,21 @@
 }
 
 .data-card {
-  background: $comment-bg-primary;
-  border-radius: $comment-radius-lg;
-  padding: $comment-spacing-xl;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border: 1px solid rgba(230, 234, 241, 0.5);
-  box-shadow: $comment-shadow-md;
-  transition: all $comment-transition-base;
+  border: 1px solid #e5e5e5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
-  
+
   &:hover {
     transform: translateY(-4px);
-    box-shadow: $comment-shadow-lg;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.06);
   }
 }
 
@@ -38,8 +38,8 @@
 
 .card-number {
   font-size: 32px;
-  font-weight: 700;
-  color: $comment-text-primary;
+  font-weight: 600;
+  color: #171a20;
   letter-spacing: -1px;
   margin: 0;
   line-height: 1.2;
@@ -51,14 +51,14 @@
   display: inline-flex;
   align-items: center;
   font-weight: 600;
-  
+
   &.up {
     color: $comment-success;
     background: #f6ffed;
     padding: 2px 6px;
     border-radius: $comment-radius-sm;
   }
-  
+
   &.down {
     color: $comment-danger;
     background: #fff1f0;
@@ -68,43 +68,44 @@
 }
 
 .card-icon-box {
-  width: 56px;
-  height: 56px;
-  border-radius: $comment-radius-xl;
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 26px;
+  font-size: 20px;
   z-index: 2;
-  
+
   &.icon-blue {
-    background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%);
-    color: $comment-primary;
+    background: #f4f4f4;
+    color: #3e6ae1;
   }
-  
+
   &.icon-orange {
-    background: linear-gradient(135deg, #fff7e6 0%, #ffd591 100%);
-    color: $comment-warning;
+    background: #f4f4f4;
+    color: #3e6ae1;
   }
-  
+
   &.icon-green {
-    background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%);
-    color: $comment-success;
+    background: #f4f4f4;
+    color: #10B981;
   }
-  
+
   &.icon-red {
-    background: linear-gradient(135deg, #fff1f0 0%, #ffccc7 100%);
-    color: $comment-danger;
+    background: #f4f4f4;
+    color: #d73948;
   }
 }
 
 // 主内容区域样式
 .main-panel {
-  background: $comment-bg-primary;
-  border-radius: $comment-radius-lg;
-  box-shadow: $comment-shadow-md;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
   padding: 0;
   overflow: hidden;
+  border: 1px solid #e5e5e5;
 }
 
 .toolbar {
@@ -121,23 +122,36 @@
   :deep(.el-tabs__header) {
     margin: 0;
   }
-  
+
   :deep(.el-tabs__nav-wrap::after) {
     height: 0;
   }
-  
+
   :deep(.el-tabs__item) {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 500;
-    height: 50px;
-    line-height: 50px;
+    height: 60px;
+    line-height: 60px;
+    color: #5c5e62;
+    transition: all 0.2s;
+
+    &.is-active {
+      color: #171a20;
+      font-weight: 600;
+    }
+  }
+
+  :deep(.el-tabs__active-bar) {
+    background-color: #3e6ae1;
+    height: 3px;
+    border-radius: 3px;
   }
 }
 
 // 表格样式
 .custom-table {
   width: 100%;
-  
+
   :deep(th) {
     background-color: $comment-bg-card !important;
     color: $comment-text-secondary;
@@ -145,11 +159,11 @@
     border-bottom: 1px solid $comment-border-light;
     padding: $comment-spacing-lg 0;
   }
-  
+
   :deep(td) {
     padding: 20px 0;
   }
-  
+
   :deep(.el-table--enable-row-hover .el-table__body tr:hover > td) {
     background-color: $comment-bg-hover !important;
   }
@@ -222,16 +236,17 @@
 
 // 商家回复样式
 .merchant-reply {
-  background: $comment-bg-reply;
-  border-left: 3px solid $comment-warning;
-  padding: 10px 14px;
-  border-radius: $comment-radius-sm;
+  background: #f4f4f4;
+  border-left: 3px solid #3e6ae1;
+  padding: 12px 16px;
+  border-radius: 4px;
   font-size: 13px;
-  color: $comment-text-secondary;
+  color: #393c41;
   position: relative;
-  
+  margin-top: 10px;
+
   strong {
-    color: #d46b08;
+    color: #171a20;
     margin-right: 5px;
   }
 }
@@ -252,21 +267,21 @@
   transition: all $comment-transition-fast;
   background: #f5f5f5;
   border: none;
-  
+
   &:hover {
     transform: scale(1.1);
   }
-  
+
   &.btn-reply:hover {
     background: #e6f7ff;
     color: $comment-primary;
   }
-  
+
   &.btn-top:hover {
     background: #fff7e6;
     color: $comment-warning;
   }
-  
+
   &.btn-del:hover {
     background: #fff1f0;
     color: $comment-danger;

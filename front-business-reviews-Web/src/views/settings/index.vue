@@ -26,18 +26,40 @@
       <div class="settings-panel">
         <!-- 商家信息 -->
         <div v-show="activeTab === 'profile'" class="panel-section">
-          <h3>商家基本信息</h3>
-          <el-form :model="profileForm" label-width="100px" class="settings-form">
+          <div class="section-header-row">
+            <h3>商家基本信息</h3>
+            <div>
+               <el-button v-if="!isEditing" type="primary" link @click="isEditing = true">修改</el-button>
+               <el-button v-else type="info" link @click="isEditing = false; loadProfile()">取消</el-button>
+            </div>
+          </div>
+          <el-form :model="profileForm" label-width="120px" class="settings-form">
             <el-form-item label="商家头像">
-              <el-upload class="avatar-uploader" action="#" :show-file-list="false">
-                <el-avatar :size="80" :src="profileForm.avatar"><el-icon><Plus /></el-icon></el-avatar>
+              <el-upload class="avatar-uploader" action="#" :show-file-list="false" :http-request="uploadAvatar" accept="image/*" :disabled="!isEditing">
+                <el-avatar :size="80" :src="profileForm.avatar"><el-icon v-if="isEditing"><Plus /></el-icon></el-avatar>
               </el-upload>
             </el-form-item>
-            <el-form-item label="商家名称"><el-input v-model="profileForm.name" /></el-form-item>
-            <el-form-item label="联系电话"><el-input v-model="profileForm.phone" /></el-form-item>
-            <el-form-item label="联系邮箱"><el-input v-model="profileForm.email" /></el-form-item>
-            <el-form-item label="商家简介"><el-input v-model="profileForm.description" type="textarea" :rows="3" /></el-form-item>
-            <el-form-item><el-button type="primary" @click="saveProfile">保存修改</el-button></el-form-item>
+            
+            <el-form-item label="商家名称"><el-input v-model="profileForm.name" :readonly="!isEditing" /></el-form-item>
+            <el-form-item label="商家姓名"><el-input v-model="profileForm.merchantOwnerName" :readonly="!isEditing" /></el-form-item>
+            <el-form-item label="联系电话"><el-input v-model="profileForm.phone" :readonly="!isEditing" /></el-form-item>
+            <el-form-item label="联系邮箱"><el-input v-model="profileForm.email" :readonly="!isEditing" /></el-form-item>
+            
+            <el-form-item label="营业执照号"><el-input v-model="profileForm.licenseNo" :readonly="!isEditing" /></el-form-item>
+            <el-form-item label="营业执照">
+              <el-upload class="license-uploader" action="#" :show-file-list="false" :http-request="uploadLicense" accept="image/*" :disabled="!isEditing">
+                <img v-if="profileForm.licenseImage" :src="profileForm.licenseImage" class="license-preview" />
+                <div v-else-if="isEditing" class="license-placeholder">
+                  <el-icon><Plus /></el-icon>
+                  <span>上传执照</span>
+                </div>
+                <div v-else class="license-placeholder" style="cursor: default; border-style: solid; background: #fff;">
+                  <span>未上传</span>
+                </div>
+              </el-upload>
+            </el-form-item>
+            
+            <el-form-item v-if="isEditing"><el-button type="primary" class="save-btn" @click="saveProfile">保存修改</el-button></el-form-item>
           </el-form>
         </div>
 
@@ -68,7 +90,7 @@
               <el-switch v-model="uniappForm.likeNotify" />
               <span class="form-tip">用户点赞时接收通知</span>
             </el-form-item>
-            <el-form-item><el-button type="primary" @click="saveUniappConfig">保存配置</el-button></el-form-item>
+            <el-form-item><el-button type="primary" class="save-btn" @click="saveUniappConfig">保存配置</el-button></el-form-item>
           </el-form>
         </div>
 
@@ -79,7 +101,7 @@
             <el-form-item label="邮件通知"><el-switch v-model="notifyForm.email" /></el-form-item>
             <el-form-item label="短信通知"><el-switch v-model="notifyForm.sms" /></el-form-item>
             <el-form-item label="站内消息"><el-switch v-model="notifyForm.inApp" /></el-form-item>
-            <el-form-item><el-button type="primary" @click="saveNotifyConfig">保存设置</el-button></el-form-item>
+            <el-form-item><el-button type="primary" class="save-btn" @click="saveNotifyConfig">保存设置</el-button></el-form-item>
           </el-form>
         </div>
 
@@ -90,7 +112,7 @@
             <el-form-item label="当前密码"><el-input v-model="securityForm.oldPassword" type="password" show-password /></el-form-item>
             <el-form-item label="新密码"><el-input v-model="securityForm.newPassword" type="password" show-password /></el-form-item>
             <el-form-item label="确认密码"><el-input v-model="securityForm.confirmPassword" type="password" show-password /></el-form-item>
-            <el-form-item><el-button type="primary" @click="changePassword">修改密码</el-button></el-form-item>
+            <el-form-item><el-button type="primary" class="save-btn" @click="changePassword">修改密码</el-button></el-form-item>
           </el-form>
         </div>
       </div>
@@ -99,54 +121,377 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { User, Connection, Bell, Lock, Plus } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user'
+import { updateMerchantProfile } from '@/api/auth'
+import { uploadPublicFile } from '@/services/uploadService'
 
 const activeTab = ref('profile')
+const userStore = useUserStore()
 
-const profileForm = reactive({ avatar: '', name: '示例商家', phone: '138****1234', email: 'merchant@example.com', description: '这是一家优质商家' })
-const uniappForm = reactive({ autoSyncNote: true, autoSyncCoupon: true, commentNotify: true, likeNotify: false })
-const notifyForm = reactive({ email: true, sms: false, inApp: true })
-const securityForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
+const profileForm = reactive({ 
+  avatar: '', 
+  name: '', 
+  merchantOwnerName: '',
+  phone: '', 
+  email: '',
+  licenseNo: '',
+  licenseImage: ''
+})
 
-const saveProfile = () => { ElMessage.success('商家信息保存成功') }
+const isEditing = ref(false)
+
+const uniappForm = reactive({ 
+  autoSyncNote: true, 
+  autoSyncCoupon: true, 
+  commentNotify: true, 
+  likeNotify: false 
+})
+
+const notifyForm = reactive({ 
+  email: true, 
+  sms: false, 
+  inApp: true 
+})
+
+const securityForm = reactive({ 
+  oldPassword: '', 
+  newPassword: '', 
+  confirmPassword: '' 
+})
+
+const loading = ref(false)
+
+const loadProfile = () => {
+  const userInfo = userStore.userInfo
+  if (userInfo) {
+    profileForm.avatar = userInfo.avatar || ''
+    profileForm.name = userInfo.merchantName || ''
+    profileForm.merchantOwnerName = userInfo.name || ''
+    profileForm.phone = userInfo.phone || ''
+    profileForm.email = userInfo.contactEmail || ''
+    profileForm.licenseNo = userInfo.licenseNo || ''
+    profileForm.licenseImage = userInfo.licenseImage || ''
+  }
+}
+
+onMounted(() => {
+  loadProfile()
+})
+
+const uploadAvatar = async (options: any) => {
+  try {
+    const url = await uploadPublicFile(options.file, 'merchant/avatar')
+    profileForm.avatar = url
+    ElMessage.success('头像上传成功')
+  } catch (e: any) {
+    ElMessage.error('头像上传失败: ' + (e.message || '未知错误'))
+  }
+}
+
+
+
+const uploadLicense = async (options: any) => {
+  try {
+    const url = await uploadPublicFile(options.file, 'merchant/license')
+    profileForm.licenseImage = url
+    ElMessage.success('营业执照上传成功')
+  } catch (e: any) {
+    ElMessage.error('营业执照上传失败: ' + (e.message || '未知错误'))
+  }
+}
+
+const saveProfile = async () => { 
+  loading.value = true
+  try {
+    const payload = {
+      merchantName: profileForm.name,
+      merchantOwnerName: profileForm.merchantOwnerName,
+      avatar: profileForm.avatar,
+      contactEmail: profileForm.email,
+      phone: profileForm.phone,
+      licenseNo: profileForm.licenseNo,
+      licenseImage: profileForm.licenseImage
+    }
+    await updateMerchantProfile(payload)
+    
+    // 更新本地Store
+    const userInfo = userStore.userInfo || {}
+    userStore.setUserInfo({
+      ...userInfo,
+      merchantName: payload.merchantName,
+      name: payload.merchantOwnerName,
+      avatar: payload.avatar,
+      contactEmail: payload.contactEmail,
+      phone: payload.phone,
+      licenseNo: payload.licenseNo,
+      licenseImage: payload.licenseImage
+    })
+    ElMessage.success('商家信息保存成功')
+    isEditing.value = false 
+  } catch (e) {
+    ElMessage.error('保存失败')
+  } finally {
+    loading.value = false
+  }
+}
 const saveUniappConfig = () => { ElMessage.success('UniApp配置保存成功') }
 const saveNotifyConfig = () => { ElMessage.success('通知设置保存成功') }
-const changePassword = () => { ElMessage.success('密码修改成功') }
+const changePassword = () => { 
+  if (securityForm.newPassword !== securityForm.confirmPassword) {
+    ElMessage.error('两次输入的密码不一致')
+    return
+  }
+  ElMessage.success('密码修改成功') 
+}
 </script>
 
 
 <style scoped>
-.settings-page { max-width: 1200px; margin: 0 auto; }
+.settings-page { 
+  max-width: 1400px; 
+  margin: 0 auto; 
+  padding: 40px; 
+  background-color: #f9f9f9;
+  min-height: 100vh;
+}
 
-.page-header { margin-bottom: 24px; }
-.page-title { font-size: 26px; font-weight: 700; color: #171717; margin: 0 0 6px 0; }
-.page-desc { font-size: 14px; color: #737373; margin: 0; }
+.page-header { 
+  margin-bottom: 32px; 
+}
+.page-title { 
+  font-size: 28px; 
+  font-weight: 600; 
+  color: #171a20; 
+  margin: 0 0 4px 0; 
+  letter-spacing: -0.5px;
+}
+.page-desc { 
+  font-size: 14px; 
+  color: #5c5e62; 
+  margin: 0; 
+}
 
-.settings-content { display: flex; gap: 24px; }
+.settings-content { 
+  display: flex; 
+  gap: 32px; 
+  align-items: flex-start;
+}
 
-.settings-menu { width: 220px; background: white; border-radius: 16px; padding: 16px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); height: fit-content; }
-.menu-item { display: flex; align-items: center; gap: 12px; padding: 14px 16px; font-size: 14px; color: #525252; border-radius: 10px; cursor: pointer; transition: all 0.2s ease; }
-.menu-item:hover { background: #FFF7ED; color: #FF7D00; }
-.menu-item.active { background: linear-gradient(135deg, #FF7D00 0%, #FF9933 100%); color: white; }
-.menu-item .el-icon { font-size: 18px; }
+.settings-menu { 
+  width: 240px; 
+  background: white; 
+  border-radius: 8px; 
+  padding: 12px; 
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02); 
+  height: fit-content; 
+  border: 1px solid #e5e5e5;
+}
 
-.settings-panel { flex: 1; background: white; border-radius: 16px; padding: 32px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); }
-.panel-section h3 { font-size: 18px; font-weight: 600; color: #171717; margin: 0 0 24px 0; padding-bottom: 16px; border-bottom: 1px solid #F5F5F5; }
+.menu-item { 
+  display: flex; 
+  align-items: center; 
+  gap: 12px; 
+  padding: 12px 16px; 
+  font-size: 14px; 
+  color: #5c5e62; 
+  border-radius: 4px; 
+  cursor: pointer; 
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); 
+  font-weight: 500;
+  margin-bottom: 4px;
+}
 
-.settings-form { max-width: 500px; }
-.settings-form :deep(.el-input__wrapper) { border-radius: 10px; }
-.settings-form :deep(.el-textarea__inner) { border-radius: 10px; }
+.menu-item:hover { 
+  background: #f4f4f4; 
+  color: #171a20; 
+}
 
-.avatar-uploader { cursor: pointer; }
-.avatar-uploader .el-avatar { border: 2px dashed #E5E5E5; transition: border-color 0.2s ease; }
-.avatar-uploader:hover .el-avatar { border-color: #FF7D00; }
+.menu-item.active { 
+  background: #f4f4f4; 
+  color: #171a20; 
+  font-weight: 600;
+}
 
-.config-card { background: #FFF7ED; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
-.config-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.config-title { font-size: 15px; font-weight: 600; color: #171717; }
-.config-desc { font-size: 13px; color: #737373; margin: 0; }
+.menu-item.active .el-icon {
+  color: #3e6ae1;
+}
 
-.form-tip { font-size: 12px; color: #A3A3A3; margin-left: 12px; }
+.menu-item .el-icon { 
+  font-size: 18px; 
+  transition: color 0.25s;
+}
+
+.settings-panel { 
+  flex: 1; 
+  background: white; 
+  border-radius: 8px; 
+  padding: 40px; 
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02); 
+  border: 1px solid #e5e5e5;
+}
+
+.panel-section h3 { 
+  font-size: 18px; 
+  font-weight: 600; 
+  color: #171a20; 
+  margin: 0 0 32px 0; 
+  padding-left: 12px;
+  border-left: 3px solid #3e6ae1;
+  line-height: 1.2;
+}
+
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.section-header-row h3 {
+  margin: 0 !important;
+}
+
+.settings-form { 
+  max-width: 600px; 
+}
+
+.settings-form :deep(.el-form-item__label) {
+  font-weight: 500;
+  color: #393c41;
+}
+
+.settings-form :deep(.el-input__wrapper) { 
+  border-radius: 4px; 
+  box-shadow: none !important;
+  border: 1px solid #dcdfe6;
+  background-color: #f4f4f4;
+  transition: all 0.2s;
+  padding: 2px 12px;
+}
+
+.settings-form :deep(.el-input__wrapper:hover) {
+  background-color: #e8e8e8;
+}
+
+.settings-form :deep(.el-input__wrapper.is-focus) {
+  background-color: #fff;
+  border-color: #8e8e8e;
+}
+
+.settings-form :deep(.el-textarea__inner) { 
+  border-radius: 4px; 
+  box-shadow: none !important;
+  border: 1px solid #dcdfe6;
+  background-color: #f4f4f4;
+  transition: all 0.2s;
+  padding: 8px 12px;
+}
+
+.settings-form :deep(.el-textarea__inner:hover) {
+  background-color: #e8e8e8;
+}
+
+.settings-form :deep(.el-textarea__inner:focus) {
+  background-color: #fff;
+  border-color: #8e8e8e;
+}
+
+.save-btn {
+  background-color: #3e6ae1 !important;
+  border-color: #3e6ae1 !important;
+  padding: 12px 32px;
+  font-weight: 500;
+  border-radius: 4px;
+}
+
+.avatar-uploader { 
+  cursor: pointer; 
+  display: inline-block;
+}
+
+.avatar-uploader .el-avatar { 
+  border: 2px solid #e5e5e5; 
+  transition: all 0.3s; 
+  background-color: #f4f4f4;
+  color: #8e8e8e;
+}
+
+.avatar-uploader:hover .el-avatar { 
+  border-color: #3e6ae1; 
+  transform: scale(1.05);
+}
+
+.config-card { 
+  background: #f4f7ff; 
+  border-radius: 8px; 
+  padding: 24px; 
+  margin-bottom: 32px; 
+  border: 1px solid #e0e7ff;
+}
+
+.config-header { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  margin-bottom: 12px; 
+}
+
+.config-title { 
+  font-size: 16px; 
+  font-weight: 600; 
+  color: #171a20; 
+}
+
+.config-desc { 
+  font-size: 14px; 
+  color: #5c5e62; 
+  margin: 0; 
+  line-height: 1.5;
+}
+
+.form-tip { 
+  font-size: 12px; 
+  color: #8e8e8e; 
+  margin-left: 16px; 
+  font-weight: 400;
+}
+
+:deep(.el-switch.is-checked .el-switch__core) {
+  background-color: #3e6ae1 !important;
+  border-color: #3e6ae1 !important;
+}
+
+.license-preview {
+  width: 200px;
+  height: 120px;
+  object-fit: contain;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+}
+.license-placeholder {
+  width: 200px;
+  height: 120px;
+  border: 1px dashed #dcdfe6;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #8c939d;
+  cursor: pointer;
+  background-color: #f4f4f4;
+  transition: all 0.3s;
+}
+.license-placeholder:hover {
+  border-color: #3e6ae1;
+  color: #3e6ae1;
+  background-color: #eef2ff;
+}
+.license-placeholder .el-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
 </style>

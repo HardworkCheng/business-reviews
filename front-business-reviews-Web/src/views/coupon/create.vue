@@ -1,9 +1,10 @@
 <template>
   <div class="coupon-create">
-    <el-card>
+    <el-card class="box-card" shadow="hover">
       <template #header>
         <div class="card-header">
-          <span>{{ isEdit ? '编辑优惠券' : '新建优惠券' }}</span>
+          <span class="title">{{ isEdit ? '编辑优惠券' : '新建优惠券' }}</span>
+          <el-button link type="primary" @click="$router.back()">返回列表</el-button>
         </div>
       </template>
       
@@ -11,167 +12,206 @@
         :model="form" 
         :rules="rules" 
         ref="formRef" 
-        label-width="120px"
-        style="max-width: 600px;"
+        label-width="100px"
+        label-position="top"
+        class="coupon-form"
       >
-        <el-form-item label="优惠券名称" prop="title">
-          <el-input v-model="form.title" placeholder="请输入优惠券名称" maxlength="100" show-word-limit />
-        </el-form-item>
-        
-        <el-form-item label="优惠券类型" prop="type">
-          <el-select v-model="form.type" placeholder="请选择优惠券类型" @change="handleTypeChange" style="width: 100%;">
-            <el-option label="满减券" :value="1" />
-            <el-option label="折扣券" :value="2" />
-            <el-option label="代金券" :value="3" />
-          </el-select>
-        </el-form-item>
-        
-        <!-- 满减券 (type=1): 需要 amount 和 minAmount -->
-        <template v-if="form.type === 1">
-          <el-form-item label="优惠金额" prop="amount">
-            <el-input-number 
-              v-model="form.amount" 
-              :min="0.01" 
-              :precision="2"
-              :step="1" 
-              controls-position="right" 
-              style="width: 100%;"
-              placeholder="请输入优惠金额"
-            />
-            <div class="form-tip">用户使用时可抵扣的金额</div>
-          </el-form-item>
-          <el-form-item label="最低消费" prop="minAmount">
-            <el-input-number 
-              v-model="form.minAmount" 
-              :min="0" 
-              :precision="2"
-              :step="1" 
-              controls-position="right" 
-              style="width: 100%;"
-              placeholder="请输入最低消费金额"
-            />
-            <div class="form-tip">满多少元可使用，0表示无门槛</div>
-          </el-form-item>
-        </template>
-        
-        <!-- 折扣券 (type=2): 需要 discount 和 minAmount -->
-        <template v-else-if="form.type === 2">
-          <el-form-item label="折扣" prop="discount">
-            <el-input-number 
-              v-model="form.discount" 
-              :min="0.01" 
-              :max="0.99"
-              :precision="2"
-              :step="0.05" 
-              controls-position="right" 
-              style="width: 100%;"
-              placeholder="请输入折扣，如0.8表示8折"
-            />
-            <div class="form-tip">输入0.8表示8折，0.75表示7.5折</div>
-          </el-form-item>
-          <el-form-item label="最低消费" prop="minAmount">
-            <el-input-number 
-              v-model="form.minAmount" 
-              :min="0" 
-              :precision="2"
-              :step="1" 
-              controls-position="right" 
-              style="width: 100%;"
-              placeholder="请输入最低消费金额"
-            />
-            <div class="form-tip">满多少元可使用，0表示无门槛</div>
-          </el-form-item>
-        </template>
-        
-        <!-- 代金券 (type=3): 只需要 amount -->
-        <template v-else-if="form.type === 3">
-          <el-form-item label="代金金额" prop="amount">
-            <el-input-number 
-              v-model="form.amount" 
-              :min="0.01" 
-              :precision="2"
-              :step="1" 
-              controls-position="right" 
-              style="width: 100%;"
-              placeholder="请输入代金金额"
-            />
-            <div class="form-tip">代金券面值，无使用门槛</div>
-          </el-form-item>
-        </template>
-        
-        <el-form-item label="适用店铺" prop="shopId">
-          <el-select 
-            v-model="form.shopId" 
-            placeholder="全部店铺可用" 
-            clearable
-            style="width: 100%;"
-          >
-            <el-option 
-              v-for="shop in shopList" 
-              :key="shop.id" 
-              :label="shop.name" 
-              :value="shop.id" 
-            />
-          </el-select>
-          <div class="form-tip">不选择表示全部店铺可用</div>
-        </el-form-item>
-        
-        <el-form-item label="发行总量" prop="totalCount">
-          <el-input-number 
-            v-model="form.totalCount" 
-            :min="1" 
-            :step="1" 
-            controls-position="right" 
-            style="width: 100%;"
-            placeholder="请输入发行总量"
-          />
-        </el-form-item>
-        
-        <el-form-item label="每人限领" prop="perUserLimit">
-          <el-input-number 
-            v-model="form.perUserLimit" 
-            :min="1" 
-            :step="1" 
-            controls-position="right" 
-            style="width: 100%;"
-          />
-        </el-form-item>
-        
-        <el-form-item label="有效期" prop="validityPeriod">
-          <el-date-picker
-            v-model="form.validityPeriod"
-            type="datetimerange"
-            range-separator="至"
-            start-placeholder="开始时间"
-            end-placeholder="结束时间"
-            format="YYYY-MM-DD HH:mm:ss"
-            value-format="YYYY-MM-DD HH:mm:ss"
-            style="width: 100%;"
-          />
-        </el-form-item>
-        
-        <el-form-item label="是否可叠加" prop="stackable">
-          <el-switch v-model="form.stackable" />
-          <span class="switch-label">{{ form.stackable ? '可与其他优惠券同时使用' : '不可与其他优惠券同时使用' }}</span>
-        </el-form-item>
-        
-        <el-form-item label="使用说明" prop="description">
-          <el-input 
-            v-model="form.description" 
-            type="textarea" 
-            :rows="3" 
-            placeholder="请输入优惠券使用说明"
-            maxlength="500"
-            show-word-limit
-          />
-        </el-form-item>
-        
-        <el-form-item>
-          <el-button type="primary" @click="submitForm" :loading="loading">
-            {{ isEdit ? '更新' : '创建' }}
-          </el-button>
-          <el-button @click="$router.back()">取消</el-button>
-        </el-form-item>
+        <el-row :gutter="40">
+          <!-- 基本信息 -->
+          <el-col :span="24">
+            <div class="section-title">基本信息</div>
+          </el-col>
+          
+          <el-col :span="12">
+            <el-form-item label="优惠券名称" prop="title">
+              <el-input v-model="form.title" placeholder="请输入优惠券名称" maxlength="100" show-word-limit />
+            </el-form-item>
+          </el-col>
+          
+          <el-col :span="12">
+            <el-form-item label="适用店铺" prop="shopId">
+              <el-select 
+                v-model="form.shopId" 
+                placeholder="全部店铺可用" 
+                clearable
+                style="width: 100%;"
+              >
+                <el-option 
+                  v-for="shop in shopList" 
+                  :key="shop.id" 
+                  :label="shop.name" 
+                  :value="shop.id" 
+                />
+              </el-select>
+              <div class="form-tip">不选择表示全部店铺可用</div>
+            </el-form-item>
+          </el-col>
+
+          <el-col :span="12">
+            <el-form-item label="优惠券类型" prop="type">
+              <el-select v-model="form.type" placeholder="请选择优惠券类型" @change="handleTypeChange" style="width: 100%;">
+                <el-option label="满减券" :value="1" />
+                <el-option label="折扣券" :value="2" />
+                <el-option label="代金券" :value="3" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+
+          <el-col :span="12">
+             <!-- Placeholder for alignment or move validity here? Let's move Validity here -->
+             <el-form-item label="有效期" prop="validityPeriod">
+              <el-date-picker
+                v-model="form.validityPeriod"
+                type="datetimerange"
+                range-separator="至"
+                start-placeholder="开始时间"
+                end-placeholder="结束时间"
+                format="YYYY-MM-DD HH:mm:ss"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                style="width: 100%;"
+              />
+            </el-form-item>
+          </el-col>
+
+          <!-- 规则设置 -->
+           <el-col :span="24">
+            <div class="section-title">规则设置</div>
+          </el-col>
+
+          <!-- Dynamic Rules based on Type -->
+          <template v-if="form.type === 1">
+            <el-col :span="12">
+              <el-form-item label="优惠金额" prop="amount">
+                <el-input-number 
+                  v-model="form.amount" 
+                  :min="0.01" 
+                  :precision="2"
+                  :step="1" 
+                  controls-position="right" 
+                  style="width: 100%;"
+                  placeholder="请输入优惠金额"
+                />
+                <div class="form-tip">用户使用时可抵扣的金额</div>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="最低消费" prop="minAmount">
+                <el-input-number 
+                  v-model="form.minAmount" 
+                  :min="0" 
+                  :precision="2"
+                  :step="1" 
+                  controls-position="right" 
+                  style="width: 100%;"
+                  placeholder="请输入最低消费金额"
+                />
+                <div class="form-tip">满多少元可使用，0表示无门槛</div>
+              </el-form-item>
+            </el-col>
+          </template>
+
+          <template v-else-if="form.type === 2">
+            <el-col :span="12">
+              <el-form-item label="折扣" prop="discount">
+                <el-input-number 
+                  v-model="form.discount" 
+                  :min="0.01" 
+                  :max="0.99"
+                  :precision="2"
+                  :step="0.05" 
+                  controls-position="right" 
+                  style="width: 100%;"
+                  placeholder="请输入折扣，如0.8表示8折"
+                />
+                <div class="form-tip">输入0.8表示8折，0.75表示7.5折</div>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="最低消费" prop="minAmount">
+                <el-input-number 
+                  v-model="form.minAmount" 
+                  :min="0" 
+                  :precision="2"
+                  :step="1" 
+                  controls-position="right" 
+                  style="width: 100%;"
+                  placeholder="请输入最低消费金额"
+                />
+                <div class="form-tip">满多少元可使用，0表示无门槛</div>
+              </el-form-item>
+            </el-col>
+          </template>
+
+          <template v-else-if="form.type === 3">
+            <el-col :span="12">
+              <el-form-item label="代金金额" prop="amount">
+                <el-input-number 
+                  v-model="form.amount" 
+                  :min="0.01" 
+                  :precision="2"
+                  :step="1" 
+                  controls-position="right" 
+                  style="width: 100%;"
+                  placeholder="请输入代金金额"
+                />
+                <div class="form-tip">代金券面值，无使用门槛</div>
+              </el-form-item>
+            </el-col>
+          </template>
+
+          <!-- Count Limits -->
+           <el-col :span="12">
+            <el-form-item label="发行总量" prop="totalCount">
+              <el-input-number 
+                v-model="form.totalCount" 
+                :min="1" 
+                :step="10" 
+                controls-position="right" 
+                style="width: 100%;"
+              />
+            </el-form-item>
+           </el-col>
+           <el-col :span="12">
+            <el-form-item label="每人限领" prop="perUserLimit">
+              <el-input-number 
+                v-model="form.perUserLimit" 
+                :min="1" 
+                :step="1" 
+                controls-position="right" 
+                style="width: 100%;"
+              />
+            </el-form-item>
+           </el-col>
+
+           <el-col :span="12">
+            <el-form-item label="是否可叠加" prop="stackable">
+              <el-switch v-model="form.stackable" />
+              <span class="switch-label">{{ form.stackable ? '可与其他优惠券同时使用' : '不可与其他优惠券同时使用' }}</span>
+            </el-form-item>
+           </el-col>
+
+           <el-col :span="24">
+            <el-form-item label="使用说明" prop="description">
+              <el-input 
+                v-model="form.description" 
+                type="textarea" 
+                :rows="3" 
+                placeholder="请输入优惠券使用说明"
+                maxlength="500"
+                show-word-limit
+              />
+            </el-form-item>
+           </el-col>
+           
+           <el-col :span="24">
+            <el-form-item class="form-actions">
+              <el-button type="primary" size="large" @click="submitForm" :loading="loading" class="submit-btn" style="width: 180px;">
+                {{ isEdit ? '保存更新' : '立即创建' }}
+              </el-button>
+              <el-button size="large" @click="$router.back()" style="width: 120px;">取消</el-button>
+            </el-form-item>
+           </el-col>
+        </el-row>
       </el-form>
     </el-card>
   </div>
@@ -437,21 +477,88 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.coupon-create {
+  margin: 0 auto;
+  padding: 20px;
+  max-width: 1200px;
+}
+
+.box-card {
+  border: none;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 12px;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+  padding-left: 10px;
+  border-left: 4px solid #3e6ae1;
+  margin-bottom: 20px;
+  margin-top: 10px;
+}
+
+.coupon-form {
+  padding: 20px 0;
+}
+
 .form-tip {
   font-size: 12px;
   color: #909399;
   margin-top: 4px;
+  line-height: 1.4;
 }
 
 .switch-label {
   margin-left: 10px;
-  font-size: 14px;
+  font-size: 13px;
   color: #606266;
+}
+
+.form-actions {
+  margin-top: 40px;
+  text-align: center;
+}
+
+.submit-btn {
+  background: linear-gradient(135deg, #3e6ae1 0%, #2b55c7 100%);
+  border: none;
+}
+
+.submit-btn:hover {
+  background: linear-gradient(135deg, #4d79e8 0%, #3660d2 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(62, 106, 225, 0.3);
+}
+
+:deep(.el-form-item--default .el-form-item__label) {
+  font-weight: 500;
+}
+
+:deep(.el-input__wrapper), :deep(.el-textarea__inner) {
+  box-shadow: 0 0 0 1px #e4e7ed inset;
+  padding: 8px 11px;
+  border-radius: 8px;
+}
+
+:deep(.el-input__wrapper:hover), :deep(.el-textarea__inner:hover) {
+  box-shadow: 0 0 0 1px #c0c4cc inset;
+}
+
+:deep(.el-input__wrapper.is-focus), :deep(.el-textarea__inner:focus) {
+  box-shadow: 0 0 0 1px #3e6ae1 inset;
 }
 </style>

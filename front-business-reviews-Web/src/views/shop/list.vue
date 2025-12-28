@@ -58,7 +58,7 @@
             <div class="stat-item">
               <div class="stat-label">综合评分</div>
               <div class="stat-value">{{ formatScore(shopForm.rating) }}</div>
-              <el-rate v-model="ratingDisplay" disabled show-score text-color="#FF7D00" />
+              <el-rate v-model="ratingDisplay" disabled show-score text-color="#3e6ae1" />
             </div>
             <div class="stat-item">
               <div class="stat-label">口味评分</div>
@@ -877,15 +877,15 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.shop-info-page { background: #f0f2f5; min-height: 100vh; padding-bottom: 40px; }
+.shop-info-page { background: #f9f9f9; min-height: 100vh; padding-bottom: 60px; }
 .page-header { padding: 24px 40px; background: #FFFFFF; }
 .header-content { display: flex; justify-content: space-between; align-items: flex-start; max-width: 1400px; margin: 0 auto; }
 .header-text { flex: 1; }
 .page-title { font-size: 24px; font-weight: 600; color: #333; margin: 0 0 8px 0; }
 .page-desc { font-size: 13px; color: #999; margin: 0; }
 .edit-btn { 
-  background: #FF6B00 !important; 
-  border-color: #FF6B00 !important; 
+  background: #3e6ae1 !important; 
+  border-color: #3e6ae1 !important; 
   padding: 8px 20px; 
   border-radius: 4px; 
   font-weight: 500;
@@ -893,8 +893,9 @@ onUnmounted(() => {
   display: inline-flex !important;
   align-items: center;
   gap: 8px;
+  transition: all 0.3s;
 }
-.edit-btn:hover { background: #E65E00 !important; border-color: #E65E00 !important; }
+.edit-btn:hover { background: #3458b9 !important; border-color: #3458b9 !important; transform: translateY(-1px); }
 .header-actions {
   display: flex;
   align-items: center;
@@ -908,18 +909,19 @@ onUnmounted(() => {
 .info-card { 
   background: #FFFFFF; 
   border-radius: 8px; 
-  padding: 30px; 
-  margin-bottom: 20px; 
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  padding: 32px; 
+  margin-bottom: 24px; 
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e5e5e5;
 }
 
 .card-title { 
-  font-size: 16px; 
+  font-size: 18px; 
   font-weight: 600; 
-  color: #333; 
-  margin: 0 0 30px 0;
+  color: #171a20; 
+  margin: 0 0 32px 0;
   padding-left: 12px;
-  border-left: 4px solid #FF6B00;
+  border-left: 3px solid #3e6ae1;
   line-height: 1.2;
 }
 
@@ -937,15 +939,15 @@ onUnmounted(() => {
 
 .refresh-btn {
   margin-right: 12px;
-  background: #f5f5f5 !important;
-  border-color: #d9d9d9 !important;
-  color: #666 !important;
+  background: #f4f4f4 !important;
+  border-color: transparent !important;
+  color: #393c41 !important;
+  transition: all 0.3s;
 }
 
 .refresh-btn:hover {
-  background: #e6f7ff !important;
-  border-color: #91d5ff !important;
-  color: #1890ff !important;
+  background: #e8e8e8 !important;
+  color: #171a20 !important;
 }
 
 .form-layout { display: grid; grid-template-columns: 280px 1fr; gap: 32px; }
@@ -1103,7 +1105,7 @@ onUnmounted(() => {
   padding: 24px;
   background: #FAFBFC;
   border-radius: 12px;
-  border: 1px solid #F0F1F3;
+  border: 1px solid #e0e0e0;
 }
 
 .field-row { 
@@ -1142,12 +1144,12 @@ onUnmounted(() => {
 }
 
 .field-input :deep(.el-input__wrapper) { 
-  border-radius: 10px; 
-  padding: 12px 16px; 
-  border: 2px solid #E5E7EB; 
+  border-radius: 4px; 
+  padding: 10px 16px; 
+  border: 1px solid #dcdfe6; 
   transition: all 0.3s ease;
   background: #FFFFFF;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: none;
 }
 
 .field-input :deep(.el-input__wrapper:hover) { 
@@ -1161,12 +1163,12 @@ onUnmounted(() => {
 }
 
 .field-input :deep(.el-textarea__inner) { 
-  border-radius: 10px; 
+  border-radius: 4px; 
   padding: 12px 16px; 
-  border: 2px solid #E5E7EB; 
+  border: 1px solid #dcdfe6; 
   transition: all 0.3s ease;
   background: #FFFFFF;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: none;
   resize: vertical;
   min-height: 100px;
 }
@@ -1349,11 +1351,11 @@ onUnmounted(() => {
 
 .stat-item { 
   text-align: center; 
-  padding: 20px; 
-  background: linear-gradient(135deg, #FAFAFA 0%, #F5F5F5 100%); 
-  border-radius: 12px;
-  border: 1px solid #E5E5E5;
-  transition: all 0.3s ease;
+  padding: 24px; 
+  background: #fcfcfc; 
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .stat-item:hover {
@@ -1395,8 +1397,8 @@ onUnmounted(() => {
 }
 .action-buttons { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
 .btn-cancel { padding: 12px 32px; border-radius: 8px; }
-.btn-save { background: #FF7D00; border-color: #FF7D00; padding: 12px 32px; border-radius: 8px; font-weight: 500; }
-.btn-save:hover { background: #E67000; border-color: #E67000; }
+.btn-save { background: #3e6ae1; border-color: #3e6ae1; padding: 12px 32px; border-radius: 8px; font-weight: 500; transition: all 0.3s; }
+.btn-save:hover { background: #3458b9; border-color: #3458b9; transform: translateY(-1px); }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
@@ -1504,8 +1506,8 @@ onUnmounted(() => {
   width: 100%;
   height: 280px;
   background-color: #fafafa;
-  border: 1px dashed #d9d9d9;
-  border-radius: 8px;
+  border: 1px dashed #cccccc;
+  border-radius: 4px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1517,7 +1519,7 @@ onUnmounted(() => {
 }
 
 .cover-upload-box:hover {
-  border-color: #FF6B00;
+  border-color: #3e6ae1;
 }
 
 .cover-preview {
@@ -1536,7 +1538,7 @@ onUnmounted(() => {
 }
 
 .cover-upload-box:hover .upload-icon {
-  color: #FF6B00;
+  color: #3e6ae1;
 }
 
 .upload-loading-overlay {
@@ -1616,12 +1618,12 @@ onUnmounted(() => {
 }
 
 .field-input-new :deep(.el-input__wrapper:hover) { 
-  border-color: #FF6B00; 
+  border-color: #3e6ae1; 
 }
 
 .field-input-new :deep(.el-input__wrapper.is-focus) { 
-  border-color: #FF6B00; 
-  box-shadow: 0 0 0 2px rgba(255, 107, 0, 0.1);
+  border-color: #3e6ae1; 
+  box-shadow: 0 0 0 2px rgba(62, 106, 225, 0.1);
 }
 
 .field-input-new :deep(.el-textarea__inner) { 
@@ -1635,12 +1637,12 @@ onUnmounted(() => {
 }
 
 .field-input-new :deep(.el-textarea__inner:hover) { 
-  border-color: #FF6B00; 
+  border-color: #3e6ae1; 
 }
 
 .field-input-new :deep(.el-textarea__inner:focus) { 
-  border-color: #FF6B00; 
-  box-shadow: 0 0 0 2px rgba(255, 107, 0, 0.1);
+  border-color: #3e6ae1; 
+  box-shadow: 0 0 0 2px rgba(62, 106, 225, 0.1);
 }
 
 /* Readonly状态样式 - 保持白色背景和清晰文字 */
@@ -1758,15 +1760,16 @@ onUnmounted(() => {
 .locate-btn-new,
 .location-btn-new {
   padding: 10px 15px;
-  background: #FF6B00;
-  border-color: #FF6B00;
+  background: #3e6ae1;
+  border-color: #3e6ae1;
   border-radius: 4px;
+  transition: all 0.3s;
 }
 
 .locate-btn-new:hover,
 .location-btn-new:hover {
-  background: #E65E00;
-  border-color: #E65E00;
+  background: #3458b9;
+  border-color: #3458b9;
 }
 
 .locate-btn-new.is-disabled,
@@ -1847,8 +1850,8 @@ onUnmounted(() => {
 }
 
 .gallery-add-new:hover {
-  border-color: #FF6B00;
-  color: #FF6B00;
+  border-color: #3e6ae1;
+  color: #3e6ae1;
 }
 
 .gallery-hint-new {

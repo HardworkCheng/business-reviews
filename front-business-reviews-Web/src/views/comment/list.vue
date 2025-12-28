@@ -60,7 +60,7 @@
         <div class="data-card">
           <div class="card-left">
             <div class="card-title">差评/投诉待处理</div>
-            <h2 class="card-number" style="color: #f5222d">{{ dashboardData.negativeComments }}</h2>
+            <h2 class="card-number" style="color: #d73948">{{ dashboardData.negativeComments }}</h2>
             <div class="trend">
               <span style="color: #999; font-weight: normal;">需优先处理</span>
             </div>
@@ -148,7 +148,7 @@
                   v-model="scope.row.rating" 
                   disabled 
                   show-score 
-                  text-color="#ff9900"
+                  text-color="#3e6ae1"
                 />
                 <span class="review-time">{{ formatTime(scope.row.time) }}</span>
                 <span v-if="scope.row.noteTitle" class="goods-badge">笔记: {{ scope.row.noteTitle }}</span>
@@ -300,7 +300,8 @@ const dashboardData = ref({
   ratingTrend: 0,
   pendingReply: 0,
   replyTrend: 0,
-  negativeComments: 0
+  negativeComments: 0,
+  todayDeletedCount: 0
 })
 
 // Tab计数
@@ -364,7 +365,8 @@ const fetchDashboard = async () => {
       ratingTrend: 0,
       pendingReply: 0,
       replyTrend: 0,
-      negativeComments: 0
+      negativeComments: 0,
+      todayDeletedCount: 0
     }
   } catch (error) {
     console.error('获取数据概览失败:', error)
@@ -525,13 +527,37 @@ const handleTop = async (row: any) => {
 
 // 删除评论
 const handleDelete = (row: any) => {
+  const todayCount = dashboardData.value.todayDeletedCount || 0
+  // 如果已经达到上限，虽然后端会拦截，前端也可以直接提示（可选，这里保持后端拦截为主，但文案显示当前状态）
+  
+  const contentHtml = `
+    <div style="text-align: center;">
+      <div style="font-size: 16px; color: #171a20; font-weight: 500; margin-bottom: 16px;">
+        确定要删除这条评论吗？
+      </div>
+      <div style="background: #f9f9f9; border-left: 3px solid #d73948; padding: 12px 16px; border-radius: 0 4px 4px 0; text-align: left;">
+        <div style="font-size: 14px; color: #5c5e62; margin-bottom: 4px;">
+          今日已删除 <span style="color: #d73948; font-weight: 600; font-size: 16px; font-family: DINAlternate-Bold, sans-serif;">${todayCount}</span>/2 条评论
+        </div>
+        <div style="font-size: 12px; color: #9aa0a6;">
+          删除后无法恢复，请谨慎操作
+        </div>
+      </div>
+    </div>
+  `
+
   ElMessageBox.confirm(
-    `确定要删除这条评论吗？`,
-    '提示',
+    contentHtml,
+    '删除提示',
     {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
+      confirmButtonText: '确认删除',
+      cancelButtonText: '暂不删除',
+      confirmButtonType: 'danger',
+      type: 'error',
+      dangerouslyUseHTMLString: true,
+      center: true,
+      showClose: false,
+      customClass: 'merchant-delete-dialog'
     }
   ).then(async () => {
     try {
@@ -540,7 +566,7 @@ const handleDelete = (row: any) => {
       fetchComments()
       fetchDashboard()
     } catch (error) {
-      ElMessage.error('删除失败')
+      // 错误已经由request拦截器处理/显示了（如果是业务异常）
     }
   })
 }
@@ -611,10 +637,10 @@ onMounted(() => {
 @import '@/styles/comment-management.scss';
 
 .comment-list-page {
-  padding: 24px;
-  max-width: 1600px;
+  padding: 40px;
+  max-width: 1400px;
   margin: 0 auto;
-  background-color: #f4f7fc;
+  background-color: #f9f9f9;
   min-height: 100vh;
 }
 </style>

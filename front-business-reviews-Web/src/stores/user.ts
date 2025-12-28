@@ -8,13 +8,17 @@ interface UserInfo {
   name: string
   phone: string
   avatar: string
+  contactEmail?: string
+  licenseNo?: string
+  licenseImage?: string
+  description?: string
   roleName: string
   permissions: string[]
 }
 
 export const useUserStore = defineStore('user', {
   state: () => ({
-    userInfo: null as UserInfo | null,
+    userInfo: JSON.parse(localStorage.getItem('merchant_user_info') || 'null') as UserInfo | null,
     token: localStorage.getItem('merchant_token') || ''
   }),
 
@@ -31,12 +35,14 @@ export const useUserStore = defineStore('user', {
 
     setUserInfo(userInfo: UserInfo) {
       this.userInfo = userInfo
+      localStorage.setItem('merchant_user_info', JSON.stringify(userInfo))
     },
 
     logout() {
       this.token = ''
       this.userInfo = null
       localStorage.removeItem('merchant_token')
+      localStorage.removeItem('merchant_user_info')
     }
   }
 })
