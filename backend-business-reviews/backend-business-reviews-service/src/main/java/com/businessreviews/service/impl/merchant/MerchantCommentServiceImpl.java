@@ -18,6 +18,8 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 /**
  * 商家评论服务实现类
@@ -192,6 +194,9 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
         shopReviewMapper.updateById(review);
 
         log.info("商家评论删除成功: reviewId={}", commentId);
+
+        // 重新计算门店评分
+        recalculateShopRatings(review.getShopId());
     }
 
     @Override
@@ -552,5 +557,47 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
             log.error("导出Excel失败", e);
             throw new BusinessException(50000, "导出失败");
         }
+    }
+
+    /**
+     * 重新计算门店评分
+     */
+    private void recalculateShopRatings(Long shopId) {
+        // 查询该门店所有正常显示的评论
+        LambdaQueryWrapper<ShopReviewDO> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(ShopReviewDO::getShopId, shopId)
+                .eq(ShopReviewDO::getStatus, 1); // Only active reviews
+        List<ShopReviewDO> reviews = shopReviewMapper.selectList(queryWrapper);
+
+        if (reviews.isEmpty()) {
+            // 如果没有评论，重置为默认高分（5.0）
+            ShopDO shopUpdate = new ShopDO();
+            shopUpdate.setId(shopId);
+            shopUpdate.setRating(BigDecimal.valueOf(5.0));
+            shopUpdate.setTasteScore(BigDecimal.valueOf(5.0));
+            shopUpdate.setEnvironmentScore(BigDecimal.valueOf(5.0));
+            shopUpdate.setServiceScore(BigDecimal.valueOf(5.0));
+            shopUpdate.setReviewCount(0);
+            shopMapper.updateById(shopUpdate);
+            log.info("门店无有效评论，重置评分: shopId={}", shopId);
+            return;
+        }
+
+        // 计算平均分
+        double avgRating = reviews.stream().mapToDouble(r -> r.getRating().doubleValue()).average().orElse(5.0);
+        double avgTaste = reviews.stream().mapToDouble(r -> r.getTasteScore().doubleValue()).average().orElse(5.0);
+        double avgEnv = reviews.stream().mapToDouble(r -> r.getEnvironmentScore().doubleValue()).average().orElse(5.0);
+        double avgService = reviews.stream().mapToDouble(r -> r.getServiceScore().doubleValue()).average().orElse(5.0);
+
+        ShopDO shopUpdate = new ShopDO();
+        shopUpdate.setId(shopId);
+        shopUpdate.setRating(BigDecimal.valueOf(avgRating).setScale(2, RoundingMode.HALF_UP));
+        shopUpdate.setTasteScore(BigDecimal.valueOf(avgTaste).setScale(2, RoundingMode.HALF_UP));
+        shopUpdate.setEnvironmentScore(BigDecimal.valueOf(avgEnv).setScale(2, RoundingMode.HALF_UP));
+        shopUpdate.setServiceScore(BigDecimal.valueOf(avgService).setScale(2, RoundingMode.HALF_UP));
+        shopUpdate.setReviewCount(reviews.size());
+
+        shopMapper.updateById(shopUpdate);
+        log.info("重新计算门店评分完成: shopId={}, rating={}, count={}", shopId, avgRating, reviews.size());
     }
 }
