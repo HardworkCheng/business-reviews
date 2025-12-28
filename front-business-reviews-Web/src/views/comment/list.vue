@@ -250,21 +250,79 @@
     <el-dialog 
       v-model="replyDialogVisible" 
       title="回复评论" 
-      width="500px"
+      width="600px"
+      class="reply-dialog"
     >
-      <el-form :model="replyForm" :rules="replyRules" ref="replyFormRef">
-        <el-form-item label="回复内容" prop="content">
-          <el-input 
-            v-model="replyForm.content" 
-            type="textarea" 
-            :rows="4" 
-            placeholder="请输入回复内容" 
-          />
-        </el-form-item>
-      </el-form>
+      <div class="reply-dialog-content">
+        <!-- 原评论展示 -->
+        <div class="original-comment">
+          <div class="comment-label">
+            <el-icon><ChatLineSquare /></el-icon>
+            <span>用户评论</span>
+          </div>
+          <div class="comment-text">{{ currentReplyComment?.content || '暂无评论内容' }}</div>
+          <div class="comment-meta" v-if="currentReplyComment?.rating">
+            <el-rate v-model="currentReplyComment.rating" disabled size="small" />
+            <span class="comment-time">{{ formatTime(currentReplyComment?.time) }}</span>
+          </div>
+        </div>
+
+        <!-- AI 回复生成区 -->
+        <div class="ai-reply-section">
+          <div class="section-header">
+            <el-icon color="#10B981"><MagicStick /></el-icon>
+            <span>AI 智能回复</span>
+          </div>
+          
+          <div class="strategy-select">
+            <label>补偿策略（可选）：</label>
+            <el-select v-model="selectedStrategy" placeholder="选择补偿方式" clearable style="width: 100%;">
+              <el-option label="仅诚恳道歉（无补偿）" value="" />
+              <el-option label="送 5 元无门槛券" value="送一张5元无门槛优惠券" />
+              <el-option label="送 8 折折扣券" value="送一张8折优惠券" />
+              <el-option label="下次到店送饮料" value="下次到店免费送一杯饮料" />
+              <el-option label="送两份小菜" value="送两份精选小菜" />
+            </el-select>
+            <el-input 
+              v-model="customStrategy" 
+              placeholder="或输入自定义补偿策略..." 
+              style="margin-top: 8px;"
+              clearable
+            />
+          </div>
+
+          <el-button 
+            type="success" 
+            @click="handleGenerateAIReply"
+            :loading="aiReplyLoading"
+            :disabled="!currentReplyComment?.content"
+            style="width: 100%; margin-top: 12px;"
+          >
+            <el-icon><MagicStick /></el-icon>
+            {{ aiReplyLoading ? 'AI 正在生成...' : 'AI 生成回复' }}
+          </el-button>
+        </div>
+
+        <!-- 回复内容编辑 -->
+        <el-form :model="replyForm" :rules="replyRules" ref="replyFormRef" style="margin-top: 16px;">
+          <el-form-item label="回复内容" prop="content">
+            <el-input 
+              v-model="replyForm.content" 
+              type="textarea" 
+              :rows="5" 
+              placeholder="请输入回复内容，或点击上方按钮让 AI 帮你生成" 
+            />
+          </el-form-item>
+          <div class="reply-tip" v-if="replyForm.content">
+            <el-icon><InfoFilled /></el-icon>
+            <span>AI 生成的内容仅供参考，请检查后再发送</span>
+          </div>
+        </el-form>
+      </div>
+
       <template #footer>
         <el-button @click="replyDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitReply" :loading="replyLoading">确定</el-button>
+        <el-button type="primary" @click="submitReply" :loading="replyLoading">发送回复</el-button>
       </template>
     </el-dialog>
 
@@ -372,7 +430,8 @@ import {
   MagicStick,
   CircleCheckFilled,
   WarningFilled,
-  Promotion
+  Promotion,
+  InfoFilled
 } from '@element-plus/icons-vue'
 import { 
   getCommentDashboard,
@@ -383,6 +442,7 @@ import {
   exportComments as exportCommentsApi,
   getMerchantShops,
   getAIWeeklyReport,
+  generateAIReply,
   type WeeklyReportData
 } from '@/api/comment'
 
@@ -441,6 +501,12 @@ const replyForm = ref({
 })
 const replyFormRef = ref()
 const replyLoading = ref(false)
+const currentReplyComment = ref<any>(null)  // 当前正在回复的评论
+
+// AI 生成回复相关
+const selectedStrategy = ref('')           // 选择的补偿策略
+const customStrategy = ref('')             // 自定义补偿策略
+const aiReplyLoading = ref(false)          // AI生成回复loading
 
 // 回复表单验证规则
 const replyRules = {
@@ -635,7 +701,40 @@ const handleExport = async () => {
 const handleReply = (row: any) => {
   replyForm.value.commentId = row.id
   replyForm.value.content = ''
+  currentReplyComment.value = row  // 保存当前评论信息
+  selectedStrategy.value = ''      // 重置补偿策略
+  customStrategy.value = ''        // 重置自定义策略
   replyDialogVisible.value = true
+}
+
+// AI 生成回复
+const handleGenerateAIReply = async () => {
+  if (!currentReplyComment.value?.content) {
+    ElMessage.warning('无法获取评论内容')
+    return
+  }
+
+  try {
+    aiReplyLoading.value = true
+    
+    // 确定最终使用的补偿策略（自定义策略优先）
+    const finalStrategy = customStrategy.value || selectedStrategy.value || ''
+    
+    const res = await generateAIReply({
+      reviewText: currentReplyComment.value.content,
+      strategy: finalStrategy || undefined
+    })
+    
+    // 将AI生成的回复填入输入框
+    replyForm.value.content = res.reply
+    ElMessage.success('AI回复生成成功，请检查后发送')
+    
+  } catch (error: any) {
+    console.error('AI生成回复失败:', error)
+    ElMessage.error(error.message || 'AI生成回复失败，请稍后重试')
+  } finally {
+    aiReplyLoading.value = false
+  }
 }
 
 // 提交回复
@@ -1039,6 +1138,92 @@ onMounted(() => {
   
   .el-dialog__body {
     padding: 24px;
+  }
+}
+
+// 回复评论弹窗样式
+.reply-dialog-content {
+  .original-comment {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border-left: 4px solid #94a3b8;
+    
+    .comment-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    
+    .comment-text {
+      font-size: 14px;
+      color: #334155;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+    
+    .comment-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 10px;
+      
+      .comment-time {
+        font-size: 12px;
+        color: #94a3b8;
+      }
+    }
+  }
+  
+  .ai-reply-section {
+    background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+    border-radius: 10px;
+    padding: 16px;
+    border: 1px solid #bbf7d0;
+    
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #166534;
+      margin-bottom: 12px;
+    }
+    
+    .strategy-select {
+      label {
+        display: block;
+        font-size: 13px;
+        color: #475569;
+        margin-bottom: 6px;
+      }
+    }
+  }
+  
+  .reply-tip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #f59e0b;
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: #fffbeb;
+    border-radius: 6px;
+    border: 1px solid #fde68a;
+  }
+}
+
+// 回复弹窗覆盖样式
+:deep(.reply-dialog) {
+  .el-dialog__body {
+    padding: 20px 24px;
   }
 }
 </style>

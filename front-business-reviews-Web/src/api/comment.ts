@@ -69,3 +69,20 @@ export interface WeeklyReportData {
 export function getAIWeeklyReport(shopId: number) {
   return request.get<WeeklyReportData>(`/merchant/analytics/weekly-report/${shopId}`)
 }
+
+// AI 生成差评回复
+export interface GenerateReplyRequest {
+  reviewText: string         // 用户的差评内容
+  strategy?: string          // 商家的补偿策略（可选）
+}
+
+export interface GenerateReplyResponse {
+  reply: string              // AI 生成的回复内容
+  generatedAt: string        // 生成时间
+}
+
+// 生成AI差评回复
+export function generateAIReply(data: GenerateReplyRequest) {
+  return request.post<GenerateReplyResponse>('/merchant/reply/generate', data)
+}
+
