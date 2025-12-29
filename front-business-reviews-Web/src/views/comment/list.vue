@@ -82,34 +82,8 @@
           <el-tab-pane :label="`已删除 (${tabCounts.deleted})`" name="deleted"></el-tab-pane>
         </el-tabs>
 
+
         <div style="display: flex; gap: 10px;">
-          <el-select 
-            v-model="selectedShopId" 
-            placeholder="选择门店" 
-            size="default"
-            style="width: 200px;"
-            clearable
-            @change="handleShopChange"
-          >
-            <el-option label="全部门店" :value="null" />
-            <el-option 
-              v-for="shop in shopList" 
-              :key="shop.id" 
-              :label="shop.name" 
-              :value="shop.id" 
-            />
-          </el-select>
-          <el-input 
-            v-model="searchForm.keyword" 
-            placeholder="搜索内容、用户或订单号..." 
-            size="default"
-            style="width: 260px;"
-            @input="handleSearch"
-          >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
-            </template>
-          </el-input>
           <el-button type="primary" size="default" plain @click="handleExport">
             <el-icon><Download /></el-icon>
             导出数据
@@ -118,7 +92,6 @@
             type="success" 
             size="default" 
             @click="handleAIAnalysis"
-            :disabled="!selectedShopId"
             :loading="aiAnalysisLoading"
           >
             <el-icon><MagicStick /></el-icon>
@@ -270,36 +243,43 @@
         <!-- AI 回复生成区 -->
         <div class="ai-reply-section">
           <div class="section-header">
-            <el-icon color="#10B981"><MagicStick /></el-icon>
-            <span>AI 智能回复</span>
+            <el-icon class="ai-icon-pulse"><MagicStick /></el-icon>
+            <span class="ai-title">AI 智能回复</span>
+            <el-tag size="small" type="primary" effect="light" round class="ai-tag">自动情感识别</el-tag>
           </div>
           
           <div class="strategy-select">
-            <label>补偿策略（可选）：</label>
-            <el-select v-model="selectedStrategy" placeholder="选择补偿方式" clearable style="width: 100%;">
-              <el-option label="仅诚恳道歉（无补偿）" value="" />
-              <el-option label="送 5 元无门槛券" value="送一张5元无门槛优惠券" />
-              <el-option label="送 8 折折扣券" value="送一张8折优惠券" />
-              <el-option label="下次到店送饮料" value="下次到店免费送一杯饮料" />
-              <el-option label="送两份小菜" value="送两份精选小菜" />
+            <label>赠礼策略（可选）：</label>
+            <el-select v-model="selectedStrategy" placeholder="选择赠礼方式" clearable style="width: 100%;">
+              <el-option label="不赠送礼品" value="" />
+              <el-option label="🎁 送 5 元无门槛券" value="送一张5元无门槛优惠券" />
+              <el-option label="🎁 送 8 折折扣券" value="送一张8折优惠券" />
+              <el-option label="🥤 下次到店送饮料" value="下次到店免费送一杯饮料" />
+              <el-option label="🍽️ 送两份小菜" value="送两份精选小菜" />
+              <el-option label="🍰 送精选甜点一份" value="送精选甜点一份" />
             </el-select>
             <el-input 
               v-model="customStrategy" 
-              placeholder="或输入自定义补偿策略..." 
+              placeholder="或输入自定义赠礼..." 
               style="margin-top: 8px;"
               clearable
             />
           </div>
 
+          <div class="ai-hint">
+            <el-icon><InfoFilled /></el-icon>
+            <span>AI 会自动判断评论情感：好评时赠礼是「惊喜回馈」，差评时赠礼是「表达歉意」</span>
+          </div>
+
           <el-button 
-            type="success" 
+            class="btn-ai-generate"
             @click="handleGenerateAIReply"
             :loading="aiReplyLoading"
             :disabled="!currentReplyComment?.content"
-            style="width: 100%; margin-top: 12px;"
+            style="width: 100%; margin-top: 16px; height: 40px; border-radius: 8px;"
           >
-            <el-icon><MagicStick /></el-icon>
-            {{ aiReplyLoading ? 'AI 正在生成...' : 'AI 生成回复' }}
+            <el-icon class="mr-1"><MagicStick /></el-icon>
+            {{ aiReplyLoading ? 'AI 正在深度思考...' : '✨ 一键生成高情商回复' }}
           </el-button>
         </div>
 
@@ -413,7 +393,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   ChatLineSquare, 
@@ -449,9 +429,6 @@ import {
 // 门店列表
 const shopList = ref<any[]>([])
 
-// 选中的门店ID
-const selectedShopId = ref<number | null>(null)
-
 // 数据概览数据
 const dashboardData = ref({
   todayNewComments: 0,
@@ -474,11 +451,6 @@ const tabCounts = ref({
 
 // 当前激活的Tab
 const activeTab = ref('all')
-
-// 搜索表单
-const searchForm = reactive({
-  keyword: ''
-})
 
 // 分页
 const pagination = ref({
@@ -521,10 +493,13 @@ const aiAnalysisLoading = ref(false)
 const aiReportDialogVisible = ref(false)
 const aiReportData = ref<WeeklyReportData | null>(null)
 
-// AI分析处理
+// AI分析处理 - 自动使用商家的第一个门店
 const handleAIAnalysis = async () => {
-  if (!selectedShopId.value) {
-    ElMessage.warning('请先选择一个门店进行分析')
+  // 自动获取商家的第一个门店进行分析
+  const targetShopId = shopList.value.length > 0 ? shopList.value[0].id : null
+  
+  if (!targetShopId) {
+    ElMessage.warning('当前商家没有门店，无法进行AI分析')
     return
   }
   
@@ -532,7 +507,7 @@ const handleAIAnalysis = async () => {
     aiAnalysisLoading.value = true
     ElMessage.info('正在生成AI分析报告，请稍候...')
     
-    const res = await getAIWeeklyReport(selectedShopId.value)
+    const res = await getAIWeeklyReport(targetShopId)
     aiReportData.value = res
     aiReportDialogVisible.value = true
     
@@ -565,14 +540,10 @@ const getScoreDescription = (score: number): string => {
   return '🚨 亟需改善提升'
 }
 
-// 搜索防抖定时器
-let searchTimer: any = null
-
 // 获取数据概览
 const fetchDashboard = async () => {
   try {
-    const params = selectedShopId.value ? { shopId: selectedShopId.value } : {}
-    const res = await getCommentDashboard(params)
+    const res = await getCommentDashboard({})
     dashboardData.value = res || {
       todayNewComments: 0,
       todayTrend: 0,
@@ -598,11 +569,14 @@ const fetchComments = async () => {
     let isNegative: boolean | undefined = undefined
     
     if (activeTab.value === 'published') {
+      // 正常显示：3星及以上的评论，且状态为正常显示
       statusValue = 1
+      isNegative = false  // 显式标记为非差评（评分>=3）
     } else if (activeTab.value === 'deleted') {
       statusValue = 2
     } else if (activeTab.value === 'negative') {
-      // 差评Tab：查询评分<3分的评论
+      // 差评Tab：查询评分<=2分的评论，且状态为正常显示
+      statusValue = 1  // 只查询正常显示的差评
       isNegative = true
     }
     // 'all' 不传任何筛选参数
@@ -611,13 +585,7 @@ const fetchComments = async () => {
       pageNum: pagination.value.currentPage,
       pageSize: pagination.value.pageSize,
       status: statusValue,
-      keyword: searchForm.keyword || undefined,
       isNegative: isNegative
-    }
-    
-    // 如果选择了门店，添加shopId参数
-    if (selectedShopId.value) {
-      params.shopId = selectedShopId.value
     }
     
     const res = await getCommentList(params)
@@ -646,28 +614,13 @@ const fetchShops = async () => {
   }
 }
 
-// 门店切换
-const handleShopChange = () => {
-  pagination.value.currentPage = 1
-  fetchDashboard()
-  fetchComments()
-}
-
 // Tab切换
-const handleTabClick = () => {
+const handleTabClick = async (tab: any) => {
+  // Element Plus 的 @tab-click 事件会在 v-model 更新之前触发
+  // 需要使用 nextTick 确保 activeTab.value 已更新为新值
+  await nextTick()
   pagination.value.currentPage = 1
   fetchComments()
-}
-
-// 搜索处理（防抖）
-const handleSearch = () => {
-  if (searchTimer) {
-    clearTimeout(searchTimer)
-  }
-  searchTimer = setTimeout(() => {
-    pagination.value.currentPage = 1
-    fetchComments()
-  }, 500)
 }
 
 // 导出数据
@@ -675,8 +628,7 @@ const handleExport = async () => {
   try {
     ElMessage.info('正在导出数据...')
     const params = {
-      status: activeTab.value === 'all' ? undefined : activeTab.value,
-      keyword: searchForm.keyword || undefined
+      status: activeTab.value === 'all' ? undefined : activeTab.value
     }
     
     const blob = await exportCommentsApi(params)
@@ -900,8 +852,10 @@ onMounted(() => {
     display: flex;
     align-items: center;
     gap: 16px;
-    padding: 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 24px 32px;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
+    position: relative;
+    overflow: hidden;
     border-radius: 12px;
     margin-bottom: 24px;
     
@@ -913,7 +867,9 @@ onMounted(() => {
       display: flex;
       align-items: center;
       justify-content: center;
-      backdrop-filter: blur(10px);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
     }
     
     .header-content {
@@ -1037,8 +993,15 @@ onMounted(() => {
         line-height: 1.5;
         border-bottom: 1px dashed #e2e8f0;
         
+        border-bottom: 1px dashed #f1f5f9;
+        
         &:last-child {
           border-bottom: none;
+        }
+        
+        &:hover {
+          background-color: rgba(255, 255, 255, 0.8);
+          border-radius: 6px;
         }
       }
       
@@ -1181,19 +1144,37 @@ onMounted(() => {
   }
   
   .ai-reply-section {
-    background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
-    border-radius: 10px;
-    padding: 16px;
-    border: 1px solid #bbf7d0;
+    background: linear-gradient(180deg, #f5f3ff 0%, #ffffff 100%);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid #ddd6fe;
+    box-shadow: 0 4px 6px -1px rgba(139, 92, 246, 0.05);
     
     .section-header {
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 14px;
       font-weight: 600;
-      color: #166534;
-      margin-bottom: 12px;
+      color: #7c3aed;
+      margin-bottom: 16px;
+      
+      .ai-icon-pulse {
+        font-size: 18px;
+        animation: pulse 2s infinite;
+      }
+      
+      .ai-title {
+        background: linear-gradient(90deg, #6366f1, #d946ef);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      
+      .ai-tag {
+        margin-left: auto;
+        border: none;
+        background: rgba(139, 92, 246, 0.1);
+        color: #7c3aed;
+      }
     }
     
     .strategy-select {
@@ -1218,12 +1199,64 @@ onMounted(() => {
     border-radius: 6px;
     border: 1px solid #fde68a;
   }
+  
+  .ai-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #059669;
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 8px;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+  }
 }
 
 // 回复弹窗覆盖样式
 :deep(.reply-dialog) {
   .el-dialog__body {
-    padding: 20px 24px;
+    padding: 24px 28px;
   }
+}
+
+// AI 按钮样式
+.btn-ai-generate {
+  background: linear-gradient(90deg, #6366f1, #8b5cf6, #d946ef);
+  background-size: 200% auto;
+  border: none;
+  color: white;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background-position: right center;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    color: white;
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  // 禁用状态
+  &.is-disabled {
+    background: #e2e8f0;
+    color: #94a3b8;
+    transform: none;
+    box-shadow: none;
+  }
+  
+  .mr-1 {
+    margin-right: 4px;
+  }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
 }
 </style>

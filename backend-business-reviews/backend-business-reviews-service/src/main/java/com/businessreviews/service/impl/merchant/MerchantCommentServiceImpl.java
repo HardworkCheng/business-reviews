@@ -65,9 +65,15 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
             wrapper.eq(ShopReviewDO::getStatus, status);
         }
 
-        // 如果是查询差评，添加评分筛选条件
-        if (isNegative != null && isNegative) {
-            wrapper.lt(ShopReviewDO::getRating, 3);
+        // 根据isNegative参数添加评分筛选条件
+        if (isNegative != null) {
+            if (isNegative) {
+                // 差评：评分 <= 2星
+                wrapper.le(ShopReviewDO::getRating, BigDecimal.valueOf(2));
+            } else {
+                // 正常评论：评分 >= 3星
+                wrapper.ge(ShopReviewDO::getRating, BigDecimal.valueOf(3));
+            }
         }
 
         if (StringUtils.hasText(keyword)) {
@@ -102,10 +108,11 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
         allWrapper.in(ShopReviewDO::getShopId, shopIds);
         long all = shopReviewMapper.selectCount(allWrapper);
 
-        // 正常显示
+        // 正常显示（3星及以上的评论）
         LambdaQueryWrapper<ShopReviewDO> publishedWrapper = new LambdaQueryWrapper<>();
         publishedWrapper.in(ShopReviewDO::getShopId, shopIds)
-                .eq(ShopReviewDO::getStatus, 1);
+                .eq(ShopReviewDO::getStatus, 1)
+                .ge(ShopReviewDO::getRating, BigDecimal.valueOf(3)); // 只统计3星及以上
         long published = shopReviewMapper.selectCount(publishedWrapper);
 
         // 已删除
@@ -114,10 +121,10 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
                 .eq(ShopReviewDO::getStatus, 2);
         long deleted = shopReviewMapper.selectCount(deletedWrapper);
 
-        // 差评/投诉（评分低于3分的）
+        // 差评/投诉（评分 <= 2星）
         LambdaQueryWrapper<ShopReviewDO> negativeWrapper = new LambdaQueryWrapper<>();
         negativeWrapper.in(ShopReviewDO::getShopId, shopIds)
-                .lt(ShopReviewDO::getRating, 3)
+                .le(ShopReviewDO::getRating, BigDecimal.valueOf(2)) // 修改为 <= 2星
                 .eq(ShopReviewDO::getStatus, 1);
         long negative = shopReviewMapper.selectCount(negativeWrapper);
 
