@@ -69,8 +69,8 @@
 			</view>
 		</scroll-view>
 
-		<!-- 输入框区域 -->
-		<view class="input-wrapper">
+		<!-- 输入框区域 - AI审核助手不可回复 -->
+		<view class="input-wrapper" v-if="!isAIAssistant">
 			<view class="input-bar">
 				<input 
 					v-model="inputText" 
@@ -88,6 +88,11 @@
 			</view>
 			<!-- 安全区域占位 -->
 			<view class="safe-area-bottom"></view>
+		</view>
+		
+		<!-- AI审核助手的底部提示 -->
+		<view class="ai-assistant-tip" v-if="isAIAssistant">
+			<text>🤖 这是AI审核助手的自动通知，无法回复</text>
 		</view>
 	</view>
 </template>
@@ -114,14 +119,25 @@ const scrollToView = ref('')
 const conversationId = ref(null)
 const pollingTimer = ref(null)
 const lastMessageId = ref(null)
+const isAIAssistant = ref(false)  // 是否为AI审核助手
 
 onLoad((options) => {
 	otherUserId.value = parseInt(options.userId)
-	if (options.username) {
-		otherUser.value.username = options.username
-	}
-	if (options.avatar) {
-		otherUser.value.avatar = options.avatar
+	
+	// 检测是否为AI审核助手（用户ID为0）
+	isAIAssistant.value = otherUserId.value === 0
+	
+	if (isAIAssistant.value) {
+		// AI审核助手的特殊处理
+		otherUser.value.username = 'AI审核助手'
+		otherUser.value.avatar = '/static/icons/ai-assistant.png'
+	} else {
+		if (options.username) {
+			otherUser.value.username = options.username
+		}
+		if (options.avatar) {
+			otherUser.value.avatar = options.avatar
+		}
 	}
 	
 	// 获取我的信息
@@ -789,6 +805,24 @@ const goBack = () => {
 .message-mine .note-card {
 	.note-card-header {
 		background: linear-gradient(135deg, #ffe4cc 0%, #ffd4a3 100%);
+	}
+}
+
+// AI审核助手底部提示
+.ai-assistant-tip {
+	background: linear-gradient(135deg, #f5f7fa 0%, #eef2f7 100%);
+	border-top: 1rpx solid #e8ecf0;
+	padding: 30rpx;
+	text-align: center;
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	z-index: 100;
+	
+	text {
+		font-size: 26rpx;
+		color: #7f8c9a;
 	}
 }
 </style>

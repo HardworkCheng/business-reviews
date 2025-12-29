@@ -113,17 +113,27 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { getFollowingList, getFollowerList } from '../../api/user'
-import { shareNoteToUsers } from '../../api/message'
+import { shareNoteToUsers, shareShopToUsers } from '../../api/message'
 
 const props = defineProps({
 	visible: {
 		type: Boolean,
 		default: false
 	},
+	// 分享类型：'note' 或 'shop'
+	shareType: {
+		type: String,
+		default: 'note'
+	},
 	noteId: {
 		type: [String, Number],
 		default: ''
 	},
+	shopId: {
+		type: [String, Number],
+		default: ''
+	},
+	// 通用的内容信息（兼容笔记和店铺）
 	noteInfo: {
 		type: Object,
 		default: () => ({
@@ -244,7 +254,7 @@ const toggleSelection = (userId) => {
 	}
 }
 
-// 分享笔记
+// 分享（支持笔记和店铺）
 const handleShare = async () => {
 	if (!hasSelection.value || isSharing.value) {
 		return
@@ -259,8 +269,14 @@ const handleShare = async () => {
 			return typeof id === 'string' ? parseInt(id) : id
 		})
 		
-		console.log('分享笔记:', props.noteId, '给用户:', userIds)
-		await shareNoteToUsers(props.noteId, userIds)
+		// 根据分享类型调用不同的API
+		if (props.shareType === 'shop') {
+			console.log('分享店铺:', props.shopId, '给用户:', userIds)
+			await shareShopToUsers(props.shopId, userIds)
+		} else {
+			console.log('分享笔记:', props.noteId, '给用户:', userIds)
+			await shareNoteToUsers(props.noteId, userIds)
+		}
 		
 		uni.hideLoading()
 		uni.showToast({

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.businessreviews.common.PageResult;
+import com.businessreviews.event.CommentCreatedEvent;
 import com.businessreviews.model.dto.app.AddCommentDTO;
 import com.businessreviews.model.vo.CommentVO;
 import com.businessreviews.model.dataobject.*;
@@ -14,6 +15,7 @@ import com.businessreviews.service.app.MessageService;
 import com.businessreviews.util.TimeUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,23 +33,24 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
     private final NoteMapper noteMapper;
     private final CommentLikeMapper commentLikeMapper;
     private final MessageService messageService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public PageResult<CommentVO> getNoteComments(Long noteId, Long userId, Integer pageNum, Integer pageSize) {
         Page<CommentDO> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<CommentDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CommentDO::getNoteId, noteId)
-               .isNull(CommentDO::getParentId)
-               .eq(CommentDO::getStatus, 1)
-               .orderByDesc(CommentDO::getLikeCount)
-               .orderByDesc(CommentDO::getCreatedAt);
-        
+                .isNull(CommentDO::getParentId)
+                .eq(CommentDO::getStatus, 1)
+                .orderByDesc(CommentDO::getLikeCount)
+                .orderByDesc(CommentDO::getCreatedAt);
+
         Page<CommentDO> commentPage = commentMapper.selectPage(page, wrapper);
-        
+
         List<CommentVO> list = commentPage.getRecords().stream()
                 .map(comment -> convertToResponse(comment, userId, true))
                 .collect(Collectors.toList());
-        
+
         return PageResult.of(list, commentPage.getTotal(), pageNum, pageSize);
     }
 
@@ -56,15 +59,15 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         Page<CommentDO> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<CommentDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CommentDO::getParentId, commentId)
-               .eq(CommentDO::getStatus, 1)
-               .orderByAsc(CommentDO::getCreatedAt);
-        
+                .eq(CommentDO::getStatus, 1)
+                .orderByAsc(CommentDO::getCreatedAt);
+
         Page<CommentDO> replyPage = commentMapper.selectPage(page, wrapper);
-        
+
         List<CommentVO> list = replyPage.getRecords().stream()
                 .map(comment -> convertToResponse(comment, userId, false))
                 .collect(Collectors.toList());
-        
+
         return PageResult.of(list, replyPage.getTotal(), pageNum, pageSize);
     }
 
@@ -76,7 +79,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         if (note == null || note.getStatus() != 1) {
             throw new BusinessException(40402, "笔记不存在");
         }
-        
+
         CommentDO comment = new CommentDO();
         comment.setNoteId(Long.parseLong(request.getNoteId()));
         comment.setUserId(userId);
@@ -84,7 +87,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         comment.setStatus(1);
         comment.setLikeCount(0);
         comment.setReplyCount(0);
-        
+
         // 如果是回复评论
         if (request.getParentId() != null) {
             CommentDO parentComment = commentMapper.selectById(request.getParentId());
@@ -92,16 +95,16 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
                 throw new BusinessException(40402, "评论不存在");
             }
             comment.setParentId(Long.parseLong(request.getParentId()));
-            
+
             // 更新父评论的回复数
             commentMapper.incrementReplyCount(parentComment.getId());
         }
-        
+
         commentMapper.insert(comment);
-        
+
         // 更新笔记评论数
         noteMapper.incrementCommentCount(note.getId());
-        
+
         // 发送评论通知
         if (!userId.equals(note.getUserId())) {
             UserDO user = userMapper.selectById(userId);
@@ -109,7 +112,16 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
             messageService.sendSystemNotice(note.getUserId(), userId, 2, note.getId(),
                     user.getUsername() + " 评论了你的笔记", note.getCoverImage());
         }
-        
+
+        // 发布评论创建事件，触发异步AI内容审核
+        eventPublisher.publishEvent(new CommentCreatedEvent(
+                this,
+                comment.getId(),
+                comment.getContent(),
+                userId,
+                note.getId()));
+        log.info("用户{}发布评论成功，评论id={}，已触发异步审核", userId, comment.getId());
+
         return convertToResponse(comment, userId, false);
     }
 
@@ -123,14 +135,14 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         if (!comment.getUserId().equals(userId)) {
             throw new BusinessException(40300, "无权限操作");
         }
-        
+
         // 软删除
         comment.setStatus(0);
         commentMapper.updateById(comment);
-        
+
         // 更新笔记评论数
         noteMapper.decrementCommentCount(comment.getNoteId());
-        
+
         // 如果是回复，更新父评论的回复数
         if (comment.getParentId() != null) {
             commentMapper.decrementReplyCount(comment.getParentId());
@@ -144,21 +156,21 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         if (comment == null || comment.getStatus() != 1) {
             throw new BusinessException(40402, "评论不存在");
         }
-        
+
         // 检查是否已点赞
         if (isCommentLiked(userId, commentId)) {
             throw new BusinessException(40001, "已点赞");
         }
-        
+
         // 插入点赞记录
         CommentLikeDO like = new CommentLikeDO();
         like.setUserId(userId);
         like.setCommentId(commentId);
         commentLikeMapper.insert(like);
-        
+
         // 更新评论点赞数
         commentMapper.incrementLikeCount(commentId);
-        
+
         return comment.getLikeCount() + 1;
     }
 
@@ -169,32 +181,33 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         if (comment == null) {
             throw new BusinessException(40402, "评论不存在");
         }
-        
+
         // 检查是否已点赞
         LambdaQueryWrapper<CommentLikeDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CommentLikeDO::getUserId, userId)
-               .eq(CommentLikeDO::getCommentId, commentId);
+                .eq(CommentLikeDO::getCommentId, commentId);
         CommentLikeDO like = commentLikeMapper.selectOne(wrapper);
-        
+
         if (like == null) {
             throw new BusinessException(40001, "未点赞");
         }
-        
+
         // 删除点赞记录
         commentLikeMapper.deleteById(like.getId());
-        
+
         // 更新评论点赞数
         commentMapper.decrementLikeCount(commentId);
-        
+
         return Math.max(0, comment.getLikeCount() - 1);
     }
 
     @Override
     public boolean isCommentLiked(Long userId, Long commentId) {
-        if (userId == null) return false;
+        if (userId == null)
+            return false;
         LambdaQueryWrapper<CommentLikeDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CommentLikeDO::getUserId, userId)
-               .eq(CommentLikeDO::getCommentId, commentId);
+                .eq(CommentLikeDO::getCommentId, commentId);
         return commentLikeMapper.selectCount(wrapper) > 0;
     }
 
@@ -206,7 +219,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         response.setReplyCount(comment.getReplyCount());
         response.setTime(comment.getCreatedAt());
         response.setTimeAgo(TimeUtil.formatRelativeTime(comment.getCreatedAt()));
-        
+
         // 查询评论者信息
         UserDO user = userMapper.selectById(comment.getUserId());
         if (user != null) {
@@ -214,19 +227,19 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
             response.setAuthor(user.getUsername());
             response.setAvatar(user.getAvatar());
         }
-        
+
         // 检查是否已点赞
         response.setLiked(isCommentLiked(userId, comment.getId()));
-        
+
         // 查询前3条回复
         if (includeReplies && comment.getReplyCount() > 0) {
             LambdaQueryWrapper<CommentDO> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(CommentDO::getParentId, comment.getId())
-                   .eq(CommentDO::getStatus, 1)
-                   .orderByAsc(CommentDO::getCreatedAt)
-                   .last("LIMIT 3");
+                    .eq(CommentDO::getStatus, 1)
+                    .orderByAsc(CommentDO::getCreatedAt)
+                    .last("LIMIT 3");
             List<CommentDO> replies = commentMapper.selectList(wrapper);
-            
+
             List<CommentVO> replyList = replies.stream()
                     .map(reply -> convertToResponse(reply, userId, false))
                     .collect(Collectors.toList());
@@ -234,7 +247,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         } else {
             response.setReplies(new ArrayList<>());
         }
-        
+
         return response;
     }
 }

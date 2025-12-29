@@ -95,6 +95,12 @@
 						<view class="image-box">
 							<image :src="note.image" class="note-image" mode="aspectFill"></image>
 							<view class="image-mask"></view>
+							<!-- 审核状态标签 -->
+							<view v-if="note.tag && currentTab === 0" 
+								class="status-tag" 
+								:class="note.tagClass">
+								{{ note.tag }}
+							</view>
 						</view>
 						<view class="card-body">
 							<text class="note-title">{{ note.title }}</text>
@@ -247,7 +253,10 @@ const fetchList = async (apiFunc, listRef, type = 'normal') => {
 				image: getImageUrl(item.image, 'cover'),
 				author: item.author || '匿名用户',
 				likes: item.likes || 0,
-				createTime: item.viewTime || formatTime(item.createdAt)
+				createTime: item.viewTime || formatTime(item.createdAt),
+				status: item.status || 1,
+				tag: item.tag || null,
+				tagClass: item.tagClass || null
 			}))
 		}
 	} catch (e) {
@@ -647,6 +656,35 @@ const goToLikeNotifications = () => uni.navigateTo({ url: '/pages/like-notificat
 .empty-text {
 	font-size: 28rpx;
 	color: #999;
+}
+
+/* 审核状态标签样式 */
+.status-tag {
+	position: absolute;
+	top: 16rpx;
+	left: 16rpx;
+	padding: 6rpx 16rpx;
+	border-radius: 8rpx;
+	font-size: 20rpx;
+	font-weight: 500;
+	color: white;
+	z-index: 10;
+	backdrop-filter: blur(4px);
+}
+
+.tag-pending {
+	background: linear-gradient(135deg, #9CA3AF, #6B7280);
+	box-shadow: 0 2rpx 8rpx rgba(107, 114, 128, 0.3);
+}
+
+.tag-hidden {
+	background: linear-gradient(135deg, #FB923C, #F97316);
+	box-shadow: 0 2rpx 8rpx rgba(249, 115, 22, 0.3);
+}
+
+.tag-rejected {
+	background: linear-gradient(135deg, #F87171, #EF4444);
+	box-shadow: 0 2rpx 8rpx rgba(239, 68, 68, 0.3);
 }
 
 </style>

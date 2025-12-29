@@ -65,9 +65,9 @@ public class MessageController {
     @PostMapping("/send")
     public Result<MessageVO> sendMessage(@RequestBody @Valid SendMessageDTO request) {
         Long userId = UserContext.requireUserId();
-        MessageVO response = messageService.sendMessage(userId, 
-                request.getReceiverId(), 
-                request.getContent(), 
+        MessageVO response = messageService.sendMessage(userId,
+                request.getReceiverId(),
+                request.getContent(),
                 request.getMessageType());
         return Result.success("发送成功", response);
     }
@@ -124,7 +124,7 @@ public class MessageController {
         Object result = messageService.getUnreadCount(userId);
         return Result.success(result);
     }
-    
+
     /**
      * 分享笔记给用户
      */
@@ -132,6 +132,16 @@ public class MessageController {
     public Result<?> shareNote(@RequestBody @Valid com.businessreviews.model.dto.app.ShareNoteDTO request) {
         Long userId = UserContext.requireUserId();
         messageService.shareNoteToUsers(userId, request.getNoteId(), request.getUserIds());
+        return Result.success("分享成功");
+    }
+
+    /**
+     * 分享店铺给用户
+     */
+    @PostMapping("/share-shop")
+    public Result<?> shareShop(@RequestBody @Valid com.businessreviews.model.dto.app.ShareShopDTO request) {
+        Long userId = UserContext.requireUserId();
+        messageService.shareShopToUsers(userId, request.getShopId(), request.getUserIds());
         return Result.success("分享成功");
     }
 }

@@ -46,14 +46,36 @@
 		</view>
 
 		<view v-if="currentTab === 1" class="notice-list">
-			<view class="notice-item" v-for="(notice, index) in noticeList" :key="index">
-				<!-- 只显示用户头像，不显示徽章 -->
+			<view class="notice-item" v-for="(notice, index) in noticeList" :key="index" @click="openNoticeDetail(notice)">
+				<!-- 头像 -->
 				<image :src="notice.avatar || 'https://via.placeholder.com/100'" class="notice-avatar" mode="aspectFill"></image>
 				<view class="notice-content">
-					<text class="notice-text">{{ notice.text }}</text>
-					<text class="notice-time">{{ notice.time }}</text>
+					<!-- 标题和时间在一行 -->
+					<view class="notice-header">
+						<text class="notice-title">{{ notice.title || notice.fromUsername || '系统通知' }}</text>
+						<text class="notice-time">{{ notice.time }}</text>
+					</view>
+					<!-- 内容只显示一行，超出省略 -->
+					<text class="notice-text line-clamp-1">{{ notice.text }}</text>
 				</view>
 				<image v-if="notice.image" :src="notice.image" class="notice-image"></image>
+			</view>
+		</view>
+		
+		<!-- 通知详情弹窗 -->
+		<view class="notice-modal" v-if="showNoticeModal" @click="closeNoticeModal">
+			<view class="notice-modal-content" @click.stop>
+				<view class="notice-modal-header">
+					<image :src="selectedNotice?.avatar || '/static/icons/ai-assistant.png'" class="notice-modal-avatar" mode="aspectFill"></image>
+					<view class="notice-modal-info">
+						<text class="notice-modal-title">{{ selectedNotice?.title || '系统通知' }}</text>
+						<text class="notice-modal-time">{{ selectedNotice?.time }}</text>
+					</view>
+					<text class="notice-modal-close" @click="closeNoticeModal">✕</text>
+				</view>
+				<scroll-view class="notice-modal-body" scroll-y>
+					<text class="notice-modal-text">{{ selectedNotice?.fullText || selectedNotice?.text }}</text>
+				</scroll-view>
 			</view>
 		</view>
 	</view>
@@ -78,6 +100,10 @@ const unreadCount = ref(0)
 // 加载状态
 const chatLoading = ref(false)
 const noticeLoading = ref(false)
+
+// 通知详情弹窗
+const showNoticeModal = ref(false)
+const selectedNotice = ref(null)
 
 onLoad(() => {
 	console.log('Message page loaded')
@@ -109,14 +135,21 @@ const fetchChatList = async () => {
 		if (result && result.list && Array.isArray(result.list)) {
 			chatList.value = result.list.map(conv => {
 				console.log('处理会话:', conv)
+				
+				// 特殊处理AI审核助手（用户ID为0）
+				const isAIAssistant = conv.userId === 0 || conv.userId === '0'
+				
 				return {
 					id: conv.userId || conv.id,
-					name: conv.username || '未知用户',
-					avatar: conv.avatar || 'https://via.placeholder.com/100',
+					name: isAIAssistant ? 'AI审核助手' : (conv.username || '未知用户'),
+					avatar: isAIAssistant 
+						? '/static/icons/ai-assistant.png' 
+						: (conv.avatar || 'https://via.placeholder.com/100'),
 					lastMessage: conv.lastMessage || '',
 					time: formatTime(conv.lastTime || conv.lastMessageTime),
 					unread: conv.unreadCount || 0,
-					online: false
+					online: false,
+					isAIAssistant: isAIAssistant  // 标记是否为AI审核助手
 				}
 			})
 			console.log('处理后的聊天列表:', chatList.value)
@@ -139,14 +172,26 @@ const fetchNoticeList = async () => {
 		
 		if (result && result.list) {
 			noticeList.value = result.list.map(notice => {
-				// 直接使用后端返回的content，不需要拼接用户名
-				// 因为后端的content已经包含了完整的通知文本（例如："7798 关注了你"）
+				// 判断是否为AI审核通知（type=5）
+				const isAIAuditNotice = notice.type === 5
+				
+				// AI审核通知：列表只显示简短文本，完整内容在弹窗中查看
+				const displayText = isAIAuditNotice 
+					? '内容审核通知' 
+					: (notice.content || '')
+				
 				return {
 					id: notice.id,
-					avatar: notice.fromAvatar || 'https://via.placeholder.com/100',
-					text: notice.content || '',  // 直接使用content字段
+					// AI审核通知使用专属头像，其他通知使用发送者头像
+					avatar: isAIAuditNotice 
+						? '/static/icons/ai-assistant.png' 
+						: (notice.fromAvatar || 'https://via.placeholder.com/100'),
+					text: displayText,  // 列表中显示的简短文本
+					fullText: notice.content || '',  // 弹窗中显示的完整内容
 					time: formatTime(notice.createdAt),
-					image: notice.noteImage || notice.image || null
+					image: notice.noteImage || notice.image || null,
+					isAIAuditNotice: isAIAuditNotice,
+					title: isAIAuditNotice ? 'AI审核助手' : (notice.fromUsername || '')
 				}
 			})
 		}
@@ -180,6 +225,18 @@ const openChat = (userId) => {
 			url: `/pages/chat/chat?userId=${userId}&username=${chat.name}&avatar=${chat.avatar}`
 		})
 	}
+}
+
+// 打开通知详情弹窗
+const openNoticeDetail = (notice) => {
+	selectedNotice.value = notice
+	showNoticeModal.value = true
+}
+
+// 关闭通知详情弹窗
+const closeNoticeModal = () => {
+	showNoticeModal.value = false
+	selectedNotice.value = null
 }
 
 // 格式化时间
@@ -366,11 +423,16 @@ const formatTime = (dateStr) => {
 }
 
 .notice-avatar {
-	width: 100rpx;
-	height: 100rpx;
+	width: 80rpx;
+	height: 80rpx;
+	min-width: 80rpx;
+	min-height: 80rpx;
+	max-width: 80rpx;
+	max-height: 80rpx;
 	border-radius: 50%;
 	margin-right: 25rpx;
 	flex-shrink: 0;
+	object-fit: cover;
 }
 
 .notice-content {
@@ -380,20 +442,40 @@ const formatTime = (dateStr) => {
 }
 
 .notice-text {
-	font-size: 28rpx;
+	font-size: 26rpx;
+	color: #666;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.notice-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
 	margin-bottom: 8rpx;
 }
 
+.notice-title {
+	font-size: 28rpx;
+	font-weight: 600;
+	color: #333;
+	flex: 1;
+}
+
 .notice-time {
-	font-size: 24rpx;
+	font-size: 22rpx;
 	color: #999;
+	flex-shrink: 0;
+	margin-left: 16rpx;
 }
 
 .notice-image {
-	width: 100rpx;
-	height: 100rpx;
-	border-radius: 15rpx;
+	width: 80rpx;
+	height: 80rpx;
+	border-radius: 12rpx;
 	margin-left: 20rpx;
+	flex-shrink: 0;
 }
 
 .loading-tip {
@@ -417,5 +499,90 @@ const formatTime = (dateStr) => {
 	font-size: 24rpx;
 	color: #ccc;
 	margin-top: 16rpx;
+}
+
+/* 单行截断 */
+.line-clamp-1 {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* 通知详情弹窗 */
+.notice-modal {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.5);
+	z-index: 1000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 40rpx;
+}
+
+.notice-modal-content {
+	background: white;
+	border-radius: 24rpx;
+	width: 100%;
+	max-height: 70vh;
+	overflow: hidden;
+	box-shadow: 0 10rpx 40rpx rgba(0, 0, 0, 0.15);
+}
+
+.notice-modal-header {
+	display: flex;
+	align-items: center;
+	padding: 30rpx;
+	border-bottom: 1rpx solid #f0f0f0;
+	background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+}
+
+.notice-modal-avatar {
+	width: 80rpx;
+	height: 80rpx;
+	border-radius: 50%;
+	margin-right: 20rpx;
+	flex-shrink: 0;
+}
+
+.notice-modal-info {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+}
+
+.notice-modal-title {
+	font-size: 32rpx;
+	font-weight: 600;
+	color: #333;
+	margin-bottom: 6rpx;
+}
+
+.notice-modal-time {
+	font-size: 24rpx;
+	color: #999;
+}
+
+.notice-modal-close {
+	font-size: 40rpx;
+	color: #999;
+	padding: 10rpx;
+	margin-left: 20rpx;
+}
+
+.notice-modal-body {
+	padding: 30rpx;
+	max-height: 50vh;
+}
+
+.notice-modal-text {
+	font-size: 28rpx;
+	color: #333;
+	line-height: 1.8;
+	white-space: pre-wrap;
+	word-break: break-all;
 }
 </style>

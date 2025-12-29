@@ -166,17 +166,39 @@
 				</view>
 			</view>
 			
+			<!-- 加载更多评论 -->
+			<view v-if="hasMoreReviews && reviews.length > 0" class="load-more-reviews" @click="loadMoreReviews">
+				<text v-if="!reviewsLoading">点击加载更多评论</text>
+				<text v-else>加载中...</text>
+			</view>
+			
+			<!-- 没有更多评论 -->
+			<view v-if="!hasMoreReviews && reviews.length > 0" class="no-more-reviews">
+				<text>— 已加载全部评论 —</text>
+			</view>
+			
 			<view v-if="reviews.length === 0" class="empty-reviews">
 				<text>暂无评价，快来发表第一条评价吧！</text>
 			</view>
 		</view>
+		
+		<!-- 分享弹窗 -->
+		<share-sheet 
+			v-model:visible="showShareSheet"
+			share-type="shop"
+			:shop-id="shopId"
+			:note-info="shareShopInfo"
+			@close="showShareSheet = false"
+			@share-success="handleShareSuccess"
+		/>
 	</view>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getShopDetail, getShopReviews, favoriteShop, unfavoriteShop, postShopReview } from '../../api/shop'
+import ShareSheet from '../../components/share-sheet/share-sheet.vue'
 
 // 商家信息（从后端获取）
 const shopData = ref({})
@@ -188,6 +210,21 @@ const reviews = ref([])
 // 商家相册图片
 const galleryImages = ref([])
 const loading = ref(false)
+
+// 评论分页相关
+const reviewsLoading = ref(false)
+const hasMoreReviews = ref(true)
+const reviewPageNum = ref(1)
+const reviewPageSize = ref(10)
+const totalReviews = ref(0)
+
+// 分享相关
+const showShareSheet = ref(false)
+const shareShopInfo = computed(() => ({
+	coverImage: shopData.value.headerImage || '',
+	title: shopData.value.name || '商家详情',
+	content: `${shopData.value.rating || 0}分 · ${shopData.value.reviewCount || 0}条评价`
+}))
 
 // 评价表单
 const reviewForm = ref({
@@ -237,22 +274,86 @@ const fetchShopDetail = async (id) => {
 	}
 }
 
-// 获取评价列表
-const fetchReviews = async (id) => {
+// 获取评价列表（首次加载）
+const fetchReviews = async (id, reset = true) => {
+	if (reviewsLoading.value) return
+	
+	reviewsLoading.value = true
 	try {
-		const result = await getShopReviews(id, 1, 10, 'latest')
+		// 如果是重置，从第一页开始
+		if (reset) {
+			reviewPageNum.value = 1
+			reviews.value = []
+			hasMoreReviews.value = true
+		}
+		
+		const result = await getShopReviews(id, reviewPageNum.value, reviewPageSize.value, 'latest')
 		console.log('评价列表:', result)
+		
 		if (result && result.list) {
-			reviews.value = result.list.map(item => ({
+			const newReviews = result.list.map(item => ({
+				id: item.id,
 				avatar: item.userAvatar || 'https://via.placeholder.com/80x80/FF9E64/FFFFFF?text=U',
 				author: item.username || '匿名用户',
-				date: item.createdAt || '',
+				date: formatReviewDate(item.createdAt),
 				content: item.content || '',
 				rating: item.rating || 5
 			}))
+			
+			// 追加到列表
+			reviews.value = [...reviews.value, ...newReviews]
+			
+			// 更新总数
+			if (result.total !== undefined) {
+				totalReviews.value = result.total
+				// 更新商家详情中的评价数量
+				shopData.value.reviewCount = result.total
+			}
+			
+			// 判断是否还有更多（优先使用后端返回的hasMore字段）
+			if (result.hasMore !== undefined) {
+				hasMoreReviews.value = result.hasMore
+			} else {
+				hasMoreReviews.value = newReviews.length >= reviewPageSize.value
+			}
+		} else {
+			hasMoreReviews.value = false
 		}
 	} catch (e) {
 		console.error('获取评价列表失败:', e)
+	} finally {
+		reviewsLoading.value = false
+	}
+}
+
+// 加载更多评论
+const loadMoreReviews = async () => {
+	if (reviewsLoading.value || !hasMoreReviews.value) return
+	
+	reviewPageNum.value++
+	await fetchReviews(shopId.value, false)
+}
+
+// 格式化评论日期
+const formatReviewDate = (dateStr) => {
+	if (!dateStr) return ''
+	try {
+		const date = new Date(dateStr)
+		const now = new Date()
+		const diff = now - date
+		
+		// 1分钟内
+		if (diff < 60000) return '刚刚'
+		// 1小时内
+		if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前'
+		// 24小时内
+		if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前'
+		// 30天内
+		if (diff < 2592000000) return Math.floor(diff / 86400000) + '天前'
+		// 更早
+		return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+	} catch {
+		return dateStr
 	}
 }
 
@@ -260,8 +361,23 @@ const goBack = () => {
 	uni.navigateBack()
 }
 
+// 打开分享弹窗
 const shareShop = () => {
-	uni.showToast({ title: '分享店铺', icon: 'none' })
+	// 检查是否登录
+	const token = uni.getStorageSync('token')
+	if (!token) {
+		uni.showToast({ title: '请先登录', icon: 'none' })
+		setTimeout(() => {
+			uni.navigateTo({ url: '/pages/login/login' })
+		}, 1500)
+		return
+	}
+	showShareSheet.value = true
+}
+
+// 分享成功回调
+const handleShareSuccess = () => {
+	console.log('店铺分享成功')
 }
 
 const toggleFavorite = async () => {
@@ -867,5 +983,24 @@ const submitReview = async () => {
 	text-align: center;
 	padding: 60rpx 0;
 	color: #C0C4CC;
+}
+
+.load-more-reviews {
+	text-align: center;
+	padding: 30rpx 0;
+	color: #FF8F1F;
+	font-size: 28rpx;
+	cursor: pointer;
+	
+	&:active {
+		opacity: 0.7;
+	}
+}
+
+.no-more-reviews {
+	text-align: center;
+	padding: 30rpx 0;
+	color: #C0C4CC;
+	font-size: 24rpx;
 }
 </style>

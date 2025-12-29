@@ -87,6 +87,18 @@ export const shareNoteToUsers = (noteId, userIds) => {
   })
 }
 
+/**
+ * 分享店铺给用户
+ * @param {String} shopId - 店铺ID
+ * @param {Array} userIds - 用户ID列表
+ */
+export const shareShopToUsers = (shopId, userIds) => {
+  return post('/messages/share-shop', {
+    shopId,
+    userIds
+  })
+}
+
 export default {
   getConversationList,
   getConversationMessages,
@@ -96,5 +108,6 @@ export default {
   getNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
-  shareNoteToUsers
+  shareNoteToUsers,
+  shareShopToUsers
 }

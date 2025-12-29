@@ -1,9 +1,12 @@
 package com.businessreviews.service.impl.app;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.businessreviews.constants.RedisKeyConstants;
 import com.businessreviews.common.PageResult;
+import com.businessreviews.enums.NoteStatus;
+import com.businessreviews.event.NoteCreatedEvent;
 import com.businessreviews.model.dto.app.PublishNoteDTO;
 import com.businessreviews.model.vo.NoteDetailVO;
 import com.businessreviews.model.vo.NoteDetailVO.TopicInfo;
@@ -17,6 +20,7 @@ import com.businessreviews.util.RedisUtil;
 import com.businessreviews.util.TimeUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +52,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
     private final MerchantMapper merchantMapper;
     private final RedisUtil redisUtil;
     private final MessageService messageService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public PageResult<NoteItemVO> getRecommendedNotes(Integer pageNum, Integer pageSize) {
@@ -56,9 +61,9 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
 
         Page<NoteDO> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(NoteDO::getStatus, 1)  // 只显示已发布的笔记
-                .in(NoteDO::getNoteType, 1, 2)  // 包含用户笔记和商家笔记
-                .orderByDesc(NoteDO::getRecommend)  // 推荐笔记优先
+        wrapper.eq(NoteDO::getStatus, 1) // 只显示已发布的笔记
+                .in(NoteDO::getNoteType, 1, 2) // 包含用户笔记和商家笔记
+                .orderByDesc(NoteDO::getRecommend) // 推荐笔记优先
                 .orderByDesc(NoteDO::getLikeCount)
                 .orderByDesc(NoteDO::getCreatedAt);
 
@@ -162,7 +167,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
     }
 
     @Override
-    public PageResult<NoteItemVO> getNearbyNotes(Double latitude, Double longitude, Double distance, Integer pageNum, Integer pageSize) {
+    public PageResult<NoteItemVO> getNearbyNotes(Double latitude, Double longitude, Double distance, Integer pageNum,
+            Integer pageSize) {
         // 简化实现，实际应使用地理位置查询
         Page<NoteDO> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
@@ -234,7 +240,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         response.setAuthorAvatar(author != null ? author.getAvatar() : null);
         response.setAuthorId(note.getUserId());
         // 使用更新时间而不是创建时间，这样编辑后时间会正确显示
-        response.setPublishTime(TimeUtil.formatRelativeTime(note.getUpdatedAt() != null ? note.getUpdatedAt() : note.getCreatedAt()));
+        response.setPublishTime(
+                TimeUtil.formatRelativeTime(note.getUpdatedAt() != null ? note.getUpdatedAt() : note.getCreatedAt()));
         response.setTags(tags);
         response.setLikeCount(note.getLikeCount());
         response.setCommentCount(note.getCommentCount());
@@ -300,13 +307,18 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
 
         note.setContent(request.getContent());
         note.setCoverImage(request.getImages() != null && !request.getImages().isEmpty()
-                ? request.getImages().get(0) : null);
+                ? request.getImages().get(0)
+                : null);
         note.setImages(String.join(",", request.getImages()));
         note.setShopId(request.getShopId());
         note.setLocation(request.getLocation());
         note.setLatitude(request.getLatitude());
         note.setLongitude(request.getLongitude());
-        note.setStatus(request.getStatus() != null ? request.getStatus() : 1); // 1=公开，2=仅自己可见
+        // 新发布的笔记默认状态为审核中(PENDING=3)，由异步AI审核决定最终状态
+        // 如果用户指定隐藏(status=2)，则直接使用用户指定的状态
+        note.setStatus(request.getStatus() != null && request.getStatus() == 2
+                ? NoteStatus.HIDDEN.getCode()
+                : NoteStatus.PENDING.getCode());
         note.setLikeCount(0);
         note.setCommentCount(0);
         note.setViewCount(0);
@@ -315,12 +327,12 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         // 检查用户是否是商家账号，如果是则设置商家笔记标识
         Long merchantId = findMerchantIdByUserId(userId);
         if (merchantId != null) {
-            note.setNoteType(2);  // 商家笔记
+            note.setNoteType(2); // 商家笔记
             note.setMerchantId(merchantId);
-            note.setSyncStatus(1);  // 已同步
+            note.setSyncStatus(1); // 已同步
             log.info("用户{}是商家账号，设置为商家笔记，merchantId={}", userId, merchantId);
         } else {
-            note.setNoteType(1);  // 用户笔记
+            note.setNoteType(1); // 用户笔记
         }
 
         noteMapper.insert(note);
@@ -340,7 +352,19 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         // 更新用户笔记数
         userStatsMapper.incrementNoteCount(userId);
 
-        log.info("用户{}发布笔记成功，笔记ID={}", userId, note.getId());
+        log.info("用户{}发布笔记成功（审核中），笔记ID={}", userId, note.getId());
+
+        // 发布笔记创建事件，触发异步AI内容审核
+        // 事件驱动设计：解耦发布逻辑与审核逻辑，用户无需等待审核完成
+        if (note.getStatus() == NoteStatus.PENDING.getCode()) {
+            eventPublisher.publishEvent(new NoteCreatedEvent(
+                    this,
+                    note.getId(),
+                    note.getTitle(),
+                    note.getContent(),
+                    userId));
+            log.info("已发布审核事件，笔记ID={}将进行异步AI审核", note.getId());
+        }
 
         return note.getId();
     }
@@ -577,7 +601,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
 
     @Override
     public boolean isLiked(Long userId, Long noteId) {
-        if (userId == null) return false;
+        if (userId == null)
+            return false;
         LambdaQueryWrapper<UserNoteLikeDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserNoteLikeDO::getUserId, userId)
                 .eq(UserNoteLikeDO::getNoteId, noteId);
@@ -589,7 +614,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
 
     @Override
     public boolean isBookmarked(Long userId, Long noteId) {
-        if (userId == null) return false;
+        if (userId == null)
+            return false;
         LambdaQueryWrapper<UserFavoriteDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserFavoriteDO::getUserId, userId)
                 .eq(UserFavoriteDO::getType, 1)
@@ -714,16 +740,16 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
             if (topicName == null || topicName.trim().isEmpty()) {
                 continue;
             }
-            
+
             // 查找或创建话题
             TopicDO topic = findOrCreateTopic(topicName.trim());
-            
+
             // 创建笔记话题关联
             NoteTopicDO noteTopic = new NoteTopicDO();
             noteTopic.setNoteId(noteId);
             noteTopic.setTopicId(topic.getId());
             noteTopicMapper.insert(noteTopic);
-            
+
             // 更新话题的笔记数量
             topicMapper.incrementNoteCount(topic.getId());
         }
@@ -739,7 +765,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         wrapper.eq(TopicDO::getName, topicName)
                 .eq(TopicDO::getStatus, 1);
         TopicDO topic = topicMapper.selectOne(wrapper);
-        
+
         if (topic == null) {
             // 创建新话题
             topic = new TopicDO();
@@ -751,7 +777,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
             topicMapper.insert(topic);
             log.info("创建新话题: {}, ID: {}", topicName, topic.getId());
         }
-        
+
         return topic;
     }
 
@@ -830,7 +856,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         // 通过手机号查找商家
         LambdaQueryWrapper<MerchantDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(MerchantDO::getContactPhone, user.getPhone())
-                .eq(MerchantDO::getStatus, 1);  // 只查找正常状态的商家
+                .eq(MerchantDO::getStatus, 1); // 只查找正常状态的商家
         MerchantDO merchant = merchantMapper.selectOne(wrapper);
 
         if (merchant != null) {

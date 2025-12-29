@@ -54,13 +54,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         UserDO user = new UserDO();
         user.setPhone(phone);
         user.setUsername("用户" + phone.substring(7));
-        
+
         // 使用DefaultAvatar常量类随机选择一个默认头像
         user.setAvatar(DefaultAvatar.getRandomAvatar());
-        
+
         user.setStatus(1);
         userMapper.insert(user);
-        
+
         UserStatsDO stats = new UserStatsDO();
         stats.setUserId(user.getId());
         stats.setFollowingCount(0);
@@ -69,7 +69,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         stats.setLikeCount(0);
         stats.setFavoriteCount(0);
         userStatsMapper.insert(stats);
-        
+
         return user;
     }
 
@@ -82,9 +82,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             redisUtil.delete(RedisKeyConstants.USER_INFO + userId);
             throw new BusinessException(40401, "用户信息已失效,请重新登录");
         }
-        
+
         UserStatsDO stats = userStatsMapper.selectByUserId(userId);
-        
+
         UserInfoVO response = new UserInfoVO();
         response.setUserId(user.getId().toString());
         response.setUsername(user.getUsername());
@@ -97,7 +97,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         response.setWechatOpenid(user.getWechatOpenid());
         response.setQqOpenid(user.getQqOpenid());
         response.setWeiboUid(user.getWeiboUid());
-        
+
         if (stats != null) {
             response.setFollowingCount(stats.getFollowingCount());
             response.setFollowerCount(stats.getFollowerCount());
@@ -105,7 +105,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             response.setFavoriteCount(stats.getFavoriteCount());
             response.setNoteCount(stats.getNoteCount());
         }
-        
+
         return response;
     }
 
@@ -116,7 +116,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         if (user == null) {
             throw new BusinessException(40401, "用户不存在");
         }
-        
+
         if (request.getUsername() != null) {
             user.setUsername(request.getUsername());
         }
@@ -141,9 +141,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         if (request.getWeiboUid() != null) {
             user.setWeiboUid(request.getWeiboUid());
         }
-        
+
         userMapper.updateById(user);
-        
+
         // 清除缓存
         redisUtil.delete(RedisKeyConstants.USER_INFO + userId);
     }
@@ -154,29 +154,29 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         if (user == null) {
             throw new BusinessException(40401, "用户不存在");
         }
-        
+
         UserStatsDO stats = userStatsMapper.selectByUserId(userId);
-        
+
         UserProfileVO response = new UserProfileVO();
         response.setUserId(user.getId().toString());
         response.setUsername(user.getUsername());
         response.setAvatar(user.getAvatar());
         response.setBio(user.getBio());
-        
+
         if (stats != null) {
             response.setFollowingCount(stats.getFollowingCount());
             response.setFollowerCount(stats.getFollowerCount());
             response.setLikeCount(stats.getLikeCount());
             response.setNoteCount(stats.getNoteCount());
         }
-        
+
         // 检查是否已关注
         if (currentUserId != null && !currentUserId.equals(userId)) {
             response.setFollowing(isFollowing(currentUserId, userId));
         } else {
             response.setFollowing(false);
         }
-        
+
         return response;
     }
 
@@ -184,16 +184,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     public PageResult<NoteItemVO> getMyNotes(Long userId, Integer pageNum, Integer pageSize) {
         Page<NoteDO> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
+        // 用户查看自己的笔记时，显示所有状态（包括审核中、已拒绝）
+        // 状态说明：1=正常, 2=隐藏/拒绝, 3=审核中, 4=违规
         wrapper.eq(NoteDO::getUserId, userId)
-               .eq(NoteDO::getStatus, 1)
-               .orderByDesc(NoteDO::getCreatedAt);
-        
+                .in(NoteDO::getStatus, 1, 2, 3, 4) // 显示所有状态
+                .orderByDesc(NoteDO::getCreatedAt);
+
         Page<NoteDO> notePage = noteMapper.selectPage(page, wrapper);
-        
+
         List<NoteItemVO> list = notePage.getRecords().stream()
                 .map(this::convertToNoteItem)
                 .collect(Collectors.toList());
-        
+
         return PageResult.of(list, notePage.getTotal(), pageNum, pageSize);
     }
 
@@ -202,11 +204,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         Page<UserFavoriteDO> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<UserFavoriteDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserFavoriteDO::getUserId, userId)
-               .eq(type != null, UserFavoriteDO::getType, type)
-               .orderByDesc(UserFavoriteDO::getCreatedAt);
-        
+                .eq(type != null, UserFavoriteDO::getType, type)
+                .orderByDesc(UserFavoriteDO::getCreatedAt);
+
         Page<UserFavoriteDO> favPage = userFavoriteMapper.selectPage(page, wrapper);
-        
+
         List<FavoriteItemVO> list = new ArrayList<>();
         for (UserFavoriteDO fav : favPage.getRecords()) {
             FavoriteItemVO item = new FavoriteItemVO();
@@ -214,7 +216,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             item.setType(fav.getType());
             item.setTargetId(fav.getTargetId().toString());
             item.setCreatedAt(fav.getCreatedAt().toString());
-            
+
             if (fav.getType() == 1) {
                 // 笔记
                 NoteDO note = noteMapper.selectById(fav.getTargetId());
@@ -234,7 +236,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             }
             list.add(item);
         }
-        
+
         return PageResult.of(list, favPage.getTotal(), pageNum, pageSize);
     }
 
@@ -243,10 +245,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         Page<BrowseHistoryDO> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<BrowseHistoryDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(BrowseHistoryDO::getUserId, userId)
-               .orderByDesc(BrowseHistoryDO::getCreatedAt);
-        
+                .orderByDesc(BrowseHistoryDO::getCreatedAt);
+
         Page<BrowseHistoryDO> historyPage = browseHistoryMapper.selectPage(page, wrapper);
-        
+
         List<HistoryItemVO> list = new ArrayList<>();
         for (BrowseHistoryDO history : historyPage.getRecords()) {
             HistoryItemVO item = new HistoryItemVO();
@@ -255,7 +257,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             item.setTargetId(history.getTargetId().toString());
             item.setViewTime(TimeUtil.formatRelativeTime(history.getCreatedAt()));
             item.setCreatedAt(history.getCreatedAt().toString());
-            
+
             if (history.getType() == 1) {
                 NoteDO note = noteMapper.selectById(history.getTargetId());
                 if (note != null) {
@@ -280,7 +282,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             }
             list.add(item);
         }
-        
+
         return PageResult.of(list, historyPage.getTotal(), pageNum, pageSize);
     }
 
@@ -290,28 +292,28 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         if (userId.equals(targetUserId)) {
             throw new BusinessException(40001, "不能关注自己");
         }
-        
+
         // 检查目标用户是否存在
         UserDO targetUser = userMapper.selectById(targetUserId);
         if (targetUser == null) {
             throw new BusinessException(40401, "用户不存在");
         }
-        
+
         // 检查是否已关注
         if (isFollowing(userId, targetUserId)) {
             throw new BusinessException(40001, "已关注该用户");
         }
-        
+
         // 插入关注记录
         UserFollowDO follow = new UserFollowDO();
         follow.setUserId(userId);
         follow.setFollowUserId(targetUserId);
         userFollowMapper.insert(follow);
-        
+
         // 更新统计数据
         userStatsMapper.incrementFollowingCount(userId);
         userStatsMapper.incrementFollowerCount(targetUserId);
-        
+
         // 发送关注通知
         UserDO user = userMapper.selectById(userId);
         // 使用新的系统通知方法，包含发送者信息
@@ -325,16 +327,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         // 检查是否已关注
         LambdaQueryWrapper<UserFollowDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserFollowDO::getUserId, userId)
-               .eq(UserFollowDO::getFollowUserId, targetUserId);
-        
+                .eq(UserFollowDO::getFollowUserId, targetUserId);
+
         UserFollowDO follow = userFollowMapper.selectOne(wrapper);
         if (follow == null) {
             throw new BusinessException(40001, "未关注该用户");
         }
-        
+
         // 删除关注记录
         userFollowMapper.deleteById(follow.getId());
-        
+
         // 更新统计数据
         userStatsMapper.decrementFollowingCount(userId);
         userStatsMapper.decrementFollowerCount(targetUserId);
@@ -345,10 +347,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         Page<UserFollowDO> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<UserFollowDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserFollowDO::getUserId, userId)
-               .orderByDesc(UserFollowDO::getCreatedAt);
-        
+                .orderByDesc(UserFollowDO::getCreatedAt);
+
         Page<UserFollowDO> followPage = userFollowMapper.selectPage(page, wrapper);
-        
+
         List<UserItemVO> list = followPage.getRecords().stream()
                 .map(f -> {
                     UserDO user = userMapper.selectById(f.getFollowUserId());
@@ -360,7 +362,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
                     return item;
                 })
                 .collect(Collectors.toList());
-        
+
         return PageResult.of(list, followPage.getTotal(), pageNum, pageSize);
     }
 
@@ -369,10 +371,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         Page<UserFollowDO> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<UserFollowDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserFollowDO::getFollowUserId, userId)
-               .orderByDesc(UserFollowDO::getCreatedAt);
-        
+                .orderByDesc(UserFollowDO::getCreatedAt);
+
         Page<UserFollowDO> followPage = userFollowMapper.selectPage(page, wrapper);
-        
+
         List<UserItemVO> list = followPage.getRecords().stream()
                 .map(f -> {
                     UserDO user = userMapper.selectById(f.getUserId());
@@ -384,7 +386,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
                     return item;
                 })
                 .collect(Collectors.toList());
-        
+
         return PageResult.of(list, followPage.getTotal(), pageNum, pageSize);
     }
 
@@ -395,7 +397,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         }
         LambdaQueryWrapper<UserFollowDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserFollowDO::getUserId, userId)
-               .eq(UserFollowDO::getFollowUserId, targetUserId);
+                .eq(UserFollowDO::getFollowUserId, targetUserId);
         return userFollowMapper.selectCount(wrapper) > 0;
     }
 
@@ -407,6 +409,29 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         item.setLikes(note.getLikeCount());
         item.setViews(note.getViewCount());
         item.setCreatedAt(note.getCreatedAt().toString());
+        item.setStatus(note.getStatus());
+
+        // 根据状态设置标签（供前端显示）
+        switch (note.getStatus()) {
+            case 1:
+                // 正常状态，不需要特殊标签
+                break;
+            case 2:
+                item.setTag("已隐藏");
+                item.setTagClass("tag-hidden");
+                break;
+            case 3:
+                item.setTag("审核中");
+                item.setTagClass("tag-pending");
+                break;
+            case 4:
+                item.setTag("违规");
+                item.setTagClass("tag-rejected");
+                break;
+            default:
+                break;
+        }
+
         return item;
     }
 
@@ -428,7 +453,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         }
         return phone.substring(0, 3) + "****" + phone.substring(7);
     }
-    
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void changePassword(Long userId, ChangePasswordDTO request) {
@@ -436,48 +461,47 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         if (user == null) {
             throw new BusinessException(40401, "用户不存在");
         }
-        
+
         // 验证手机号
         if (user.getPhone() == null || user.getPhone().isEmpty()) {
             throw new BusinessException(40001, "请先绑定手机号");
         }
-        
+
         // 验证验证码
         String codeKey = RedisKeyConstants.SMS_CODE + user.getPhone();
         String cachedCode = redisUtil.get(codeKey);
         if (cachedCode == null || !cachedCode.equals(request.getCode())) {
             throw new BusinessException(40002, "验证码错误或已过期");
         }
-        
+
         // 验证旧密码
         if (!request.getOldPassword().equals(user.getPassword())) {
             throw new BusinessException(40003, "旧密码错误");
         }
-        
+
         // 验证新密码和确认密码是否一致
         if (!request.getNewPassword().equals(request.getConfirmPassword())) {
             throw new BusinessException(40001, "两次密码输入不一致");
         }
-        
+
         // 验证密码长度
         if (request.getNewPassword().length() < 6 || request.getNewPassword().length() > 20) {
             throw new BusinessException(40001, "密码长度必须在6-20位之间");
         }
-        
+
         // 更新密码
         user.setPassword(request.getNewPassword());
         userMapper.updateById(user);
-        
+
         // 删除验证码
         redisUtil.delete(codeKey);
-        
+
         // 清除缓存
         redisUtil.delete(RedisKeyConstants.USER_INFO + userId);
-        
+
         log.info("用户{}:密码修改成功", userId);
     }
-    
-    
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void changePhone(Long userId, ChangePhoneDTO request) {
@@ -485,64 +509,64 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         if (user == null) {
             throw new BusinessException(40401, "用户不存在");
         }
-        
+
         String oldPhone = user.getPhone();
         String newPhone = request.getNewPhone();
-        
+
         // 检查是否绑定了手机号
         if (oldPhone == null || oldPhone.isEmpty()) {
             throw new BusinessException(40001, "当前账号未绑定手机号");
         }
-        
+
         // 检查新手机号是否与旧手机号相同
         if (oldPhone.equals(newPhone)) {
             throw new BusinessException(40001, "新手机号不能与当前手机号相同");
         }
-        
+
         // 检查修改频率限制(24小时内最多修改一次)
         String limitKey = RedisKeyConstants.CHANGE_PHONE_LIMIT + userId;
         if (redisUtil.hasKey(limitKey)) {
             throw new BusinessException(40005, "24小时内只能修改一次手机号");
         }
-        
+
         // 检查新手机号是否已被其他用户绑定
         UserDO existingUser = userMapper.selectByPhone(newPhone);
         if (existingUser != null && !existingUser.getId().equals(userId)) {
             throw new BusinessException(40001, "该手机号已被其他账号绑定");
         }
-        
+
         // 验证原手机号验证码
         String oldCodeKey = RedisKeyConstants.SMS_CODE + oldPhone;
         String cachedOldCode = redisUtil.get(oldCodeKey);
         if (cachedOldCode == null || !cachedOldCode.equals(request.getOldPhoneCode())) {
             throw new BusinessException(40002, "原手机号验证码错误或已过期");
         }
-        
+
         // 验证新手机号验证码
         String newCodeKey = RedisKeyConstants.SMS_CODE + newPhone;
         String cachedNewCode = redisUtil.get(newCodeKey);
         if (cachedNewCode == null || !cachedNewCode.equals(request.getNewPhoneCode())) {
             throw new BusinessException(40002, "新手机号验证码错误或已过期");
         }
-        
+
         // 更新手机号
         user.setPhone(newPhone);
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
-        
+
         // 删除验证码
         redisUtil.delete(oldCodeKey);
         redisUtil.delete(newCodeKey);
-        
+
         // 设置修改频率限制(24小时)
         redisUtil.set(limitKey, "1", 86400);
-        
+
         // 清除用户信息缓存
         redisUtil.delete(RedisKeyConstants.USER_INFO + userId);
-        
+
         log.info("用户{}手机号修改成功: {} -> {}", userId, maskPhone(oldPhone), maskPhone(newPhone));
     }
-    
+
     @Override
     public String getUserPhone(Long userId) {
         UserDO user = userMapper.selectById(userId);
