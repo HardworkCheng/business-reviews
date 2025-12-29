@@ -31,15 +31,16 @@
 					auto-height
 				></textarea>
 				<view class="content-footer">
-					<!-- AI魔法生成按钮 -->
+					<!-- AI魔法生成按钮 (Magic Ball) -->
 					<view 
-						class="magic-btn" 
-						:class="{ disabled: !canUseMagic || generating }"
-						@click="handleMagicGenerate"
+						class="magic-ball-wrapper" 
 						v-if="canUseMagic || generating"
+						@click="handleMagicGenerate"
 					>
-						<text class="magic-icon">{{ generating ? '⏳' : '✨' }}</text>
-						<text class="magic-text">{{ generating ? 'AI生成中...' : 'AI写笔记' }}</text>
+						<view class="magic-ball" :class="{ 'rotating': generating }">
+							<text class="magic-icon">✨</text>
+							<view class="ball-highlight"></view>
+						</view>
 					</view>
 					<view class="char-count">
 						<text class="count-current" :class="{ warning: content.length > 900, full: content.length >= 1000 }">{{ content.length }}</text>
@@ -843,55 +844,86 @@ const clearForm = () => {
 	justify-content: space-between;
 	align-items: center;
 	margin-top: 20rpx;
+	height: 80rpx;
 	
 	.char-count {
 		margin-top: 0;
 	}
 }
 
-// AI魔法生成按钮
-.magic-btn {
+// AI魔法球按钮容器
+.magic-ball-wrapper {
 	display: flex;
 	align-items: center;
-	gap: 8rpx;
-	padding: 12rpx 24rpx;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	border-radius: 30rpx;
-	box-shadow: 0 4rpx 16rpx rgba(102, 126, 234, 0.4);
-	transition: all 0.3s ease;
+	justify-content: center;
+	padding: 10rpx;
+	border-radius: 50%;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 	
 	&:active {
-		transform: scale(0.95);
-		box-shadow: 0 2rpx 8rpx rgba(102, 126, 234, 0.3);
-	}
-	
-	&.disabled {
-		opacity: 0.6;
-		pointer-events: none;
-	}
-	
-	.magic-icon {
-		font-size: 26rpx;
-		animation: sparkle 1.5s ease-in-out infinite;
-	}
-	
-	.magic-text {
-		font-size: 24rpx;
-		color: #fff;
-		font-weight: 500;
+		transform: scale(0.92);
 	}
 }
 
-// 魔法按钮闪烁动画
-@keyframes sparkle {
-	0%, 100% {
-		opacity: 1;
-		transform: scale(1);
+// 魔法球主体
+.magic-ball {
+	width: 80rpx;
+	height: 80rpx;
+	border-radius: 50%;
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	// 橙金渐变 - 与发布页面风格统一
+	background: radial-gradient(circle at 35% 35%, #fff0d1 0%, #ffaf40 45%, #ff9f43 100%);
+	box-shadow: 0 4rpx 16rpx rgba(255, 159, 67, 0.4),
+				inset -4rpx -4rpx 8rpx rgba(230, 126, 34, 0.2),
+				inset 4rpx 4rpx 8rpx rgba(255, 255, 255, 0.8);
+	z-index: 10;
+	
+	// 旋转动画状态
+	&.rotating {
+		animation: ballSpin 1.2s linear infinite;
+		// 旋转时流光溢彩的橙色系
+		background: conic-gradient(from 0deg, #ff9f43, #ffeaa7, #fab1a0, #ff9f43);
+		box-shadow: 0 0 24rpx rgba(255, 159, 67, 0.6);
+		
+		.magic-icon {
+			animation: iconReverseSpin 1.2s linear infinite;
+			opacity: 0.9;
+		}
 	}
-	50% {
-		opacity: 0.8;
-		transform: scale(1.1);
-	}
+}
+
+// 高光效果
+.ball-highlight {
+	position: absolute;
+	top: 12rpx;
+	left: 14rpx;
+	width: 28rpx;
+	height: 14rpx;
+	background: rgba(255, 255, 255, 0.7);
+	border-radius: 50%;
+	transform: rotate(-45deg);
+	filter: blur(3rpx);
+	pointer-events: none;
+}
+
+.magic-icon {
+	font-size: 36rpx;
+	color: #fff;
+	text-shadow: 0 2rpx 4rpx rgba(211, 84, 0, 0.3); // 深橙色阴影
+	z-index: 2;
+}
+
+@keyframes ballSpin {
+	0% { transform: rotate(0deg); }
+	100% { transform: rotate(360deg); }
+}
+
+@keyframes iconReverseSpin {
+	0% { transform: rotate(0deg); }
+	100% { transform: rotate(-360deg); }
 }
 
 

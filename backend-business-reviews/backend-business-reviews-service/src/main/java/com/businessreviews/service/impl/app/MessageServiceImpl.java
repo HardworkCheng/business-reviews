@@ -403,6 +403,11 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
             response.setNoteData(message.getNoteData());
         }
 
+        // 如果是店铺分享消息，添加noteData（店铺数据也存储在noteData字段）
+        if (message.getType() != null && message.getType() == 5 && message.getNoteData() != null) {
+            response.setNoteData(message.getNoteData());
+        }
+
         // 查询发送者信息
         UserDO sender = userMapper.selectById(message.getSenderId());
         if (sender != null) {

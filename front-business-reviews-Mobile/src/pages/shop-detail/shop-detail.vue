@@ -7,12 +7,9 @@
 				<view class="action-btn" @click="goBack">
 					<image src="/static/icons/back.png" class="icon-img" mode="aspectFit"></image>
 				</view>
-				<view class="action-btns-right">
+			<view class="action-btns-right">
 					<view class="action-btn" @click="shareShop">
 						<image src="/static/icons/share.png" class="icon-img" mode="aspectFit"></image>
-					</view>
-					<view class="action-btn" :class="{ favorited: isFavorited }" @click="toggleFavorite">
-						<image :src="isFavorited ? '/static/icons/like-active.png' : '/static/icons/like.png'" class="icon-img" mode="aspectFit"></image>
 					</view>
 				</view>
 			</view>
@@ -552,13 +549,10 @@ const submitReview = async () => {
 .action-btn {
 	width: 72rpx;
 	height: 72rpx;
-	background: rgba(255, 255, 255, 0.95);
-	backdrop-filter: blur(8px);
-	border-radius: 50%;
+	background: transparent;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.1);
 	transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 

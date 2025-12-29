@@ -60,7 +60,33 @@
 							</view>
 						</view>
 						<view class="note-card-footer">
-							<text class="note-card-hint">点击查看详情 ›</text>
+							<text class="note-card-hint">点击查看详情</text>
+						</view>
+					</view>
+					
+					<!-- 店铺分享卡片 -->
+					<view v-else-if="msg.messageType === 5" class="shop-card" @click="goToShopDetail(msg.shopData || msg.noteData)">
+						<view class="shop-card-header">
+							<text class="shop-card-label">🏪 分享了一家店铺</text>
+						</view>
+						<view class="shop-card-body">
+							<image 
+								v-if="getShopData(msg).headerImage" 
+								:src="getShopData(msg).headerImage" 
+								class="shop-card-cover" 
+								mode="aspectFill"
+							></image>
+							<view class="shop-card-info">
+								<text class="shop-card-title">{{ getShopData(msg).name || '商家名称' }}</text>
+								<view class="shop-card-rating">
+									<text class="shop-card-score">{{ getShopData(msg).rating || 0 }}分</text>
+									<text class="shop-card-review">{{ getShopData(msg).reviewCount || 0 }}条评价</text>
+								</view>
+								<text class="shop-card-address">{{ getShopData(msg).address || '' }}</text>
+							</view>
+						</view>
+						<view class="shop-card-footer">
+							<text class="shop-card-hint">点击查看详情</text>
 						</view>
 					</view>
 					
@@ -227,6 +253,21 @@ const loadMessages = async () => {
 					} catch (e) {
 						console.error('解析笔记数据失败:', e, msg.noteData)
 						processed.noteData = null
+					}
+				}
+				
+				// 如果是店铺分享消息，解析店铺数据（存储在noteData字段）
+				if (processed.messageType === 5 && msg.noteData) {
+					try {
+						if (typeof msg.noteData === 'string') {
+							processed.shopData = JSON.parse(msg.noteData)
+						} else {
+							processed.shopData = msg.noteData
+						}
+						console.log('解析店铺数据:', processed.shopData)
+					} catch (e) {
+						console.error('解析店铺数据失败:', e, msg.noteData)
+						processed.shopData = null
 					}
 				}
 				
@@ -397,6 +438,22 @@ const handleNewMessage = (message) => {
 				}
 			}
 			
+			// 如果是店铺分享消息，处理店铺数据
+			if (newMessage.messageType === 5) {
+				try {
+					const shopSource = msgData.shopData || msgData.noteData
+					if (typeof shopSource === 'string') {
+						newMessage.shopData = JSON.parse(shopSource)
+					} else {
+						newMessage.shopData = shopSource
+					}
+					console.log('WebSocket-解析店铺数据:', newMessage.shopData)
+				} catch (e) {
+					console.error('WebSocket-解析店铺数据失败:', e)
+					newMessage.shopData = null
+				}
+			}
+			
 			messages.value.push(newMessage)
 			
 			// 滚动到底部
@@ -492,6 +549,20 @@ const pollNewMessages = async () => {
 					}
 				}
 				
+				// 如果是店铺分享消息，解析店铺数据
+				if (processed.messageType === 5 && msg.noteData) {
+					try {
+						if (typeof msg.noteData === 'string') {
+							processed.shopData = JSON.parse(msg.noteData)
+						} else {
+							processed.shopData = msg.noteData
+						}
+					} catch (e) {
+						console.error('轮询-解析店铺数据失败:', e)
+						processed.shopData = null
+					}
+				}
+				
 				return processed
 			}).reverse()
 			
@@ -573,6 +644,39 @@ const goToNoteDetail = (noteData) => {
 			icon: 'none'
 		})
 	}
+}
+
+// 跳转到店铺详情
+const goToShopDetail = (shopData) => {
+	console.log('点击店铺卡片，shopData:', shopData)
+	
+	if (!shopData) {
+		console.error('shopData为空')
+		uni.showToast({
+			title: '店铺数据为空',
+			icon: 'none'
+		})
+		return
+	}
+	
+	const shopId = shopData.shopId || shopData.id
+	if (shopId) {
+		console.log('跳转到店铺详情，shopId:', shopId)
+		uni.navigateTo({
+			url: `/pages/shop-detail/shop-detail?id=${shopId}`
+		})
+	} else {
+		console.error('shopData缺少shopId字段:', shopData)
+		uni.showToast({
+			title: '店铺不存在',
+			icon: 'none'
+		})
+	}
+}
+
+// 获取店铺数据（兼容不同数据格式）
+const getShopData = (msg) => {
+	return msg.shopData || msg.noteData || {}
 }
 
 const goBack = () => {
@@ -722,107 +826,173 @@ const goBack = () => {
 	height: env(safe-area-inset-bottom);
 }
 
-// 笔记卡片样式
-.note-card {
+// 统一卡片基础样式
+.share-card {
 	background: white;
-	border-radius: 20rpx;
+	border-radius: 24rpx;
 	overflow: hidden;
-	max-width: 500rpx;
-	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
-	transition: all 0.3s ease;
+	width: 500rpx;
+	box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.06);
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	border: 1rpx solid rgba(255, 158, 100, 0.1);
 	
 	&:active {
 		transform: scale(0.98);
+		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
 	}
 }
 
-.note-card-header {
-	padding: 20rpx 25rpx;
-	background: linear-gradient(135deg, #fff5f0 0%, #ffe4cc 100%);
-	border-bottom: 1rpx solid #f0f0f0;
+// 笔记卡片样式
+.note-card {
+	@extend .share-card;
 }
 
-.note-card-label {
-	font-size: 24rpx;
-	color: #ff9f43;
-	font-weight: 500;
-}
-
-.note-card-body {
+.note-card-header,
+.shop-card-header {
+	padding: 24rpx 30rpx;
+	background: linear-gradient(135deg, #FFF8F0 0%, #FFF0E0 100%);
+	border-bottom: 1rpx solid rgba(255, 158, 100, 0.1);
 	display: flex;
-	padding: 20rpx;
+	align-items: center;
 }
 
-.note-card-cover {
-	width: 120rpx;
-	height: 120rpx;
-	border-radius: 12rpx;
+.note-card-label,
+.shop-card-label {
+	font-size: 26rpx;
+	color: #FF8F1F;
+	font-weight: 600;
+	display: flex;
+	align-items: center;
+	gap: 8rpx;
+	
+	&::before {
+		content: '';
+		width: 6rpx;
+		height: 24rpx;
+		background: #FF8F1F;
+		border-radius: 4rpx;
+		margin-right: 8rpx;
+	}
+}
+
+.note-card-body,
+.shop-card-body {
+	display: flex;
+	padding: 24rpx;
+	gap: 24rpx;
+	background: #fff;
+}
+
+.note-card-cover,
+.shop-card-cover {
+	width: 140rpx;
+	height: 140rpx;
+	border-radius: 16rpx;
 	flex-shrink: 0;
-	background: #f5f5f5;
+	background: #f8f8f8;
+	object-fit: cover;
+	box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.05);
 }
 
-.note-card-info {
+.note-card-info,
+.shop-card-info {
 	flex: 1;
-	margin-left: 20rpx;
 	display: flex;
 	flex-direction: column;
-	justify-content: center;
+	justify-content: space-between;
+	height: 140rpx;
+	min-width: 0; // Fix overlapping in flex items
 }
 
-.note-card-title {
-	font-size: 28rpx;
+.note-card-title,
+.shop-card-title {
+	font-size: 30rpx;
 	font-weight: 600;
 	color: #333;
-	margin-bottom: 10rpx;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.note-card-content {
-	font-size: 24rpx;
-	color: #999;
+	line-height: 1.4;
+	margin-bottom: 8rpx;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	display: -webkit-box;
 	-webkit-line-clamp: 2;
 	-webkit-box-orient: vertical;
-	line-height: 1.4;
 }
 
-.note-card-footer {
-	padding: 15rpx 25rpx;
-	background: #fafafa;
-	border-top: 1rpx solid #f0f0f0;
+.note-card-content {
+	font-size: 24rpx;
+	color: #888;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	margin-bottom: auto;
 }
 
-.note-card-hint {
+.shop-card-rating {
+	display: flex;
+	align-items: center;
+	gap: 12rpx;
+	margin-top: 4rpx;
+}
+
+.shop-card-score {
+	font-size: 26rpx;
+	color: #FF4D4F;
+	font-weight: 700;
+}
+
+.shop-card-review {
 	font-size: 22rpx;
-	color: #ff9f43;
+	color: #999;
 }
 
-// 我的消息中的笔记卡片
-.message-mine .note-card {
-	.note-card-header {
-		background: linear-gradient(135deg, #ffe4cc 0%, #ffd4a3 100%);
+.shop-card-address {
+	font-size: 22rpx;
+	color: #999;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	margin-top: 8rpx;
+}
+
+.note-card-footer,
+.shop-card-footer {
+	padding: 20rpx 30rpx;
+	background: #fafafa;
+	border-top: 1rpx solid #f5f5f5;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.note-card-hint,
+.shop-card-hint {
+	font-size: 24rpx;
+	color: #999;
+	display: flex;
+	align-items: center;
+	
+	&::after {
+		content: '›';
+		font-size: 32rpx;
+		margin-left: 6rpx;
+		color: #ccc;
+		line-height: 1;
+		margin-top: -4rpx; // visual adjustment
 	}
 }
 
-// AI审核助手底部提示
-.ai-assistant-tip {
-	background: linear-gradient(135deg, #f5f7fa 0%, #eef2f7 100%);
-	border-top: 1rpx solid #e8ecf0;
-	padding: 30rpx;
-	text-align: center;
-	position: fixed;
-	bottom: 0;
-	left: 0;
-	right: 0;
-	z-index: 100;
-	
-	text {
-		font-size: 26rpx;
-		color: #7f8c9a;
+// 店铺分享卡片样式
+.shop-card {
+	@extend .share-card;
+}
+
+// 移除Mine message的特殊颜色，保持统一
+.message-mine .note-card,
+.message-mine .shop-card {
+	.note-card-header,
+	.shop-card-header {
+		// 保持统一背景，或者稍微加深一点点以示区别，但为了“统一”要求，这里保持一致
+		background: linear-gradient(135deg, #FFF8F0 0%, #FFF0E0 100%);
 	}
 }
 </style>
