@@ -4,14 +4,17 @@ import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
 import dev.langchain4j.service.spring.AiService;
+import dev.langchain4j.service.spring.AiServiceWiringMode;
 
 /**
  * 评论分析 AI 代理接口
  * 使用 LangChain4j 的 @AiService 注解自动生成实现
  * 
+ * 注意：使用 DeepSeek 模型（商家端）
+ * 
  * @author businessreviews
  */
-@AiService
+@AiService(wiringMode = AiServiceWiringMode.EXPLICIT, chatModel = "deepSeekChatModel")
 public interface ReviewAnalysisAgent {
 
     /**

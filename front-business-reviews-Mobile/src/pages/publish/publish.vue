@@ -30,9 +30,21 @@
 					maxlength="1000"
 					auto-height
 				></textarea>
-				<view class="char-count">
-					<text class="count-current" :class="{ warning: content.length > 900, full: content.length >= 1000 }">{{ content.length }}</text>
-					<text>/1000</text>
+				<view class="content-footer">
+					<!-- AI魔法生成按钮 -->
+					<view 
+						class="magic-btn" 
+						:class="{ disabled: !canUseMagic || generating }"
+						@click="handleMagicGenerate"
+						v-if="canUseMagic || generating"
+					>
+						<text class="magic-icon">{{ generating ? '⏳' : '✨' }}</text>
+						<text class="magic-text">{{ generating ? 'AI生成中...' : 'AI写笔记' }}</text>
+					</view>
+					<view class="char-count">
+						<text class="count-current" :class="{ warning: content.length > 900, full: content.length >= 1000 }">{{ content.length }}</text>
+						<text>/1000</text>
+					</view>
 				</view>
 			</view>
 			
@@ -231,8 +243,8 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { publishNote } from '../../api/note'
+import { ref, computed } from 'vue'
+import { publishNote, generateNoteByAI } from '../../api/note'
 import { uploadImages } from '../../api/upload'
 import { getHotTopics, search } from '../../api/common'
 import { getRegisteredShops } from '../../api/shop'
@@ -254,6 +266,87 @@ const hotTopics = ref([])
 const shopList = ref([])
 const shopSearchKeyword = ref('')
 const filteredShopList = ref([])
+const generating = ref(false) // AI生成中状态
+
+// 计算属性：是否可以使用魔法按钮（有图片或有标签时）
+const canUseMagic = computed(() => {
+	return imageList.value.length > 0 || selectedTopics.value.length > 0
+})
+
+// AI魔法生成笔记
+const handleMagicGenerate = async () => {
+	// 验证是否有图片
+	if (imageList.value.length === 0) {
+		uni.showToast({
+			title: '请先上传图片',
+			icon: 'none'
+		})
+		return
+	}
+	
+	// 防止重复点击
+	if (generating.value) {
+		return
+	}
+	
+	generating.value = true
+	uni.showLoading({ title: 'AI正在创作...', mask: true })
+	
+	try {
+		// 1. 先上传图片获取公网URL（如果还没上传）
+		let imageUrls = []
+		if (uploadedImageUrls.value.length === 0) {
+			console.log('开始上传图片到OSS...')
+			const uploadResult = await uploadImages(imageList.value)
+			imageUrls = uploadResult.urls
+			uploadedImageUrls.value = imageUrls
+			console.log('图片上传成功:', imageUrls)
+		} else {
+			imageUrls = uploadedImageUrls.value
+			console.log('使用已缓存的图片URL:', imageUrls)
+		}
+		
+		// 2. 构建AI生成请求
+		const generateRequest = {
+			shopName: selectedShop.value ? selectedShop.value.name : '',
+			imageUrls: imageUrls,
+			tags: selectedTopics.value.map(t => t.name)
+		}
+		
+		console.log('调用AI生成笔记，请求:', generateRequest)
+		
+		// 3. 调用AI生成接口
+		const result = await generateNoteByAI(generateRequest)
+		
+		console.log('AI生成结果:', result)
+		
+		// 4. 填充标题和内容
+		if (result.title) {
+			title.value = result.title
+		}
+		if (result.content) {
+			content.value = result.content
+		}
+		
+		uni.hideLoading()
+		uni.showToast({
+			title: 'AI创作完成！',
+			icon: 'success',
+			duration: 1500
+		})
+		
+	} catch (e) {
+		uni.hideLoading()
+		console.error('AI生成失败:', e)
+		uni.showToast({
+			title: e.message || 'AI生成失败，请重试',
+			icon: 'none',
+			duration: 2000
+		})
+	} finally {
+		generating.value = false
+	}
+}
 
 const handleCancel = () => {
 	if (title.value || content.value) {
@@ -743,6 +836,64 @@ const clearForm = () => {
 		}
 	}
 }
+
+// 内容区底部（魔法按钮+字数统计）
+.content-footer {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-top: 20rpx;
+	
+	.char-count {
+		margin-top: 0;
+	}
+}
+
+// AI魔法生成按钮
+.magic-btn {
+	display: flex;
+	align-items: center;
+	gap: 8rpx;
+	padding: 12rpx 24rpx;
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	border-radius: 30rpx;
+	box-shadow: 0 4rpx 16rpx rgba(102, 126, 234, 0.4);
+	transition: all 0.3s ease;
+	
+	&:active {
+		transform: scale(0.95);
+		box-shadow: 0 2rpx 8rpx rgba(102, 126, 234, 0.3);
+	}
+	
+	&.disabled {
+		opacity: 0.6;
+		pointer-events: none;
+	}
+	
+	.magic-icon {
+		font-size: 26rpx;
+		animation: sparkle 1.5s ease-in-out infinite;
+	}
+	
+	.magic-text {
+		font-size: 24rpx;
+		color: #fff;
+		font-weight: 500;
+	}
+}
+
+// 魔法按钮闪烁动画
+@keyframes sparkle {
+	0%, 100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 0.8;
+		transform: scale(1.1);
+	}
+}
+
 
 // 图片九宫格
 .media-grid {

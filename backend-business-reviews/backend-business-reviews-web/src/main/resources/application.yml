@@ -103,20 +103,28 @@ logging:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{50} - %msg%n"
 
 # LangChain4j AI 配置
-langchain4j:
-  open-ai:
-    chat-model:
-      # DeepSeek API 配置（使用 OpenAI 兼容接口）
-      # 请将 YOUR_DEEPSEEK_API_KEY 替换为您的实际 API Key
-      api-key: ${DEEPSEEK_API_KEY:sk-f7925339577c4bc087fcd2ded04b3d73}
-      base-url: https://api.deepseek.com
-      model-name: deepseek-chat
-      # 或使用 OpenAI 原生 API:
-      # api-key: ${OPENAI_API_KEY:sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}
-      # base-url: https://api.openai.com/v1
-      # model-name: gpt-3.5-turbo
-      temperature: 0.3
-      max-tokens: 2000
-      timeout: 60s
-      log-requests: true
-      log-responses: true
+# 注意：使用自定义配置类 AiModelConfig 来创建多个模型Bean
+# 禁用 LangChain4j Spring Boot Starter 的自动配置
+
+# ============================================================
+# AI模型配置
+# ============================================================
+ai:
+  # DeepSeek 模型配置（用于商家端：评论分析、智能回复）
+  deepseek:
+    api-key: ${DEEPSEEK_API_KEY:sk-f7925339577c4bc087fcd2ded04b3d73}
+    base-url: https://api.deepseek.com
+    model-name: deepseek-chat
+    temperature: 0.3
+    max-tokens: 2000
+    timeout: 60
+
+  # 通义千问 Qwen-VL 模型配置（用于用户端：探店笔记AI生成，支持图片识别）
+  qwen-vision:
+    api-key: ${ALI_API_KEY:sk-430acd11eb0842768920d155da7ecc09}
+    base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    model-name: qwen-vl-max
+    temperature: 0.7
+    max-tokens: 2000
+    timeout: 60
+

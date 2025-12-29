@@ -129,6 +129,19 @@ export const updateNote = (id, data) => {
   return put(`/notes/${id}`, data)
 }
 
+/**
+ * AI智能生成探店笔记
+ * 根据图片和标签自动生成小红书风格的探店笔记
+ * @param {Object} data - 生成请求数据
+ * @param {String} data.shopName - 商家名称（可选）
+ * @param {Array} data.imageUrls - 图片URL数组（必填，已上传到OSS的公网URL）
+ * @param {Array} data.tags - 标签数组（可选，如["好吃", "量大"]）
+ * @returns {Promise<{title: string, content: string}>} 生成的标题和正文
+ */
+export const generateNoteByAI = (data) => {
+  return post('/note/generate', data)
+}
+
 export default {
   getRecommendedNotes,
   getUserNotes,
@@ -141,5 +154,7 @@ export default {
   bookmarkNote,
   unbookmarkNote,
   deleteNote,
-  updateNote
+  updateNote,
+  generateNoteByAI
 }
+
