@@ -10,9 +10,9 @@ spring:
   # 数据源配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/business_reviews?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: "@cmj925cmj"
+    url: jdbc:mysql://115.191.22.115:3306/business_reviews?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: WebUser
+    password: "#Cmj925Cmj"
     type: com.alibaba.druid.pool.DruidDataSource
     druid:
       initial-size: 5
@@ -29,9 +29,10 @@ spring:
   # Redis配置
   data:
     redis:
-      host: 192.168.150.101
+      host: 115.191.22.115
       port: 6379
-      password: 123456
+      username: default
+      password: "#Cmj925Cmj"
       database: 0
       timeout: 10000ms
       lettuce:
