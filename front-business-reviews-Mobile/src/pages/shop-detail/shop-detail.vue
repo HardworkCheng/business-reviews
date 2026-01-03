@@ -1,7 +1,7 @@
 <template>
 	<view class="container">
 		<view class="shop-header">
-			<image :src="shopData.headerImage || 'https://via.placeholder.com/800x600/FF9E64/FFFFFF?text=Shop'" class="header-image" mode="aspectFill" @error="handleImageError"></image>
+			<image :src="shopData.headerImage || '/static/images/placeholder.svg'" class="header-image" mode="aspectFill" @error="handleImageError"></image>
 			<view class="header-overlay"></view>
 			<view class="header-actions">
 				<view class="action-btn" @click="goBack">
@@ -196,6 +196,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getShopDetail, getShopReviews, favoriteShop, unfavoriteShop, postShopReview } from '../../api/shop'
 import ShareSheet from '../../components/share-sheet/share-sheet.vue'
+import { formatTime } from '../../utils/date.js'
 
 // 商家信息（从后端获取）
 const shopData = ref({})
@@ -290,9 +291,9 @@ const fetchReviews = async (id, reset = true) => {
 		if (result && result.list) {
 			const newReviews = result.list.map(item => ({
 				id: item.id,
-				avatar: item.userAvatar || 'https://via.placeholder.com/80x80/FF9E64/FFFFFF?text=U',
+				avatar: item.userAvatar || '/static/images/default-avatar.svg',
 				author: item.username || '匿名用户',
-				date: formatReviewDate(item.createdAt),
+				date: formatTime(item.createdAt),
 				content: item.content || '',
 				rating: item.rating || 5
 			}))
@@ -331,28 +332,7 @@ const loadMoreReviews = async () => {
 	await fetchReviews(shopId.value, false)
 }
 
-// 格式化评论日期
-const formatReviewDate = (dateStr) => {
-	if (!dateStr) return ''
-	try {
-		const date = new Date(dateStr)
-		const now = new Date()
-		const diff = now - date
-		
-		// 1分钟内
-		if (diff < 60000) return '刚刚'
-		// 1小时内
-		if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前'
-		// 24小时内
-		if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前'
-		// 30天内
-		if (diff < 2592000000) return Math.floor(diff / 86400000) + '天前'
-		// 更早
-		return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-	} catch {
-		return dateStr
-	}
-}
+
 
 const goBack = () => {
 	uni.navigateBack()

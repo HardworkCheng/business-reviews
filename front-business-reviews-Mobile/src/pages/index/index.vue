@@ -15,8 +15,8 @@
 				</view>
 				<view class="user-avatar" @click="goToProfile">
 					<image 
-						v-if="userAvatar" 
-						:src="userAvatar" 
+						v-if="userStore.isLoggedIn" 
+						:src="userStore.avatar" 
 						class="avatar-image"
 						mode="aspectFill"
 					></image>
@@ -82,36 +82,17 @@
 import { ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getRecommendedNotes } from '../../api/note'
-import { getUserInfo } from '../../api/user'
+import { AMAP_KEY } from '../../common/config.js'
+import { formatTime } from '../../utils/date.js'
+import { useUserStore } from '@/stores/user'
+
+const userStore = useUserStore()
 
 // 当前城市
 const currentCity = ref('定位中...')
-// 用户头像
-const userAvatar = ref('')
 
-// 时间格式化函数
-const formatTime = (timeStr) => {
-	if (!timeStr) return ''
-	
-	try {
-		const date = new Date(timeStr)
-		const now = new Date()
-		const diff = now - date
-		const minutes = Math.floor(diff / 60000)
-		const hours = Math.floor(diff / 3600000)
-		const days = Math.floor(diff / 86400000)
-		
-		if (minutes < 1) return '刚刚'
-		if (minutes < 60) return `${minutes}分钟前`
-		if (hours < 24) return `${hours}小时前`
-		if (days < 7) return `${days}天前`
-		if (days < 30) return `${Math.floor(days / 7)}周前`
-		if (days < 365) return `${Math.floor(days / 30)}个月前`
-		return `${Math.floor(days / 365)}年前`
-	} catch (e) {
-		return ''
-	}
-}
+
+
 
 // 分类数据
 const categories = ref([
@@ -133,8 +114,8 @@ onLoad(() => {
 	console.log('Index page loaded')
 	// 初始化定位
 	initLocation()
-	// 获取用户信息
-	fetchUserInfo()
+	// 获取用户信息 (改为使用 Store)
+	userStore.fetchUserInfo()
 	// 强制从服务器获取最新数据
 	loadData()
 })
@@ -146,8 +127,8 @@ onShow(() => {
 	if (savedCity) {
 		currentCity.value = savedCity
 	}
-	// 更新用户头像
-	fetchUserInfo()
+	// 更新用户头像 (Store 自动处理)
+	userStore.fetchUserInfo()
 	// 每次显示时都强制刷新数据
 	loadData()
 })
@@ -265,7 +246,7 @@ const outOfChina = (lng, lat) => {
 // IP定位（使用高德Web服务API）
 const getCityByIP = () => {
 	console.log('🔍 首页开始IP定位...')
-	const key = '1521141ae4ee08e1a0e37b59d2fd2438'
+	const key = AMAP_KEY
 	const url = `https://restapi.amap.com/v3/ip?key=${key}`
 	
 	uni.request({
@@ -307,7 +288,7 @@ const getCityByIP = () => {
 
 // 通过经纬度获取城市名称
 const getCityByLocation = (latitude, longitude) => {
-	const key = '1521141ae4ee08e1a0e37b59d2fd2438' // 高德地图Web服务Key
+	const key = AMAP_KEY // 高德地图Web服务Key
 	const url = `https://restapi.amap.com/v3/geocode/regeo?key=${key}&location=${longitude},${latitude}&poitype=&radius=1000&extensions=base&batch=false&roadlevel=0`
 	
 	console.log('首页逆地理编码请求:', { latitude, longitude, url })
@@ -381,26 +362,7 @@ const setDefaultCity = () => {
 	uni.setStorageSync('selectedCity', '杭州')
 }
 
-// 获取用户信息
-const fetchUserInfo = async () => {
-	const token = uni.getStorageSync('token')
-	if (!token) {
-		userAvatar.value = ''
-		return
-	}
-	
-	try {
-		const result = await getUserInfo()
-		console.log('获取用户信息:', result)
-		
-		if (result && result.avatar) {
-			userAvatar.value = result.avatar
-		}
-	} catch (e) {
-		console.error('获取用户信息失败:', e)
-		userAvatar.value = ''
-	}
-}
+
 
 // 获取推荐笔记列表
 const fetchNoteList = async () => {
