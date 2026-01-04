@@ -268,11 +268,45 @@ const shopList = ref([])
 const shopSearchKeyword = ref('')
 const filteredShopList = ref([])
 const generating = ref(false) // AI生成中状态
+const aiLoadingText = ref('') // AI 加载状态文案
 
 // 计算属性：是否可以使用魔法按钮（有图片或有标签时）
 const canUseMagic = computed(() => {
 	return imageList.value.length > 0 || selectedTopics.value.length > 0
 })
+
+// AI 加载状态文案列表
+const aiLoadingStages = [
+	'正在分析图片内容...',
+	'正在识别图片中的美食...',
+	'正在提取关键特征...',
+	'正在构思创意文案...',
+	'正在组织优美语言...',
+	'AI正在深度思考...',
+	'即将完成，请稍候...'
+]
+
+// 更新 AI 加载状态文案
+let loadingTimer = null
+const startLoadingAnimation = () => {
+	let stageIndex = 0
+	aiLoadingText.value = aiLoadingStages[0]
+	
+	loadingTimer = setInterval(() => {
+		stageIndex++
+		if (stageIndex < aiLoadingStages.length) {
+			aiLoadingText.value = aiLoadingStages[stageIndex]
+		}
+	}, 2500) // 每 2.5 秒切换一次
+}
+
+const stopLoadingAnimation = () => {
+	if (loadingTimer) {
+		clearInterval(loadingTimer)
+		loadingTimer = null
+	}
+	aiLoadingText.value = ''
+}
 
 // AI魔法生成笔记
 const handleMagicGenerate = async () => {
@@ -291,7 +325,15 @@ const handleMagicGenerate = async () => {
 	}
 	
 	generating.value = true
-	uni.showLoading({ title: 'AI正在创作...', mask: true })
+	startLoadingAnimation()
+	uni.showLoading({ title: aiLoadingStages[0], mask: true })
+	
+	// 动态更新 Loading 文案
+	const updateLoadingText = setInterval(() => {
+		if (aiLoadingText.value) {
+			uni.showLoading({ title: aiLoadingText.value, mask: true })
+		}
+	}, 2500)
 	
 	try {
 		// 1. 先上传图片获取公网URL（如果还没上传）
@@ -329,6 +371,8 @@ const handleMagicGenerate = async () => {
 			content.value = result.content
 		}
 		
+		clearInterval(updateLoadingText)
+		stopLoadingAnimation()
 		uni.hideLoading()
 		uni.showToast({
 			title: 'AI创作完成！',
@@ -337,6 +381,8 @@ const handleMagicGenerate = async () => {
 		})
 		
 	} catch (e) {
+		clearInterval(updateLoadingText)
+		stopLoadingAnimation()
 		uni.hideLoading()
 		console.error('AI生成失败:', e)
 		uni.showToast({

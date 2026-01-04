@@ -49,6 +49,22 @@ export const getNearbyShops = (params) => {
   return get('/map/nearby-shops', params, { noAuth: true })
 }
 
+/**
+ * IP定位 (后端代理)
+ */
+export const getCityByIp = () => {
+  return get('/api/common/location/ip', {}, { noAuth: true })
+}
+
+/**
+ * 逆地理编码 (后端代理)
+ * @param {String|Number} longitude 经度
+ * @param {String|Number} latitude 纬度
+ */
+export const getCityByLocation = (longitude, latitude) => {
+  return get('/api/common/location/regeo', { longitude, latitude }, { noAuth: true })
+}
+
 // ==================== 搜索模块 ====================
 
 /**

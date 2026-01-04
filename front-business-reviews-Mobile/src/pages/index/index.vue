@@ -45,34 +45,12 @@
 		<!-- 推荐笔记 -->
 		<view class="notes-section">
 			<view class="notes-grid">
-				<view 
-					class="note-card clay-shadow" 
+				<note-card
 					v-for="(note, index) in noteList" 
 					:key="index"
+					:note="note"
 					@click="goToNoteDetail(note.id)"
-				>
-					<view class="note-image-wrapper">
-						<image :src="note.image" class="note-image" mode="aspectFill"></image>
-						<view v-if="note.tag" class="note-tag" :class="note.tagClass">
-							<text class="tag-text">{{ note.tag }}</text>
-						</view>
-					</view>
-					<view class="note-info">
-						<text class="note-title line-clamp-2">{{ note.title }}</text>
-						<view class="note-meta">
-							<view class="author-info">
-								<text class="author">@{{ note.author }}</text>
-							</view>
-							<view class="like-info">
-								<text class="like-icon">❤️</text>
-								<text class="like-count">{{ note.likes }}</text>
-							</view>
-						</view>
-						<view class="note-time">
-							<text class="time-text">{{ note.createTime }}</text>
-						</view>
-					</view>
-				</view>
+				/>
 			</view>
 		</view>
 	</view>
@@ -82,9 +60,11 @@
 import { ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getRecommendedNotes } from '../../api/note'
-import { AMAP_KEY } from '../../common/config.js'
+import commonApi from '../../api/common.js'
 import { formatTime } from '../../utils/date.js'
+
 import { useUserStore } from '@/stores/user'
+import NoteCard from '@/components/note-card/note-card.vue'
 
 const userStore = useUserStore()
 
@@ -243,116 +223,45 @@ const outOfChina = (lng, lat) => {
 	return (lng < 72.004 || lng > 137.8347) || (lat < 0.8293 || lat > 55.8271)
 }
 
-// IP定位（使用高德Web服务API）
+// IP定位（调用后端代理接口）
 const getCityByIP = () => {
 	console.log('🔍 首页开始IP定位...')
-	const key = AMAP_KEY
-	const url = `https://restapi.amap.com/v3/ip?key=${key}`
 	
-	uni.request({
-		url: url,
-		method: 'GET',
-		success: (res) => {
-			console.log('首页IP定位响应:', JSON.stringify(res.data))
-			
-			if (res.data.status === '1') {
-				let cityName = ''
-				
-				// 获取城市名称
-				if (res.data.city && typeof res.data.city === 'string' && res.data.city !== '') {
-					cityName = res.data.city
-				} else if (res.data.province && typeof res.data.province === 'string') {
-					cityName = res.data.province
-				}
-				
-				if (cityName) {
-					cityName = cityName.replace('市', '').replace('省', '').replace('自治区', '').replace('特别行政区', '')
-					currentCity.value = cityName
-					uni.setStorageSync('selectedCity', cityName)
-					console.log('✅ 首页IP定位成功:', cityName)
-				} else {
-					console.warn('⚠️ 首页IP定位无城市信息，使用默认城市')
-					setDefaultCity()
-				}
-			} else {
-				console.warn('⚠️ 首页IP定位失败，使用默认城市')
-				setDefaultCity()
-			}
-		},
-		fail: (err) => {
-			console.error('❌ 首页IP定位请求失败:', err)
+	commonApi.getCityByIp().then(res => {
+		console.log('首页IP定位响应:', res)
+		if (res && res.city) {
+			let cityName = res.city.replace('市', '').replace('省', '').replace('自治区', '').replace('特别行政区', '')
+			currentCity.value = cityName
+			uni.setStorageSync('selectedCity', cityName)
+			console.log('✅ 首页IP定位成功:', cityName)
+		} else {
+			console.warn('⚠️ 首页IP定位无城市信息，使用默认城市')
 			setDefaultCity()
 		}
+	}).catch(err => {
+		console.error('❌ 首页IP定位请求失败:', err)
+		setDefaultCity()
 	})
 }
 
-// 通过经纬度获取城市名称
+// 通过经纬度获取城市名称（调用后端代理接口）
 const getCityByLocation = (latitude, longitude) => {
-	const key = AMAP_KEY // 高德地图Web服务Key
-	const url = `https://restapi.amap.com/v3/geocode/regeo?key=${key}&location=${longitude},${latitude}&poitype=&radius=1000&extensions=base&batch=false&roadlevel=0`
+	console.log('首页逆地理编码请求:', { latitude, longitude })
 	
-	console.log('首页逆地理编码请求:', { latitude, longitude, url })
-	
-	uni.request({
-		url: url,
-		method: 'GET',
-		success: (res) => {
-			console.log('首页逆地理编码完整响应:', JSON.stringify(res.data))
-			
-			if (res.data.status === '1' && res.data.regeocode) {
-				const addressComponent = res.data.regeocode.addressComponent
-				console.log('地址组件详情:', JSON.stringify(addressComponent))
-				
-				let cityName = ''
-				
-				if (addressComponent) {
-					// 优先使用province（省级）
-					if (addressComponent.province && typeof addressComponent.province === 'string') {
-						cityName = addressComponent.province
-						console.log('使用province:', cityName)
-					}
-					
-					// 如果有city且不是空数组/空字符串，优先使用city（更精确）
-					if (addressComponent.city) {
-						if (Array.isArray(addressComponent.city)) {
-							if (addressComponent.city.length > 0 && typeof addressComponent.city[0] === 'string') {
-								cityName = addressComponent.city[0]
-								console.log('使用city数组第一个元素:', cityName)
-							}
-							// 空数组则保持使用province
-						} else if (typeof addressComponent.city === 'string' && addressComponent.city !== '') {
-							cityName = addressComponent.city
-							console.log('使用city字符串:', cityName)
-						}
-						// 空字符串则保持使用province
-					}
-				}
-				
-				console.log('最终cityName（处理前）:', cityName, '类型:', typeof cityName)
-				
-				// 确保cityName是字符串类型且不为空
-				if (cityName && typeof cityName === 'string') {
-					// 去掉"市"和"省"后缀
-					cityName = cityName.replace('市', '').replace('省', '').replace('自治区', '').replace('特别行政区', '')
-					currentCity.value = cityName
-					uni.setStorageSync('selectedCity', cityName)
-					console.log('✅ 首页GPS定位成功:', cityName)
-				} else {
-					console.error('❌ 无法提取城市名称，cityName类型:', typeof cityName, 'cityName值:', cityName)
-					console.log('⚠️ 保持IP定位结果')
-					// 不调用setDefaultCity，保持IP定位的结果
-				}
-			} else {
-				console.error('❌ 首页逆地理编码失败:', res.data)
-				console.log('⚠️ 保持IP定位结果')
-				// 不调用setDefaultCity，保持IP定位的结果
-			}
-		},
-		fail: (err) => {
-			console.error('❌ 首页逆地理编码请求失败:', err)
+	commonApi.getCityByLocation(longitude, latitude).then(res => {
+		console.log('首页逆地理编码响应:', res)
+		if (res && res.city) {
+			let cityName = res.city.replace('市', '').replace('省', '').replace('自治区', '').replace('特别行政区', '')
+			currentCity.value = cityName
+			uni.setStorageSync('selectedCity', cityName)
+			console.log('✅ 首页GPS定位成功:', cityName)
+		} else {
+			console.error('❌ 无法提取城市名称')
 			console.log('⚠️ 保持IP定位结果')
-			// 不调用setDefaultCity，保持IP定位的结果
 		}
+	}).catch(err => {
+		console.error('❌ 首页逆地理编码请求失败:', err)
+		console.log('⚠️ 保持IP定位结果')
 	})
 }
 
@@ -596,104 +505,5 @@ const goToNoteDetail = (id) => {
 	gap: 20rpx;
 }
 
-.note-card {
-	background: white;
-	border-radius: 30rpx;
-	overflow: hidden;
-	transition: all 0.3s;
-}
 
-.note-image-wrapper {
-	position: relative;
-	width: 100%;
-	height: 350rpx;
-}
-
-.note-image {
-	width: 100%;
-	height: 100%;
-}
-
-.note-tag {
-	position: absolute;
-	top: 20rpx;
-	right: 20rpx;
-	padding: 8rpx 20rpx;
-	border-radius: 30rpx;
-}
-
-.tag-hot {
-	background: #EF476F;
-}
-
-.tag-discount {
-	background: #06D6A0;
-}
-
-.tag-new {
-	background: #FFD166;
-}
-
-.tag-merchant {
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.tag-text {
-	font-size: 22rpx;
-	color: white;
-}
-
-.note-info {
-	padding: 20rpx;
-}
-
-.note-title {
-	font-size: 28rpx;
-	font-weight: 500;
-	margin-bottom: 15rpx;
-	line-height: 1.4;
-}
-
-.note-meta {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-}
-
-.author-info {
-	display: flex;
-	flex-direction: column;
-	gap: 4rpx;
-}
-
-.author {
-	font-size: 24rpx;
-	color: #999;
-}
-
-.like-info {
-	display: flex;
-	align-items: center;
-}
-
-.like-icon {
-	font-size: 24rpx;
-	margin-right: 5rpx;
-}
-
-.like-count {
-	font-size: 24rpx;
-	color: #EF476F;
-}
-
-.note-time {
-	display: flex;
-	justify-content: flex-end;
-	margin-top: 10rpx;
-}
-
-.time-text {
-	font-size: 22rpx;
-	color: #999;
-}
 </style>

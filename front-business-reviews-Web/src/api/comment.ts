@@ -86,3 +86,74 @@ export function generateAIReply(data: GenerateReplyRequest) {
   return request.post<GenerateReplyResponse>('/merchant/reply/generate', data)
 }
 
+/**
+ * 生成AI差评回复 (流式版本)
+ * 使用 fetch + ReadableStream 实现 SSE 流式响应
+ * 
+ * @param data 请求参数
+ * @param onToken 每收到一个 token 时的回调
+ * @param onComplete 完成时的回调
+ * @param onError 错误时的回调
+ */
+export async function generateAIReplyStream(
+  data: GenerateReplyRequest,
+  onToken: (token: string) => void,
+  onComplete: () => void,
+  onError: (error: string) => void
+) {
+  const token = localStorage.getItem('token')
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api'
+
+  try {
+    const response = await fetch(`${baseUrl}/merchant/reply/generate/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      body: JSON.stringify(data)
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const reader = response.body?.getReader()
+    const decoder = new TextDecoder()
+
+    if (!reader) {
+      throw new Error('无法获取响应流')
+    }
+
+    // 读取流
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      const text = decoder.decode(value, { stream: true })
+
+      // 解析 SSE 事件
+      const lines = text.split('\n')
+      for (const line of lines) {
+        if (line.startsWith('event:')) {
+          const eventType = line.substring(6).trim()
+          // 下一行是 data
+          continue
+        }
+        if (line.startsWith('data:')) {
+          const data = line.substring(5).trim()
+          if (data === '[DONE]') {
+            onComplete()
+          } else if (data) {
+            onToken(data)
+          }
+        }
+      }
+    }
+
+    onComplete()
+  } catch (error: any) {
+    console.error('流式AI回复失败:', error)
+    onError(error.message || 'AI生成失败')
+  }
+}

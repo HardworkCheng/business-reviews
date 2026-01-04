@@ -9,10 +9,20 @@ export const formatTime = (timeStr) => {
     try {
         let date;
         if (typeof timeStr === 'string') {
-            // 解决IOS无法识别连字符问题
-            date = new Date(timeStr.replace(/-/g, '/'))
+            // 如果是标准T格式 ISO 8601，直接解析 (例如 2023-12-25T12:00:00)
+            if (timeStr.includes('T')) {
+                date = new Date(timeStr)
+            } else {
+                // 解决IOS无法识别连字符问题 (例如 2023-12-25 12:00:00 -> 2023/12/25 12:00:00)
+                date = new Date(timeStr.replace(/-/g, '/'))
+            }
         } else {
             date = new Date(timeStr)
+        }
+
+        if (isNaN(date.getTime())) {
+            // 如果日期解析失败，直接返回原字符串
+            return String(timeStr)
         }
 
         const now = new Date()

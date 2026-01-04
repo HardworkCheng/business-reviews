@@ -16,7 +16,7 @@ onHide(() => {
 
 <style lang="scss">
 /* 全局样式 */
-@import '@/static/styles/common.scss';
+@use '@/static/styles/common.scss' as *;
 
 page {
   background-color: #F7F9FC;

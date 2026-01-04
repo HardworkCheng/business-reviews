@@ -37,7 +37,7 @@ public class CommonServiceImpl implements CommonService {
         LambdaQueryWrapper<CategoryDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.orderByAsc(CategoryDO::getSortOrder);
         List<CategoryDO> categories = categoryMapper.selectList(wrapper);
-        
+
         return categories.stream()
                 .map(this::convertToCategoryVO)
                 .collect(Collectors.toList());
@@ -48,9 +48,9 @@ public class CommonServiceImpl implements CommonService {
         // 查询启用的类目（status=1），按sort_order升序排序
         LambdaQueryWrapper<CategoryDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CategoryDO::getStatus, 1)
-               .orderByAsc(CategoryDO::getSortOrder);
+                .orderByAsc(CategoryDO::getSortOrder);
         List<CategoryDO> categories = categoryMapper.selectList(wrapper);
-        
+
         return categories.stream()
                 .map(this::convertToCategoryVO)
                 .collect(Collectors.toList());
@@ -69,10 +69,10 @@ public class CommonServiceImpl implements CommonService {
     public List<TopicVO> getTopics(Long categoryId) {
         LambdaQueryWrapper<TopicDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(TopicDO::getStatus, 1)
-               .orderByDesc(TopicDO::getViewCount);
-        
+                .orderByDesc(TopicDO::getViewCount);
+
         List<TopicDO> topics = topicMapper.selectList(wrapper);
-        
+
         return topics.stream()
                 .map(this::convertToTopicVO)
                 .collect(Collectors.toList());
@@ -82,12 +82,12 @@ public class CommonServiceImpl implements CommonService {
     public List<TopicVO> getHotTopics(Integer limit) {
         LambdaQueryWrapper<TopicDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(TopicDO::getStatus, 1)
-               .eq(TopicDO::getHot, 1)
-               .orderByDesc(TopicDO::getViewCount)
-               .last("LIMIT " + (limit != null ? limit : 10));
-        
+                .eq(TopicDO::getHot, 1)
+                .orderByDesc(TopicDO::getViewCount)
+                .last("LIMIT " + (limit != null ? limit : 10));
+
         List<TopicDO> topics = topicMapper.selectList(wrapper);
-        
+
         return topics.stream()
                 .map(this::convertToTopicVO)
                 .collect(Collectors.toList());
@@ -98,16 +98,16 @@ public class CommonServiceImpl implements CommonService {
         if (keyword == null || keyword.trim().isEmpty()) {
             return new ArrayList<>();
         }
-        
+
         // 简单实现：从搜索历史中查找匹配的关键词
         LambdaQueryWrapper<SearchHistoryDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.like(SearchHistoryDO::getKeyword, keyword)
-               .groupBy(SearchHistoryDO::getKeyword)
-               .orderByDesc(SearchHistoryDO::getSearchCount)
-               .last("LIMIT 10");
-        
+                .groupBy(SearchHistoryDO::getKeyword)
+                .orderByDesc(SearchHistoryDO::getSearchCount)
+                .last("LIMIT 10");
+
         List<SearchHistoryDO> histories = searchHistoryMapper.selectList(wrapper);
-        
+
         return histories.stream()
                 .map(SearchHistoryDO::getKeyword)
                 .collect(Collectors.toList());
@@ -140,5 +140,72 @@ public class CommonServiceImpl implements CommonService {
         response.setViewCount(topic.getViewCount());
         response.setHot(topic.getHot() != null && topic.getHot() == 1);
         return response;
+    }
+
+    // 高德地图Web服务Key (建议生产环境通过配置文件注入)
+    private static final String AMAP_KEY = "1521141ae4ee08e1a0e37b59d2fd2438";
+
+    @Override
+    public String getCityByIp(String ip) {
+        // 如果IP为空，高德会默认使用请求来源IP
+        // 在后端请求时，如果未传ip参数，会返回后端服务器的地理位置
+        try {
+            String url = "https://restapi.amap.com/v3/ip?key=" + AMAP_KEY;
+            if (ip != null && !ip.isEmpty()) {
+                url += "&ip=" + ip;
+            }
+            log.info("Requesting Amap IP Location: {}", url);
+            String response = cn.hutool.http.HttpUtil.get(url);
+            log.info("Amap IP Response: {}", response);
+
+            cn.hutool.json.JSONObject json = cn.hutool.json.JSONUtil.parseObj(response);
+            if ("1".equals(json.getStr("status"))) {
+                String city = json.getStr("city");
+                if (cn.hutool.core.util.StrUtil.isNotBlank(city) && !cn.hutool.json.JSONUtil.isNull(json.get("city"))) {
+                    // 有时候city是数组或对象，需要处理? 高德IP定位一般返回字符串
+                    // 如果是空或者是[]，尝试用province
+                    return city;
+                }
+                String province = json.getStr("province");
+                if (cn.hutool.core.util.StrUtil.isNotBlank(province)) {
+                    return province;
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to get city by IP", e);
+        }
+        return "杭州市"; // 默认兜底
+    }
+
+    @Override
+    public String getCityByLocation(String longitude, String latitude) {
+        try {
+            String location = longitude + "," + latitude;
+            String url = "https://restapi.amap.com/v3/geocode/regeo?key=" + AMAP_KEY +
+                    "&location=" + location + "&extensions=base";
+            log.info("Requesting Amap Regeo: {}", url);
+            String response = cn.hutool.http.HttpUtil.get(url);
+            // log.info("Amap Regeo Response: {}", response);
+
+            cn.hutool.json.JSONObject json = cn.hutool.json.JSONUtil.parseObj(response);
+            if ("1".equals(json.getStr("status"))) {
+                cn.hutool.json.JSONObject regeocode = json.getJSONObject("regeocode");
+                if (regeocode != null) {
+                    cn.hutool.json.JSONObject addressComponent = regeocode.getJSONObject("addressComponent");
+                    if (addressComponent != null) {
+                        // 优先取city
+                        Object cityObj = addressComponent.get("city");
+                        if (cityObj instanceof String && cn.hutool.core.util.StrUtil.isNotBlank((String) cityObj)) {
+                            return (String) cityObj;
+                        }
+                        // 如果city是空或者是[]，取province
+                        return addressComponent.getStr("province");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to get city by location", e);
+        }
+        return "杭州市"; // 默认兜底
     }
 }

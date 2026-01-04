@@ -10,8 +10,8 @@
 					<view class="avatar-border"></view>
 				</view>
 				<view class="info">
-					<text class="username">{{ userInfo.username || '未登录' }}</text>
-					<text class="user-id">{{ userInfo.userId ? 'ID: ' + userInfo.userId : '点击登录' }}</text>
+					<text class="username">{{ userStore.nickname }}</text>
+					<text class="user-id">{{ userStore.isLoggedIn ? 'ID: ' + userInfo.userId : '点击登录' }}</text>
 				</view>
 				<view class="setting-btn" @click="openSettings">
 					<image src="/static/icons/settings.png" class="setting-icon" mode="aspectFit"></image>
@@ -86,36 +86,12 @@
 			<!-- 瀑布流/网格布局内容 -->
 			<view class="notes-grid">
 				<template v-if="currentList.length > 0">
-					<view 
-						class="note-card" 
+					<note-card 
 						v-for="(note, index) in currentList" 
 						:key="index"
+						:note="note"
 						@click="goToNoteDetail(note.id)"
-					>
-						<view class="image-box">
-							<image :src="note.image" class="note-image" mode="aspectFill"></image>
-							<view class="image-mask"></view>
-							<!-- 审核状态标签 -->
-							<view v-if="note.tag && currentTab === 0" 
-								class="status-tag" 
-								:class="note.tagClass">
-								{{ note.tag }}
-							</view>
-						</view>
-						<view class="card-body">
-							<text class="note-title">{{ note.title }}</text>
-							<view class="card-footer">
-								<view class="author-row">
-									<text class="author-name">@{{ note.author }}</text>
-								</view>
-								<view class="like-row">
-									<image src="/static/icons/like-small.png" class="like-icon-small" mode="aspectFit"></image>
-									<text class="like-num">{{ note.likes }}</text>
-								</view>
-							</view>
-							<text class="publish-time">{{ note.createTime }}</text>
-						</view>
-					</view>
+					/>
 				</template>
 				
 				<!-- 空状态 -->
@@ -134,11 +110,17 @@ import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getUserInfo, getMyFavorites, getBrowseHistory } from '../../api/user'
 import { getMyNotes, getMyLikedNotes } from '../../api/note'
-import { getImageUrl } from '../../utils/placeholder'
+import { useUserStore } from '@/stores/user'
+import NoteCard from '@/components/note-card/note-card.vue'
+import { formatTime } from '../../utils/date.js'
+import { storeToRefs } from 'pinia'
+
+const userStore = useUserStore()
+const { userInfo } = storeToRefs(userStore)
 
 
 const currentTab = ref(0)
-const userInfo = ref({})
+// const userInfo = ref({}) // Handled by Store
 const myNotes = ref([])
 const likedList = ref([])
 const favoriteList = ref([])
@@ -167,32 +149,9 @@ const getEmptyText = () => {
 	}
 }
 
-// 时间格式化
-const formatTime = (timeStr) => {
-	if (!timeStr) return ''
-	try {
-		const date = new Date(timeStr)
-		const now = new Date()
-		const diff = now - date
-		const minutes = Math.floor(diff / 60000)
-		const hours = Math.floor(diff / 3600000)
-		const days = Math.floor(diff / 86400000)
-		
-		if (minutes < 1) return '刚刚'
-		if (minutes < 60) return `${minutes}分钟前`
-		if (hours < 24) return `${hours}小时前`
-		if (days < 7) return `${days}天前`
-		if (days < 30) return `${Math.floor(days / 7)}周前`
-		if (days < 365) return `${Math.floor(days / 30)}个月前`
-		return `${Math.floor(days / 365)}年前`
-	} catch (e) {
-		return ''
-	}
-}
 
-const avatarUrl = computed(() => {
-	return getImageUrl(userInfo.value.avatar)
-})
+
+const avatarUrl = computed(() => userStore.avatar)
 
 onLoad(async () => {
 	await loadData()
@@ -225,8 +184,7 @@ const fetchUserInfo = async () => {
 	try {
 		const info = await getUserInfo()
 		if (info) {
-			userInfo.value = info
-			uni.setStorageSync('userInfo', info)
+			userStore.setUserInfo(info)
 		}
 	} catch (e) {
 		console.error('获取用户信息失败', e)
@@ -254,7 +212,6 @@ const fetchList = async (apiFunc, listRef, type = 'normal') => {
 				author: item.author || '匿名用户',
 				likes: item.likes || 0,
 				createTime: item.viewTime || formatTime(item.createdAt),
-				status: item.status || 1,
 				tag: item.tag || null,
 				tagClass: item.tagClass || null
 			}))

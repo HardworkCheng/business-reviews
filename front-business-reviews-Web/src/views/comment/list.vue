@@ -279,7 +279,7 @@
             style="width: 100%; margin-top: 16px; height: 40px; border-radius: 8px;"
           >
             <el-icon class="mr-1"><MagicStick /></el-icon>
-            {{ aiReplyLoading ? 'AI 正在深度思考...' : '✨ 一键生成高情商回复' }}
+            {{ aiLoadingStatusText || '✨ 一键生成高情商回复' }}
           </el-button>
         </div>
 
@@ -423,6 +423,7 @@ import {
   getMerchantShops,
   getAIWeeklyReport,
   generateAIReply,
+  generateAIReplyStream,
   type WeeklyReportData
 } from '@/api/comment'
 
@@ -479,6 +480,8 @@ const currentReplyComment = ref<any>(null)  // 当前正在回复的评论
 const selectedStrategy = ref('')           // 选择的补偿策略
 const customStrategy = ref('')             // 自定义补偿策略
 const aiReplyLoading = ref(false)          // AI生成回复loading
+const aiLoadingStatusText = ref('')        // AI加载状态文案
+const useStreamingAI = ref(true)           // 是否使用流式AI生成
 
 // 回复表单验证规则
 const replyRules = {
@@ -666,22 +669,85 @@ const handleGenerateAIReply = async () => {
     return
   }
 
+  // 确定最终使用的补偿策略（自定义策略优先）
+  const finalStrategy = customStrategy.value || selectedStrategy.value || ''
+  
+  const requestData = {
+    reviewText: currentReplyComment.value.content,
+    strategy: finalStrategy || undefined
+  }
+
+  // 尝试使用流式API
+  if (useStreamingAI.value) {
+    try {
+      aiReplyLoading.value = true
+      replyForm.value.content = '' // 清空内容
+      aiLoadingStatusText.value = 'AI 正在分析评论情感...'
+      
+      // 切换加载文案
+      const loadingTexts = [
+        'AI 正在分析评论情感...',
+        'AI 正在组织语言...',
+        'AI 正在撰写回复...'
+      ]
+      let textIndex = 0
+      const loadingTimer = setInterval(() => {
+        textIndex = (textIndex + 1) % loadingTexts.length
+        if (replyForm.value.content === '') {
+          aiLoadingStatusText.value = loadingTexts[textIndex]
+        }
+      }, 2000)
+      
+      await generateAIReplyStream(
+        requestData,
+        (token: string) => {
+          // 每收到一个 token，追加到输入框
+          if (aiLoadingStatusText.value !== '') {
+            aiLoadingStatusText.value = '' // 收到第一个token后清空加载文案
+          }
+          replyForm.value.content += token
+        },
+        () => {
+          // 完成
+          clearInterval(loadingTimer)
+          aiLoadingStatusText.value = ''
+          aiReplyLoading.value = false
+          ElMessage.success('AI回复生成完成，请检查后发送')
+        },
+        (error: string) => {
+          // 错误 - 降级到同步API
+          clearInterval(loadingTimer)
+          aiLoadingStatusText.value = ''
+          console.warn('流式API失败，尝试同步API:', error)
+          handleGenerateAIReplySync(requestData)
+        }
+      )
+    } catch (error: any) {
+      aiLoadingStatusText.value = ''
+      aiReplyLoading.value = false
+      console.warn('流式API异常，尝试同步API:', error)
+      handleGenerateAIReplySync(requestData)
+    }
+  } else {
+    handleGenerateAIReplySync(requestData)
+  }
+}
+
+// AI 生成回复 (同步版本，作为降级方案)
+const handleGenerateAIReplySync = async (requestData: any) => {
   try {
     aiReplyLoading.value = true
+    aiLoadingStatusText.value = 'AI 正在深度思考...'
     
-    // 确定最终使用的补偿策略（自定义策略优先）
-    const finalStrategy = customStrategy.value || selectedStrategy.value || ''
-    
-    const res = await generateAIReply({
-      reviewText: currentReplyComment.value.content,
-      strategy: finalStrategy || undefined
-    })
+    const res = await generateAIReply(requestData)
     
     // 将AI生成的回复填入输入框
     replyForm.value.content = res.reply
+    aiLoadingStatusText.value = ''
     ElMessage.success('AI回复生成成功，请检查后发送')
     
   } catch (error: any) {
+    aiLoadingStatusText.value = ''
     console.error('AI生成回复失败:', error)
     ElMessage.error(error.message || 'AI生成回复失败，请稍后重试')
   } finally {

@@ -19,7 +19,7 @@
 			<text class="shop-name">{{ shopData.name || '商家名称' }}</text>
 			<view class="rating-section">
 				<text class="rating-score">{{ shopData.rating || 0 }}</text>
-				<text class="rating-stars">{{ getStarDisplay(shopData.rating) }}</text>
+				<rate :model-value="shopData.rating || 0" readonly size="small" />
 				<text class="review-count">{{ shopData.reviewCount || 0 }}条评价</text>
 			</view>
 
@@ -88,13 +88,7 @@
 				<view class="main-rating-box">
 					<text class="rating-title">整体评价</text>
 					<view class="stars-row big-stars">
-						<text 
-							v-for="star in 5" 
-							:key="star" 
-							class="star-btn"
-							:class="{ active: star <= reviewForm.rating }"
-							@click="setRating(star)"
-						>★</text>
+						<rate v-model="reviewForm.rating" size="large" show-score />
 					</view>
 				</view>
 				
@@ -102,37 +96,19 @@
 					<view class="sub-score-row">
 						<text class="score-label">口味</text>
 						<view class="stars-selection">
-							<text 
-								v-for="s in 5" 
-								:key="s" 
-								class="mini-star-btn"
-								:class="{ active: s <= reviewForm.tasteScore }"
-								@click="setSubScore('tasteScore', s)"
-							>★</text>
+							<rate v-model="reviewForm.tasteScore" size="medium" />
 						</view>
 					</view>
 					<view class="sub-score-row">
 						<text class="score-label">环境</text>
 						<view class="stars-selection">
-							<text 
-								v-for="s in 5" 
-								:key="s" 
-								class="mini-star-btn"
-								:class="{ active: s <= reviewForm.environmentScore }"
-								@click="setSubScore('environmentScore', s)"
-							>★</text>
+							<rate v-model="reviewForm.environmentScore" size="medium" />
 						</view>
 					</view>
 					<view class="sub-score-row">
 						<text class="score-label">服务</text>
 						<view class="stars-selection">
-							<text 
-								v-for="s in 5" 
-								:key="s" 
-								class="mini-star-btn"
-								:class="{ active: s <= reviewForm.serviceScore }"
-								@click="setSubScore('serviceScore', s)"
-							>★</text>
+							<rate v-model="reviewForm.serviceScore" size="medium" />
 						</view>
 					</view>
 				</view>
@@ -156,7 +132,7 @@
 				<view class="review-content">
 					<view class="review-header">
 						<text class="review-author">{{ review.author }}</text>
-						<text class="review-rating">{{ '⭐'.repeat(review.rating || 5) }}</text>
+						<rate :model-value="review.rating || 5" readonly size="small" />
 					</view>
 					<text class="review-date">{{ review.date }}</text>
 					<text class="review-text">{{ review.content }}</text>
@@ -196,6 +172,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getShopDetail, getShopReviews, favoriteShop, unfavoriteShop, postShopReview } from '../../api/shop'
 import ShareSheet from '../../components/share-sheet/share-sheet.vue'
+import Rate from '@/components/rate/rate.vue'
 import { formatTime } from '../../utils/date.js'
 
 // 商家信息（从后端获取）
@@ -416,21 +393,7 @@ const previewGalleryImage = (index) => {
 	})
 }
 
-// 设置评分
-const setRating = (rating) => {
-	reviewForm.value.rating = rating
-}
 
-// 设置子评分
-const setSubScore = (type, score) => {
-	reviewForm.value[type] = score
-}
-
-// 获取星星显示
-const getStarDisplay = (rating) => {
-	const r = Math.round(rating || 0)
-	return '★'.repeat(r) + '☆'.repeat(5 - r)
-}
 
 // 提交评价
 const submitReview = async () => {
@@ -580,11 +543,7 @@ const submitReview = async () => {
 	line-height: 1;
 }
 
-.rating-stars {
-	margin-right: 16rpx;
-	font-size: 24rpx;
-	color: #FF8F1F;
-}
+
 
 .review-count {
 	font-size: 26rpx;
