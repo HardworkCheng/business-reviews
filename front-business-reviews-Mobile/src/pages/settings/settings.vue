@@ -108,7 +108,7 @@
 import { ref, nextTick, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { logout } from '../../api/auth'
-import { getUserInfo, updateUserInfo } from '../../api/user'
+import { getUserInfo, getUserPhone, updateUserInfo } from '../../api/user'
 import { getImageUrl } from '../../utils/placeholder'
 
 
@@ -353,35 +353,30 @@ const editPhone = () => {
 }
 
 // 修改密码
-const editPassword = () => {
-	let fullPhone = userInfo.value.fullPhone
-	
-	if (!fullPhone && userInfo.value.phone) {
-		if (userInfo.value.phone.includes('*')) {
-			console.error('phone 字段是脱敏后的,无法使用')
-			uni.showToast({ 
-				title: '无法获取手机号,请重新登录', 
-				icon: 'none',
-				duration: 2000
-			})
-			return
-		}
-		fullPhone = userInfo.value.phone
-	}
-	
-	if (!fullPhone) {
-		console.error('fullPhone 和 phone 都为空')
-		uni.showToast({ 
-			title: '请先绑定手机号', 
-			icon: 'none',
-			duration: 2000
-		})
-		return
-	}
-	
-	uni.navigateTo({
-		url: `/pages/change-password/change-password?phone=${fullPhone}`
-	})
+const editPassword = async () => {
+        try {
+                const res = await getUserPhone()
+                const fullPhone = (res && res.phone) ? res.phone : res
+
+                if (!fullPhone) {
+                        uni.showToast({
+                                title: '请先绑定手机号',
+                                icon: 'none',
+                                duration: 2000
+                        })
+                        return
+                }
+
+                uni.navigateTo({
+                        url: `/pages/change-password/change-password?phone=${fullPhone}`
+                })
+        } catch (e) {
+                console.error('获取手机号失败', e)
+                uni.showToast({
+                        title: e.message || '获取手机号失败',
+                        icon: 'none'
+                })
+        }
 }
 
 // 检查是否有修改

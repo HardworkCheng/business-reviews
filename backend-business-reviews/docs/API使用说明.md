@@ -95,9 +95,11 @@ const result = await api.auth.loginByCode('13800138000', '123456')
 //     userId: "1001",
 //     username: "美食探店小王",
 //     avatar: "https://example.com/avatar.jpg",
-//     phone: "13800138000"
+//     phone: "138****8000"
 //   }
 // }
+
+// 如需获取完整手机号用于敏感操作，请调用 GET /user/phone 接口
 
 // 保存token和用户信息
 uni.setStorageSync('token', result.token)
