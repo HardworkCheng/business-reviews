@@ -25,9 +25,6 @@ public class UserInfoVO implements Serializable {
     // 脱敏后的手机号(用于显示)
     private String phone;
     
-    // 完整手机号(用于发送验证码等敏感操作)
-    private String fullPhone;
-    
     private Integer gender;
     
     private LocalDate birthday;
