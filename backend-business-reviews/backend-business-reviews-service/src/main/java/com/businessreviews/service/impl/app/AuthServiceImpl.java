@@ -25,8 +25,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.Random;
 import java.util.regex.Pattern;
 
 @Slf4j
@@ -42,6 +42,8 @@ public class AuthServiceImpl implements AuthService {
     private final SmsUtil smsUtil;
 
     private static final Pattern PHONE_PATTERN = Pattern.compile("^1[3-9]\\d{9}$");
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final String CODE_CHARSET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
     @Override
     public void sendCode(SendCodeDTO request) {
@@ -254,10 +256,9 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private String generateCode() {
-        Random random = new Random();
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < 6; i++) {
-            sb.append(random.nextInt(10));
+            sb.append(CODE_CHARSET.charAt(SECURE_RANDOM.nextInt(CODE_CHARSET.length())));
         }
         return sb.toString();
     }

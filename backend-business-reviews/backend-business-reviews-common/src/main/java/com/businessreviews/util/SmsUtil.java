@@ -18,8 +18,9 @@ public class SmsUtil {
     public void sendCode(String phone, String code) {
         // 这里接入实际的短信服务商API
         // 如阿里云短信、腾讯云短信等
-        log.info("发送验证码到手机 {}: {}", phone, code);
-        
+        log.info("发送验证码到手机 {}", phone);
+        log.debug("验证码内容: {}", code);
+
         // 模拟发送成功
         // 实际实现时替换为真实的短信发送逻辑
     }
