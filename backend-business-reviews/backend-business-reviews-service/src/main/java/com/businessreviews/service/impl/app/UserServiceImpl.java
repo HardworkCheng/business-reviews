@@ -91,7 +91,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         response.setAvatar(user.getAvatar());
         response.setBio(user.getBio());
         response.setPhone(maskPhone(user.getPhone())); // 脱敏后的手机号
-        response.setFullPhone(user.getPhone()); // 完整手机号
         response.setGender(user.getGender());
         response.setBirthday(user.getBirthday());
         response.setWechatOpenid(user.getWechatOpenid());
