@@ -167,16 +167,14 @@ const fetchCurrentPhone = async () => {
 	} catch (e) {
 		console.error('获取手机号失败:', e)
 		// 尝试从缓存获取
-		const userInfo = uni.getStorageSync('userInfo')
-		if (userInfo && userInfo.fullPhone) {
-			currentPhone.value = userInfo.fullPhone
-		} else if (userInfo && userInfo.phone && !userInfo.phone.includes('*')) {
-			currentPhone.value = userInfo.phone
-		} else {
-			uni.showToast({ title: '获取手机号失败', icon: 'none' })
-			setTimeout(() => goBack(), 1500)
-		}
-	}
+                const userInfo = uni.getStorageSync('userInfo')
+                if (userInfo && userInfo.phone && !userInfo.phone.includes('*')) {
+                        currentPhone.value = userInfo.phone
+                } else {
+                        uni.showToast({ title: '获取手机号失败', icon: 'none' })
+                        setTimeout(() => goBack(), 1500)
+                }
+        }
 }
 
 // 格式化手机号（脱敏显示）

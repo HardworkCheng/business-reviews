@@ -244,7 +244,6 @@ public class AuthServiceImpl implements AuthService {
         userInfo.setAvatar(user.getAvatar());
         userInfo.setBio(user.getBio());
         userInfo.setPhone(maskPhone(user.getPhone())); // 脱敏后的手机号
-        userInfo.setFullPhone(user.getPhone()); // 完整手机号
         userInfo.setGender(user.getGender());
         userInfo.setBirthday(user.getBirthday());
         userInfo.setWechatOpenid(user.getWechatOpenid());
