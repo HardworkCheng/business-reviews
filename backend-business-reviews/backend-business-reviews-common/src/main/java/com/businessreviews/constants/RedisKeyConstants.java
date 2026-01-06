@@ -64,4 +64,7 @@ public final class RedisKeyConstants {
 
     /** 热门话题 */
     public static final String HOT_TOPICS = "topics:hot";
+
+    /** 商家地理位置 (Redis GEO) */
+    public static final String SHOP_GEO = "shop:geo";
 }

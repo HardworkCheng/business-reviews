@@ -76,12 +76,28 @@ for (NoteDO note : notes) {
 - **CommonServiceImpl.java**: 
   - `getAllCategories`: 实现全部分类列表缓存，TTL=1小时。使用 Hutool `JSONUtil` 辅助处理泛型转换。
 
-### 4. 附近的商家 (Geo) 算法优化
+### 4. 附近的商家 (Geo) 算法优化 - 已完成 (2026-01-06)
 **现状**: `ShopServiceImpl.getNearbyShops` 目前逻辑是：先分页查询所有状态正常的商家（按评分排序），然后在**内存中**计算距离并格式化。
 - **问题**: 这**不是**真正的"附近搜索"。如果第 2 页的商家比第 1 页的离我更近，用户永远看不见。当前的逻辑实际上是"按评分推荐，顺便告诉你有多远"。
 **优化方案**:
 - **方案 A (简单)**: 利用 MySQL 5.7+ 的 `ST_Distance_Sphere` 函数进行空间排序。
-- **方案 B (高性能)**: 使用 **Redis GEO** (GeoAdd, GeoRadius) 存储商家经纬度，实现毫秒级“查找附近的店”。
+- **方案 B (高性能)**: 使用 **Redis GEO** (GeoAdd, GeoRadius) 存储商家经纬度，实现毫秒级"查找附近的店"。
+
+**已完成的优化** (采用方案 B - Redis GEO):
+- **RedisUtil.java**: 新增 GEO 操作方法
+  - `geoAdd`: 添加单个地理位置
+  - `geoAddAll`: 批量添加地理位置
+  - `geoRadius`: 按距离查询附近成员（按距离升序排序）
+  - `geoRemove`: 删除地理位置
+- **RedisKeyConstants.java**: 新增 `SHOP_GEO` 常量
+- **ShopGeoIndexInitializer.java**: 新增组件
+  - 应用启动时自动加载所有商家经纬度到 Redis GEO
+  - 提供 `updateShopGeo` / `removeShopGeo` 方法用于商家信息变更时同步
+- **ShopServiceImpl.java**: 重构 `getNearbyShops` 方法
+  - 优先使用 Redis GEO `geoRadius` 查询附近商家
+  - 结果按距离升序排序（真正的"附近"搜索）
+  - 保留 `fallbackNearbyShops` 降级方案（Redis 不可用时）
+- **性能提升**: 从 O(N) 的数据库全表扫描+内存计算 → O(log N) 的 Redis GEO 索引查询
 
 ---
 

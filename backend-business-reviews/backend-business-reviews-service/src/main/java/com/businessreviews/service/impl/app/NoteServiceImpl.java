@@ -62,7 +62,6 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
     private final BrowseHistoryMapper browseHistoryMapper;
     private final UserFollowMapper userFollowMapper;
     private final ShopMapper shopMapper;
-    private final TagMapper tagMapper;
     private final TopicMapper topicMapper;
     private final MerchantMapper merchantMapper;
     private final RedisUtil redisUtil;

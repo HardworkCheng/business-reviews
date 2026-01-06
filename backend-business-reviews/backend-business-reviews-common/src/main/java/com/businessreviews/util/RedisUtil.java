@@ -179,6 +179,7 @@ public class RedisUtil {
     /**
      * 自增
      */
+    @SuppressWarnings("null")
     public Long increment(String key, long delta) {
         return redisTemplate.opsForValue().increment(key, delta);
     }
@@ -186,7 +187,89 @@ public class RedisUtil {
     /**
      * 自减
      */
+    @SuppressWarnings("null")
     public Long decrement(String key, long delta) {
         return redisTemplate.opsForValue().decrement(key, delta);
+    }
+
+    // ========== GEO 地理位置操作 ==========
+
+    /**
+     * 添加地理位置
+     * 
+     * @param key       Redis Key
+     * @param longitude 经度
+     * @param latitude  纬度
+     * @param member    成员名称（如商家ID）
+     * @return 添加成功的数量
+     */
+    @SuppressWarnings("null")
+    public Long geoAdd(String key, double longitude, double latitude, String member) {
+        return redisTemplate.opsForGeo().add(key,
+                new org.springframework.data.geo.Point(longitude, latitude), member);
+    }
+
+    /**
+     * 批量添加地理位置
+     * 
+     * @param key       Redis Key
+     * @param locations 地理位置映射 (memberId -> Point)
+     * @return 添加成功的数量
+     */
+    @SuppressWarnings("null")
+    public Long geoAddAll(String key, java.util.Map<String, org.springframework.data.geo.Point> locations) {
+        if (locations == null || locations.isEmpty()) {
+            return 0L;
+        }
+
+        java.util.List<org.springframework.data.redis.connection.RedisGeoCommands.GeoLocation<String>> geoLocations = locations
+                .entrySet().stream()
+                .map(entry -> new org.springframework.data.redis.connection.RedisGeoCommands.GeoLocation<>(
+                        entry.getKey(), entry.getValue()))
+                .collect(java.util.stream.Collectors.toList());
+
+        return redisTemplate.opsForGeo().add(key, geoLocations);
+    }
+
+    /**
+     * 查找指定范围内的成员（按距离升序排序）
+     * 
+     * @param key       Redis Key
+     * @param longitude 中心点经度
+     * @param latitude  中心点纬度
+     * @param radius    搜索半径（公里）
+     * @param limit     返回数量限制
+     * @return 包含成员ID和距离的结果列表
+     */
+    public java.util.List<org.springframework.data.geo.GeoResult<org.springframework.data.redis.connection.RedisGeoCommands.GeoLocation<String>>> geoRadius(
+            String key, double longitude, double latitude, double radius, long limit) {
+
+        org.springframework.data.geo.Circle circle = new org.springframework.data.geo.Circle(
+                new org.springframework.data.geo.Point(longitude, latitude),
+                new org.springframework.data.geo.Distance(radius,
+                        org.springframework.data.redis.connection.RedisGeoCommands.DistanceUnit.KILOMETERS));
+
+        org.springframework.data.redis.connection.RedisGeoCommands.GeoRadiusCommandArgs args = org.springframework.data.redis.connection.RedisGeoCommands.GeoRadiusCommandArgs
+                .newGeoRadiusArgs()
+                .includeDistance()
+                .sortAscending()
+                .limit(limit);
+
+        org.springframework.data.geo.GeoResults<org.springframework.data.redis.connection.RedisGeoCommands.GeoLocation<String>> results = redisTemplate
+                .opsForGeo().radius(key, circle, args);
+
+        if (results == null) {
+            return java.util.Collections.emptyList();
+        }
+
+        return results.getContent();
+    }
+
+    /**
+     * 删除地理位置成员
+     */
+    @SuppressWarnings("null")
+    public Long geoRemove(String key, String... members) {
+        return redisTemplate.opsForGeo().remove(key, members);
     }
 }

@@ -26,13 +26,16 @@ public class AuthInterceptor implements HandlerInterceptor {
     private RedisUtil redisUtil;
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+    public boolean preHandle(@org.springframework.lang.NonNull HttpServletRequest request,
+            @org.springframework.lang.NonNull HttpServletResponse response,
+            @org.springframework.lang.NonNull Object handler)
+            throws Exception {
         String requestURI = request.getRequestURI();
         String method = request.getMethod();
         log.debug("=== AuthInterceptor ===");
         log.debug("Request URI: {}", requestURI);
         log.debug("Method: {}", method);
-        
+
         // 定义可选认证的接口路径（不强制登录，但如果有token则解析用户ID）
         boolean isOptionalAuth = isOptionalAuthPath(requestURI, method);
 
@@ -58,16 +61,16 @@ public class AuthInterceptor implements HandlerInterceptor {
             }
             return true;
         }
-        
+
         // 文件上传接口需要单独处理 Token，因为 multipart 请求不会自动带 Authorization header
         if (requestURI.contains("/upload/")) {
             log.debug("文件上传接口，需要 Token 认证");
         }
-        
+
         // 获取请求头中的token
         String authorization = request.getHeader("Authorization");
         log.debug("Authorization Header: {}", maskToken(authorization));
-        
+
         // 检查token是否存在
         if (!StringUtils.hasText(authorization) || !authorization.startsWith("Bearer ")) {
             log.warn("Token 格式错误或不存在: {}", maskToken(authorization));
@@ -79,7 +82,7 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         String token = authorization.substring(7);
         log.debug("Token: {}", maskToken(token));
-        
+
         // 检查token是否在黑名单中
         String blacklistKey = RedisKeyConstants.TOKEN_BLACKLIST + token;
         if (redisUtil.hasKey(blacklistKey)) {
@@ -89,7 +92,7 @@ public class AuthInterceptor implements HandlerInterceptor {
             response.getWriter().write("{\"code\":401,\"message\":\"Token已失效，请重新登录\",\"data\":null}");
             return false;
         }
-        
+
         // 验证token
         if (!jwtUtil.validateToken(token)) {
             log.warn("Token 验证失败: {}", maskToken(token));
@@ -98,22 +101,25 @@ public class AuthInterceptor implements HandlerInterceptor {
             response.getWriter().write("{\"code\":401,\"message\":\"Token已过期，请重新登录\",\"data\":null}");
             return false;
         }
-        
+
         // 解析用户ID并存入上下文
         Long userId = jwtUtil.getUserIdFromToken(token);
         log.debug("User ID: {}", userId);
         UserContext.setUserId(userId);
         log.debug("UserContext 设置成功");
-        
+
         return true;
     }
 
     @Override
-    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+    public void afterCompletion(@org.springframework.lang.NonNull HttpServletRequest request,
+            @org.springframework.lang.NonNull HttpServletResponse response,
+            @org.springframework.lang.NonNull Object handler,
+            @org.springframework.lang.Nullable Exception ex) throws Exception {
         // 清除用户上下文
         UserContext.clear();
     }
-    
+
     /**
      * 判断是否为可选认证路径
      * 这些路径不强制登录，但如果有token则解析用户ID
@@ -123,38 +129,38 @@ public class AuthInterceptor implements HandlerInterceptor {
         if ("GET".equals(method) && requestURI.matches(".*/notes/\\d+$")) {
             return true;
         }
-        
+
         // 商家相关 GET 请求（详情、评价列表、笔记列表）
         if ("GET".equals(method)) {
             // /shops/{id}, /shops/{id}/reviews, /shops/{id}/notes
             if (requestURI.matches(".*/shops/\\d+$") ||
-                requestURI.matches(".*/shops/\\d+/reviews$") ||
-                requestURI.matches(".*/shops/\\d+/notes$")) {
+                    requestURI.matches(".*/shops/\\d+/reviews$") ||
+                    requestURI.matches(".*/shops/\\d+/notes$")) {
                 return true;
             }
         }
-        
+
         // 优惠券公开接口 - GET 请求
         if ("GET".equals(method)) {
             // /app/coupons, /app/coupons/available, /app/coupons/{id}
-            if (requestURI.matches(".*/app/coupons(/available)?$") || 
-                requestURI.matches(".*/app/coupons/\\d+$") ||
-                requestURI.equals("/api/app/coupons") ||
-                requestURI.equals("/api/app/coupons/available")) {
+            if (requestURI.matches(".*/app/coupons(/available)?$") ||
+                    requestURI.matches(".*/app/coupons/\\d+$") ||
+                    requestURI.equals("/api/app/coupons") ||
+                    requestURI.equals("/api/app/coupons/available")) {
                 return true;
             }
-            
+
             // /coupons
             if (requestURI.equals("/api/coupons") || requestURI.equals("/coupons")) {
                 return true;
             }
-            
+
             // 秒杀公开接口
             if (requestURI.contains("/app/seckill/")) {
                 return true;
             }
         }
-        
+
         return false;
     }
 

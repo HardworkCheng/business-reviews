@@ -49,6 +49,7 @@ public class CommonServiceImpl implements CommonService {
      * @return 所有分类的VO列表
      */
     @Override
+    @SuppressWarnings("unchecked")
     public List<CategoryVO> getAllCategories() {
         // 尝试从缓存获取
         String cacheKey = "categories:all"; // 使用硬编码或RedisKeyConstants.CATEGORIES
@@ -96,6 +97,7 @@ public class CommonServiceImpl implements CommonService {
         return list;
     }
 
+    @SuppressWarnings("unchecked")
     private List<CategoryVO> convertMapList(List<?> list) {
         if (list == null)
             return new ArrayList<>();

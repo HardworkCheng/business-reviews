@@ -122,6 +122,87 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
     @Override
     public PageResult<ShopItemVO> getNearbyShops(Double latitude, Double longitude, Double distance,
             Long categoryId, Integer pageNum, Integer pageSize) {
+
+        // 使用 Redis GEO 查询附近商家（按距离升序）
+        // 计算需要跳过的数量和获取的数量
+        long offset = (long) (pageNum - 1) * pageSize;
+        long limit = offset + pageSize + 50; // 多查一些以便过滤分类后仍有足够数据
+
+        // 从 Redis GEO 获取附近商家ID和距离
+        var geoResults = redisUtil.geoRadius(
+                RedisKeyConstants.SHOP_GEO,
+                longitude,
+                latitude,
+                distance != null ? distance : 10.0, // 默认10公里
+                limit);
+
+        if (geoResults.isEmpty()) {
+            log.info("Redis GEO 未找到附近商家，降级查询数据库");
+            return fallbackNearbyShops(latitude, longitude, distance, categoryId, pageNum, pageSize);
+        }
+
+        // 提取商家ID列表
+        List<Long> shopIds = geoResults.stream()
+                .map(result -> Long.parseLong(result.getContent().getName()))
+                .collect(Collectors.toList());
+
+        // 批量查询商家详情
+        List<ShopDO> shops = shopMapper.selectBatchIds(shopIds);
+
+        // 构建 shopId -> ShopDO 映射
+        Map<Long, ShopDO> shopMap = shops.stream()
+                .collect(Collectors.toMap(ShopDO::getId, s -> s));
+
+        // 构建 shopId -> 距离 映射
+        Map<Long, Double> distanceMap = new HashMap<>();
+        for (var result : geoResults) {
+            Long shopId = Long.parseLong(result.getContent().getName());
+            if (result.getDistance() != null) {
+                distanceMap.put(shopId, result.getDistance().getValue());
+            }
+        }
+
+        // 批量预加载分类信息
+        Map<Integer, CategoryDO> categoryMap = batchLoadCategories(shops);
+
+        // 按 Redis GEO 返回的顺序（距离升序）转换并过滤
+        List<ShopItemVO> allItems = new ArrayList<>();
+        for (Long shopId : shopIds) {
+            ShopDO shop = shopMap.get(shopId);
+            if (shop == null || shop.getStatus() != 1) {
+                continue; // 跳过不存在或已下架的商家
+            }
+
+            // 按分类过滤
+            if (categoryId != null && !categoryId.equals(shop.getCategoryId().longValue())) {
+                continue;
+            }
+
+            ShopItemVO item = convertToShopItem(shop, categoryMap);
+            Double dist = distanceMap.get(shopId);
+            if (dist != null) {
+                item.setDistance(String.format("%.1fkm", dist));
+            }
+            allItems.add(item);
+        }
+
+        // 手动分页
+        long total = allItems.size();
+        int fromIndex = (int) Math.min(offset, allItems.size());
+        int toIndex = (int) Math.min(offset + pageSize, allItems.size());
+        List<ShopItemVO> pageItems = allItems.subList(fromIndex, toIndex);
+
+        log.info("Redis GEO 附近商家查询: lat={}, lng={}, distance={}km, found={}",
+                latitude, longitude, distance, total);
+
+        return PageResult.of(pageItems, total, pageNum, pageSize);
+    }
+
+    /**
+     * 降级方案：当 Redis GEO 不可用时，使用数据库查询
+     */
+    private PageResult<ShopItemVO> fallbackNearbyShops(Double latitude, Double longitude, Double distance,
+            Long categoryId, Integer pageNum, Integer pageSize) {
         Page<ShopDO> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<ShopDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ShopDO::getStatus, 1)
