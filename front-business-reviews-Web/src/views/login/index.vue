@@ -47,7 +47,13 @@
             <el-form-item prop="code">
               <div class="input-label">验证码</div>
               <div class="code-wrapper">
-                <el-input v-model="codeLoginForm.code" placeholder="6位数字" class="minimal-input code-input" maxlength="6" />
+                <el-input 
+                  v-model="codeLoginForm.code" 
+                  placeholder="6位字符" 
+                  class="minimal-input code-input" 
+                  maxlength="6" 
+                  @input="(val: string) => codeLoginForm.code = val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()"
+                />
                 <el-button link @click="sendCode" :disabled="codeSending || countdown > 0" class="send-code-btn">
                   {{ countdown > 0 ? `${countdown}s` : '获取验证码' }}
                 </el-button>
@@ -78,7 +84,12 @@
               </el-form-item>
               <el-form-item label="验证码" prop="code">
                 <div class="code-input-wrapper">
-                  <el-input v-model="registerForm.code" placeholder="6位验证码" maxlength="6" />
+                  <el-input 
+                    v-model="registerForm.code" 
+                    placeholder="6位验证码" 
+                    maxlength="6" 
+                    @input="(val: string) => registerForm.code = val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()"
+                  />
                   <el-button @click="sendRegisterCode" :disabled="codeSending || countdown > 0" class="code-btn-reg">
                     {{ countdown > 0 ? `${countdown}s后重发` : '获取验证码' }}
                   </el-button>
@@ -247,11 +258,11 @@ const loginRules = {
 }
 const codeLoginRules = {
   phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }, { pattern: /^1[3-9]\d{9}$/, message: '格式不正确', trigger: 'blur' }],
-  code: [{ required: true, message: '请输入验证码', trigger: 'blur' }, { pattern: /^\d{6}$/, message: '需6位数字', trigger: 'blur' }]
+  code: [{ required: true, message: '请输入验证码', trigger: 'blur' }, { pattern: /^[A-Z0-9]{6}$/, message: '需6位字符', trigger: 'blur' }]
 }
 const registerRules = {
   phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }, { pattern: /^1[3-9]\d{9}$/, message: '格式不正确', trigger: 'blur' }],
-  code: [{ required: true, message: '请输入验证码', trigger: 'blur' }, { pattern: /^\d{6}$/, message: '需6位数字', trigger: 'blur' }],
+  code: [{ required: true, message: '请输入验证码', trigger: 'blur' }, { pattern: /^[A-Z0-9]{6}$/, message: '需6位字符', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }, { min: 6, message: '不少于6位', trigger: 'blur' }],
   confirmPassword: [{ required: true, message: '请确认密码', trigger: 'blur' }, { validator: (_: any, value: string, callback: any) => { value !== registerForm.password ? callback(new Error('密码不一致')) : callback() }, trigger: 'blur' }],
   merchantName: [{ required: true, message: '请输入商家名称', trigger: 'blur' }],

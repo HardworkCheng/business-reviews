@@ -41,6 +41,8 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
     private final RedisUtil redisUtil;
     private final JwtUtil jwtUtil;
 
+    private static final String CODE_CHARSET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
     @Override
     public void sendCode(String phone) {
         // 检查发送频率
@@ -50,7 +52,11 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         }
 
         // 生成6位验证码
-        String code = String.format("%06d", new Random().nextInt(1000000));
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 6; i++) {
+            sb.append(CODE_CHARSET.charAt(new Random().nextInt(CODE_CHARSET.length())));
+        }
+        String code = sb.toString();
 
         // 存储到Redis，5分钟过期
         redisUtil.set(RedisKeyConstants.MERCHANT_SMS_CODE + phone, code, 300);

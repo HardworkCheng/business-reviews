@@ -53,8 +53,9 @@
 					<view class="input-wrapper clay-border flex-1">
 						<text class="input-icon">🛡️</text>
 						<input 
-							type="number" 
-							v-model="code" 
+							type="text" 
+							:value="code"
+							@input="handleCodeInput"
 							placeholder="请输入验证码" 
 							maxlength="6"
 							class="input-field"
@@ -158,6 +159,14 @@ const getCode = async () => {
   } catch (e) {
     // 失败提示已在统一 request 里处理
   }
+}
+
+// 处理验证码输入
+const handleCodeInput = (e) => {
+  // 过滤非字母数字字符，并转为大写
+  const value = e.detail.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+  // 使用 nextTick 或者直接赋值更新
+  code.value = value
 }
 
 // 登录
