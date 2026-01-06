@@ -42,10 +42,19 @@ for (NoteDO note : notes) {
 }
 ```
 
-### 2. 批量写入优化
+### 2. 批量写入优化 - 已完成 (2026-01-06)
 **现状**: 在发布笔记 (`publishNote`) 和更新笔记时，标签 (`saveNoteTags`) 和话题 (`saveNoteTopics`) 是在循环中逐条执行 `insert`。
 **优化方案**:
 - 使用 MyBatis-Plus 的 `saveBatch` 功能或在 Mapper XML 中编写 `<foreach>` 批量插入语句，显著减少数据库交互次数。
+
+**已完成的优化**:
+- **NoteServiceImpl.java**:
+  - `saveNoteTags`: 将循环 insert 改为 `noteTagMapper.insertBatch(list)` 批量插入
+  - `saveNoteTopics`: 将循环 insert 改为 `noteTopicMapper.insertBatch(list)` 批量插入
+  - `saveNoteTopicsByNames`: 批量收集 `NoteTopicDO` 后一次性插入
+- **Mappers**:
+  - `NoteTagMapper` 和 `NoteTopicMapper`: 新增 `@Insert("<script>...<foreach>...")` 批量插入方法
+- **优化效果**: 将循环内的 N 次 insert 优化为 1 次批量 insert，显著减少数据库往返次数。
 
 ---
 

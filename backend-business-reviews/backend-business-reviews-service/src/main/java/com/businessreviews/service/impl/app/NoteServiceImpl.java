@@ -913,22 +913,32 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
     }
 
     private void saveNoteTags(Long noteId, List<String> tags) {
+        if (tags == null || tags.isEmpty()) {
+            return;
+        }
+        List<NoteTagDO> list = new ArrayList<>();
         for (String tagName : tags) {
             // 创建关联
             NoteTagDO noteTag = new NoteTagDO();
             noteTag.setNoteId(noteId);
             noteTag.setTagName(tagName);
-            noteTagMapper.insert(noteTag);
+            list.add(noteTag);
         }
+        noteTagMapper.insertBatch(list);
     }
 
     private void saveNoteTopics(Long noteId, List<Long> topics) {
+        if (topics == null || topics.isEmpty()) {
+            return;
+        }
+        List<NoteTopicDO> list = new ArrayList<>();
         for (Long topicId : topics) {
             NoteTopicDO noteTopic = new NoteTopicDO();
             noteTopic.setNoteId(noteId);
             noteTopic.setTopicId(topicId);
-            noteTopicMapper.insert(noteTopic);
+            list.add(noteTopic);
         }
+        noteTopicMapper.insertBatch(list);
     }
 
     /**
@@ -936,6 +946,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
      * 如果话题不存在，则自动创建
      */
     private void saveNoteTopicsByNames(Long noteId, List<String> topicNames) {
+        List<NoteTopicDO> list = new ArrayList<>();
         for (String topicName : topicNames) {
             if (topicName == null || topicName.trim().isEmpty()) {
                 continue;
@@ -944,14 +955,18 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
             // 查找或创建话题
             TopicDO topic = findOrCreateTopic(topicName.trim());
 
+            // 更新话题的笔记数量
+            topicMapper.incrementNoteCount(topic.getId());
+
             // 创建笔记话题关联
             NoteTopicDO noteTopic = new NoteTopicDO();
             noteTopic.setNoteId(noteId);
             noteTopic.setTopicId(topic.getId());
-            noteTopicMapper.insert(noteTopic);
+            list.add(noteTopic);
+        }
 
-            // 更新话题的笔记数量
-            topicMapper.incrementNoteCount(topic.getId());
+        if (!list.isEmpty()) {
+            noteTopicMapper.insertBatch(list);
         }
     }
 
