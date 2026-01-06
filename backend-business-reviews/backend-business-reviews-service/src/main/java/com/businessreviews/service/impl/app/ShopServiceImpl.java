@@ -11,6 +11,8 @@ import com.businessreviews.model.dataobject.*;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.*;
 import com.businessreviews.service.app.ShopService;
+import com.businessreviews.util.RedisUtil;
+import com.businessreviews.constants.RedisKeyConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -49,6 +51,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
     private final UserFavoriteMapper userFavoriteMapper;
     private final UserStatsMapper userStatsMapper;
     private final ShopReviewMapper shopReviewMapper;
+    private final RedisUtil redisUtil;
 
     /**
      * 获取店铺列表（多条件筛选）
@@ -195,6 +198,23 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
      */
     @Override
     public ShopDetailVO getShopDetail(Long shopId, Long userId) {
+        // 先检查商家是否存在/正常，这些基础校验可以走缓存，但状态变更需要清理缓存
+        // 尝试从缓存获取
+        String cacheKey = RedisKeyConstants.SHOP_INFO + shopId;
+        ShopDetailVO cachedShop = null;
+        try {
+            // 简单的VO对象可以使用 redisUtil.getObject
+            cachedShop = redisUtil.getObject(cacheKey, ShopDetailVO.class);
+        } catch (Exception e) {
+            log.warn("店铺详情缓存读取失败: {}", e.getMessage());
+        }
+
+        if (cachedShop != null) {
+            log.info("从缓存获取店铺详情: shopId={}", shopId);
+            // 缓存中只存了基础信息，用户互动状态(是否点赞收藏)是动态的，需要单独设置
+            return fillUserInteraction(cachedShop, shopId, userId);
+        }
+
         ShopDO shop = shopMapper.selectById(shopId);
         if (shop == null) {
             throw new BusinessException(40402, "商家不存在");
@@ -221,13 +241,27 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
         response.setLatitude(shop.getLatitude());
         response.setLongitude(shop.getLongitude());
 
-        if (userId != null) {
-            response.setFavorited(isShopBookmarked(userId, shopId));
-        } else {
-            response.setFavorited(false);
+        // 写入缓存，设置过期时间30分钟
+        try {
+            redisUtil.setObject(cacheKey, response, 1800L);
+            log.info("店铺详情写入缓存: shopId={}", shopId);
+        } catch (Exception e) {
+            log.warn("店铺详情缓存写入失败: {}", e.getMessage());
         }
 
-        return response;
+        return fillUserInteraction(response, shopId, userId);
+    }
+
+    /**
+     * 填充用户互动状态（点赞、收藏等） - 这部分不缓存
+     */
+    private ShopDetailVO fillUserInteraction(ShopDetailVO vo, Long shopId, Long userId) {
+        if (userId != null) {
+            vo.setFavorited(isShopBookmarked(userId, shopId));
+        } else {
+            vo.setFavorited(false);
+        }
+        return vo;
     }
 
     /**

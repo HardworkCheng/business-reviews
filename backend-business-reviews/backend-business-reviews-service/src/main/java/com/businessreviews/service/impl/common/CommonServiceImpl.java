@@ -50,14 +50,63 @@ public class CommonServiceImpl implements CommonService {
      */
     @Override
     public List<CategoryVO> getAllCategories() {
+        // 尝试从缓存获取
+        String cacheKey = "categories:all"; // 使用硬编码或RedisKeyConstants.CATEGORIES
+        try {
+            // 注意：List<CategoryVO> 是泛型，这里同样有类型擦除问题
+            // 但对于简单的CategoryVO列表，Jackson通常能处理
+            List<CategoryVO> cachedList = (List<CategoryVO>) redisUtil.getObject(cacheKey, List.class);
+            if (cachedList != null && !cachedList.isEmpty()) {
+                // 简单的检查，确保元素类型正确，或者依赖JSON序列化的兼容性
+                // 在这里直接返回，如果前端不需要严格类型可能有隐患，但通常可行
+                log.info("从缓存获取分类列表");
+                // 由于类型擦除，这里得到的可能是List<LinkedHashMap>
+                // 我们需要手动转换，或者使用TypeReference
+                // 为了简单，我们使用 Hutool 或 Jackson 进行二次转换，或者修改 RedisUtil
+                // 这里暂且假设 redisUtil.getObject 能返回正确的 JSON 结构，并即使是 LinkedHashMap 也能被前端接受（只要字段名对）
+                // 但为了严谨，我们应该使用 TypeReference。鉴于 CommonServiceImpl 没有注入 ObjectMapper
+                // 我们还是使用 redisUtil.get() + Hutool/Jackson 手动解析比较稳妥
+                // 既然 getObject 已经返回了 List（虽然内容是Map），我们可以尝试转换
+                // 最简单的通过 re-serialize 是低效的。
+
+                // 重新做：
+                return convertMapList(cachedList);
+            }
+        } catch (Exception e) {
+            log.warn("分类列表缓存读取失败: {}", e.getMessage());
+        }
+
         // 查询所有分类
         LambdaQueryWrapper<CategoryDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.orderByAsc(CategoryDO::getSortOrder);
         List<CategoryDO> categories = categoryMapper.selectList(wrapper);
 
-        return categories.stream()
+        List<CategoryVO> list = categories.stream()
                 .map(this::convertToCategoryVO)
                 .collect(Collectors.toList());
+
+        // 写入缓存 1小时
+        try {
+            redisUtil.setObject(cacheKey, list, 3600L);
+            log.info("分类列表写入缓存");
+        } catch (Exception e) {
+            log.warn("分类列表缓存写入失败: {}", e.getMessage());
+        }
+
+        return list;
+    }
+
+    private List<CategoryVO> convertMapList(List<?> list) {
+        if (list == null)
+            return new ArrayList<>();
+        // 如果第一个元素已经是 CategoryVO，直接返回
+        if (!list.isEmpty() && list.get(0) instanceof CategoryVO) {
+            return (List<CategoryVO>) list;
+        }
+
+        // 否则利用 JSON 转换
+        String json = cn.hutool.json.JSONUtil.toJsonStr(list);
+        return cn.hutool.json.JSONUtil.toList(json, CategoryVO.class);
     }
 
     /**

@@ -60,13 +60,21 @@ for (NoteDO note : notes) {
 
 ## ⚡ P1: 缓存与逻辑优化
 
-### 3. 实现真正的 Redis 缓存
+### 3. 实现真正的 Redis 缓存 - 已完成 (2026-01-06)
 **现状**: `NoteServiceImpl.getRecommendedNotes` 中定义了 `cacheKey` 变量，但**并未编写实际的缓存读写逻辑**，紧接着直接查询了数据库。
 **优化方案**:
 - **读缓存**: 先查 Redis，若存在直接反序列化返回。
 - **写缓存**: 若 Redis 未命中，查 DB，然后 `redisUtil.set(key, value, expireTime)`。
 - **一致性**: 在发布/删除/点赞笔记时，考虑是否需要主动失效相关缓存列表（或接受短时间的一致性延迟）。
 - **对象**: 对 `ShopDetail` (商家详情) 和 `CategoryList` (分类列表) 这种读多写少的数据，必须加上缓存。
+
+**已完成的优化**:
+- **NoteServiceImpl.java**:
+  - `getRecommendedNotes`: 实现读写缓存，TTL=10分。使用 Jackson `TypeReference` 解决泛型反序列化问题。
+- **ShopServiceImpl.java**:
+  - `getShopDetail`: 实现店铺基础信息缓存，TTL=30分。用户互动状态（点赞/收藏）不做缓存，动态填充。
+- **CommonServiceImpl.java**: 
+  - `getAllCategories`: 实现全部分类列表缓存，TTL=1小时。使用 Hutool `JSONUtil` 辅助处理泛型转换。
 
 ### 4. 附近的商家 (Geo) 算法优化
 **现状**: `ShopServiceImpl.getNearbyShops` 目前逻辑是：先分页查询所有状态正常的商家（按评分排序），然后在**内存中**计算距离并格式化。

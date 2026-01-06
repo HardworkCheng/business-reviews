@@ -29,6 +29,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 /**
  * 笔记服务实现类
@@ -66,6 +68,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
     private final RedisUtil redisUtil;
     private final MessageService messageService;
     private final ApplicationEventPublisher eventPublisher;
+    private final ObjectMapper objectMapper;
 
     /**
      * 获取首页推荐笔记
@@ -83,6 +86,21 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         // 尝试从缓存获取
         String cacheKey = RedisKeyConstants.NOTES_RECOMMENDED + pageNum;
 
+        String json = redisUtil.get(cacheKey);
+        if (json != null) {
+            try {
+                // 使用 TypeReference 处理泛型反序列化
+                PageResult<NoteItemVO> cachedResult = objectMapper.readValue(json,
+                        new TypeReference<PageResult<NoteItemVO>>() {
+                        });
+                log.info("从缓存获取推荐笔记: page={}", pageNum);
+                return cachedResult;
+            } catch (Exception e) {
+                log.warn("缓存反序列化失败: {}", e.getMessage());
+                // 失败则降级查库
+            }
+        }
+
         Page<NoteDO> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<NoteDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(NoteDO::getStatus, 1) // 只显示已发布的笔记
@@ -96,7 +114,18 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         // 使用批量转换，解决N+1查询问题
         List<NoteItemVO> list = convertNoteList(notePage.getRecords());
 
-        return PageResult.of(list, notePage.getTotal(), pageNum, pageSize);
+        PageResult<NoteItemVO> result = PageResult.of(list, notePage.getTotal(), pageNum, pageSize);
+
+        // 写入缓存，设置过期时间为10分钟
+        // 推荐列表不需要实时性太强，10分钟可以减轻数据库压力
+        try {
+            redisUtil.set(cacheKey, objectMapper.writeValueAsString(result), 600L);
+            log.info("推荐笔记写入缓存: page={}", pageNum);
+        } catch (Exception e) {
+            log.warn("推荐笔记写入缓存失败: {}", e.getMessage());
+        }
+
+        return result;
     }
 
     /**
