@@ -31,6 +31,20 @@ export const getShopList = (params) => {
 }
 
 /**
+ * 获取附近商家（按距离排序）
+ * @param {Object} params - 查询参数
+ * @param {Number} params.latitude - 纬度（必填）
+ * @param {Number} params.longitude - 经度（必填）
+ * @param {Number} params.distance - 搜索半径（公里），默认5
+ * @param {Number} params.categoryId - 分类ID
+ * @param {Number} params.pageNum - 页码
+ * @param {Number} params.pageSize - 每页数量
+ */
+export const getNearbyShops = (params) => {
+  return get('/shops/nearby', params, { noAuth: true })
+}
+
+/**
  * 获取商家详情
  * @param {String} id - 商家ID
  */
@@ -83,6 +97,7 @@ export const unfavoriteShop = (shopId) => {
 export default {
   getRegisteredShops,
   getShopList,
+  getNearbyShops,
   getShopDetail,
   getShopReviews,
   postShopReview,

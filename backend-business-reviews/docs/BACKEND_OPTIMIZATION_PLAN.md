@@ -103,17 +103,58 @@ for (NoteDO note : notes) {
 
 ## 🔒 P2+: 安全与稳定性增强
 
-### 5. WebSocket 内存泄漏风险与横向扩展限制
+### 5. WebSocket 内存泄漏风险与横向扩展限制 - 已完成 (2026-01-06)
 **现状**: `MessageWebSocketHandler` 使用 `ConcurrentHashMap<Long, WebSocketSession> USER_SESSIONS` 在**本地内存**中存储 WebSocket 会话。
 - **内存风险**: 如果单机连接数过大，内存可能溢出。虽然有 `afterConnectionClosed` 移除会话，但异常断开等情况需确保清理逻辑极度健壮。
 - **扩展限制**: 这是最大的问题。如果有 2 台后端服务器，用户 A 连在 Server 1，用户 B 连在 Server 2。用户 A 给 B 发私信时，Server 1 的内存里找不到 B 的 Session，**导致消息丢失**。
 **优化方案**:
 - **引入 Redis Pub/Sub**: 当 Server 1 需要给用户 B 发消息时，向 Redis 频道 `ws:message` 发布消息。所有 Server 订阅该频道，收到消息后检查用户 B 是否在自己的内存中，如果在则推送。这样可完美支持多实例部署。
 
-### 6. 敏感数据处理
+**已完成的优化**:
+- **WebSocketMessageDTO.java**: 新增 DTO 类，封装跨实例传递的 WebSocket 消息
+  - `targetUserId`: 目标用户ID
+  - `message`: 消息内容
+  - `sourceServerId`: 消息来源服务器ID（避免重复处理）
+- **WebSocketMessagePublisher.java**: 新增消息发布者
+  - 通过 `redisTemplate.convertAndSend()` 向 `ws:message` 频道发布消息
+  - 每个服务器实例拥有唯一的 `SERVER_ID`
+- **WebSocketMessageSubscriber.java**: 新增消息订阅者
+  - 实现 `MessageListener` 接口，监听 Redis 频道
+  - 收到消息后检查目标用户是否在本地，如果在则推送
+  - 忽略自己发布的消息，避免重复推送
+- **RedisPubSubConfig.java**: 新增配置类
+  - 配置 `RedisMessageListenerContainer` 订阅 WebSocket 消息频道
+- **MessageWebSocketHandler.java**: 重构
+  - `sendMessageToUser()`: 先尝试本地发送，同时通过 Redis Pub/Sub 广播
+  - `sendMessageToUserLocal()`: 新增方法，仅本地发送，供订阅者调用
+  - 添加线程安全的 `synchronized` 发送逻辑
+  - 连接建立时返回 `serverId`，便于调试多实例问题
+
+### 6. 敏感数据处理 - 已完成 (2026-01-06)
 **现状**: `UserServiceImpl` 等地方虽然用 `DefaultAvatar` 处理头像，但在日志 (`log.info`) 和部分 API 响应中，并没有对手机号进行严格的**脱敏处理**。
 **优化方案**:
 - 创建 `@Sensitive` 注解和对应的 Jackson Serializer，在 JSON 序列化阶段自动把手机号中间四位变成 `****`。
+
+**已完成的优化**:
+- **SensitiveType.java**: 新增脱敏类型枚举
+  - `PHONE`: 手机号脱敏（138****1234）
+  - `EMAIL`: 邮箱脱敏（abc***@example.com）
+  - `ID_CARD`: 身份证号脱敏（330106****1234）
+  - `BANK_CARD`: 银行卡号脱敏（6222****8888）
+  - `NAME`: 姓名脱敏（张**）
+  - `ADDRESS`: 地址脱敏（浙江省杭州***）
+- **Sensitive.java**: 新增脱敏注解
+  - 使用 `@JacksonAnnotationsInside` 和 `@JsonSerialize` 元注解
+  - 在 JSON 序列化阶段自动生效
+- **SensitiveSerializer.java**: 新增 Jackson 序列化器
+  - 实现 `ContextualSerializer` 接口，支持字段级别的脱敏配置
+  - 根据不同的 `SensitiveType` 应用不同的脱敏规则
+- **应用到 VO 类**:
+  - `UserVO.phone`: @Sensitive(type = SensitiveType.PHONE)
+  - `UserInfoVO.phone`: @Sensitive(type = SensitiveType.PHONE)
+  - `AppUserInfoVO.phone`: @Sensitive(type = SensitiveType.PHONE)
+  - `MerchantUserInfoVO.phone`: @Sensitive(type = SensitiveType.PHONE)
+  - `MerchantUserInfoVO.contactEmail`: @Sensitive(type = SensitiveType.EMAIL)
 
 ### 7. Redis 序列化配置隐患
 **现状**: `RedisConfig` 使用了 `GenericJackson2JsonRedisSerializer`。虽然灵活，但如果 Redis 中存储的 Java 类名发生重构或包路径变更，**反序列化会直接报错**，导致缓存数据不可用甚至服务异常。

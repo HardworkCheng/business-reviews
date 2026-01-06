@@ -127,6 +127,16 @@ const favoriteList = ref([])
 const historyList = ref([])
 const loading = ref(false)
 
+// 图片URL处理函数
+const getImageUrl = (url, type = 'cover') => {
+	if (!url) {
+		return type === 'cover' 
+			? '/static/images/default-cover.png' 
+			: '/static/images/default-avatar.png'
+	}
+	return url
+}
+
 // 当前显示的列表
 const currentList = computed(() => {
 	switch(currentTab.value) {

@@ -1,5 +1,7 @@
 package com.businessreviews.model.vo.merchant;
 
+import com.businessreviews.model.annotation.Sensitive;
+import com.businessreviews.model.annotation.SensitiveType;
 import lombok.Data;
 
 import java.io.Serial;
@@ -35,9 +37,11 @@ public class MerchantUserInfoVO implements Serializable {
     private String name;
 
     /** 手机号 */
+    @Sensitive(type = SensitiveType.PHONE)
     private String phone;
 
     /** 联系邮箱 */
+    @Sensitive(type = SensitiveType.EMAIL)
     private String contactEmail;
 
     /** 头像 */

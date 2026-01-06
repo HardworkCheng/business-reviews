@@ -1,5 +1,7 @@
 package com.businessreviews.model.vo.app;
 
+import com.businessreviews.model.annotation.Sensitive;
+import com.businessreviews.model.annotation.SensitiveType;
 import lombok.Data;
 
 import java.io.Serial;
@@ -21,6 +23,8 @@ public class AppUserInfoVO implements Serializable {
     private Long id;
     private String nickname;
     private String avatar;
+
+    @Sensitive(type = SensitiveType.PHONE)
     private String phone;
     private Integer gender;
     private String bio;

@@ -1,5 +1,7 @@
 package com.businessreviews.model.vo;
 
+import com.businessreviews.model.annotation.Sensitive;
+import com.businessreviews.model.annotation.SensitiveType;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -40,6 +42,7 @@ public class UserVO implements Serializable {
     /**
      * 手机号（脱敏：138****1234）
      */
+    @Sensitive(type = SensitiveType.PHONE)
     private String phone;
 
     /**

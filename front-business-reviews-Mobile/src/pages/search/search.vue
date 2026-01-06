@@ -105,7 +105,7 @@
 					@click="selectSort('asc')"
 					:class="{ 'active': sortOrder === 'asc' }"
 				>
-					<text class="dropdown-text">从小到大</text>
+					<text class="dropdown-text">{{ sortField === 'distance' ? '从近到远' : '从小到大' }}</text>
 					<text v-if="sortOrder === 'asc'" class="check-icon">✓</text>
 				</view>
 				<view 
@@ -113,7 +113,7 @@
 					@click="selectSort('desc')"
 					:class="{ 'active': sortOrder === 'desc' }"
 				>
-					<text class="dropdown-text">从大到小</text>
+					<text class="dropdown-text">{{ sortField === 'distance' ? '从远到近' : '从大到小' }}</text>
 					<text v-if="sortOrder === 'desc'" class="check-icon">✓</text>
 				</view>
 			</view>
@@ -155,7 +155,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import { getShopList } from '../../api/shop'
+import { getShopList, getNearbyShops } from '../../api/shop'
 import { getUserInfo } from '../../api/user'
 
 const keyword = ref('')
@@ -180,11 +180,15 @@ const selectedCategoryId = ref(1)
 const showCategoryDropdown = ref(false)
 const showSortDropdown = ref(null) // 'distance', 'popularity', 'rating', 'price'
 const sortField = ref(null)
-const sortOrder = ref('desc') // 'asc' or 'desc'
+const sortOrder = ref('asc') // 'asc' or 'desc'，距离排序默认升序（从近到远）
 const loading = ref(false)
 const pageNum = ref(1)
 const pageSize = ref(10)
 const hasMore = ref(true)
+
+// 用户位置（用于距离排序）
+const userLatitude = ref(null)
+const userLongitude = ref(null)
 
 // 商家列表（从后端获取）
 const shopList = ref([])
@@ -250,6 +254,12 @@ const fetchShopList = async () => {
 	
 	loading.value = true
 	try {
+		// 如果是距离排序，调用附近商家接口
+		if (sortField.value === 'distance') {
+			await fetchNearbyShops()
+			return
+		}
+		
 		// 构建排序参数
 		let sortBy = null
 		if (sortField.value) {
@@ -283,31 +293,7 @@ const fetchShopList = async () => {
 		const result = await getShopList(params)
 		console.log('商家列表结果:', result)
 		
-		if (result && result.list) {
-			const newList = result.list.map(shop => ({
-				id: shop.id,
-				name: shop.name,
-				image: shop.image || 'https://via.placeholder.com/400x300/FF9E64/FFFFFF?text=Shop',
-				rating: shop.rating || 0,
-				reviews: shop.noteCount || 0,
-				tags: shop.category ? [shop.category] : [],
-				location: shop.address || '',
-				distance: shop.distance || ''
-			}))
-			
-			if (pageNum.value === 1) {
-				shopList.value = newList
-			} else {
-				shopList.value = [...shopList.value, ...newList]
-			}
-			
-			hasMore.value = result.list.length >= pageSize.value
-		} else {
-			if (pageNum.value === 1) {
-				shopList.value = []
-			}
-			hasMore.value = false
-		}
+		processShopResult(result)
 	} catch (e) {
 		console.error('获取商家列表失败:', e)
 		uni.showToast({
@@ -317,6 +303,132 @@ const fetchShopList = async () => {
 	} finally {
 		loading.value = false
 	}
+}
+
+// 获取附近商家（按距离排序）
+const fetchNearbyShops = async () => {
+	// 如果没有用户位置，先获取位置
+	if (!userLatitude.value || !userLongitude.value) {
+		console.log('获取用户位置用于距离排序...')
+		await getUserLocation()
+	}
+	
+	// 如果仍然没有位置，降级到普通列表
+	if (!userLatitude.value || !userLongitude.value) {
+		console.warn('无法获取用户位置，降级到普通列表')
+		uni.showToast({
+			title: '无法获取位置，请开启定位权限',
+			icon: 'none'
+		})
+		// 降级到普通列表
+		sortField.value = null
+		const params = {
+			pageNum: pageNum.value,
+			pageSize: pageSize.value,
+			categoryId: selectedCategoryId.value
+		}
+		const result = await getShopList(params)
+		processShopResult(result)
+		return
+	}
+	
+	const params = {
+		latitude: userLatitude.value,
+		longitude: userLongitude.value,
+		distance: 10, // 搜索半径10公里
+		pageNum: pageNum.value,
+		pageSize: pageSize.value,
+		categoryId: selectedCategoryId.value
+	}
+	
+	console.log('获取附近商家参数:', params)
+	const result = await getNearbyShops(params)
+	console.log('附近商家结果:', result)
+	
+	// 如果是降序（从远到近），反转结果
+	if (sortOrder.value === 'desc' && result && result.list) {
+		result.list = result.list.reverse()
+	}
+	
+	processShopResult(result)
+}
+
+// 处理商家列表结果
+const processShopResult = (result) => {
+	if (result && result.list) {
+		const newList = result.list.map(shop => ({
+			id: shop.id,
+			name: shop.name,
+			image: shop.image || 'https://via.placeholder.com/400x300/FF9E64/FFFFFF?text=Shop',
+			rating: shop.rating || 0,
+			reviews: shop.noteCount || 0,
+			tags: shop.category ? [shop.category] : [],
+			avgPrice: shop.avgPrice || 85,
+			location: shop.address || '',
+			distance: shop.distance || ''
+		}))
+		
+		if (pageNum.value === 1) {
+			shopList.value = newList
+		} else {
+			shopList.value = [...shopList.value, ...newList]
+		}
+		
+		hasMore.value = result.list.length >= pageSize.value
+	} else {
+		if (pageNum.value === 1) {
+			shopList.value = []
+		}
+		hasMore.value = false
+	}
+}
+
+// 获取用户位置
+const getUserLocation = () => {
+	return new Promise((resolve) => {
+		// #ifdef H5
+		if (navigator.geolocation) {
+			navigator.geolocation.getCurrentPosition(
+				(position) => {
+					const { latitude, longitude } = position.coords
+					// WGS84转GCJ02坐标
+					const gcj02Coords = wgs84ToGcj02(longitude, latitude)
+					userLongitude.value = gcj02Coords[0]
+					userLatitude.value = gcj02Coords[1]
+					console.log('✅ 获取用户位置成功:', userLatitude.value, userLongitude.value)
+					resolve(true)
+				},
+				(error) => {
+					console.warn('获取用户位置失败:', error.message)
+					resolve(false)
+				},
+				{
+					enableHighAccuracy: false,
+					timeout: 5000,
+					maximumAge: 300000 // 5分钟内的缓存位置
+				}
+			)
+		} else {
+			resolve(false)
+		}
+		// #endif
+		
+		// #ifndef H5
+		uni.getLocation({
+			type: 'gcj02',
+			success: (res) => {
+				userLatitude.value = res.latitude
+				userLongitude.value = res.longitude
+				console.log('✅ APP获取用户位置成功:', userLatitude.value, userLongitude.value)
+				resolve(true)
+			},
+			fail: (err) => {
+				console.error('APP获取用户位置失败:', err)
+				resolve(false)
+			}
+		})
+		// #endif
+	})
 }
 
 const goBack = () => {
@@ -362,7 +474,15 @@ const selectCategory = (category) => {
 // 选择排序方式
 const selectSort = (order) => {
 	sortOrder.value = order
-	const orderText = order === 'asc' ? '从小到大' : '从大到小'
+	
+	// 根据排序类型显示不同的文案
+	let orderText
+	if (sortField.value === 'distance') {
+		orderText = order === 'asc' ? '从近到远' : '从远到近'
+	} else {
+		orderText = order === 'asc' ? '从小到大' : '从大到小'
+	}
+	
 	const fieldText = {
 		distance: '距离',
 		popularity: '人气',
