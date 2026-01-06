@@ -26,10 +26,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -69,9 +67,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
 
         Page<NoteDO> notePage = noteMapper.selectPage(page, wrapper);
 
-        List<NoteItemVO> list = notePage.getRecords().stream()
-                .map(this::convertToNoteItem)
-                .collect(Collectors.toList());
+        // 使用批量转换，解决N+1查询问题
+        List<NoteItemVO> list = convertNoteList(notePage.getRecords());
 
         return PageResult.of(list, notePage.getTotal(), pageNum, pageSize);
     }
@@ -86,9 +83,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
 
         Page<NoteDO> notePage = noteMapper.selectPage(page, wrapper);
 
-        List<NoteItemVO> list = notePage.getRecords().stream()
-                .map(this::convertToNoteItem)
-                .collect(Collectors.toList());
+        // 使用批量转换，解决N+1查询问题
+        List<NoteItemVO> list = convertNoteList(notePage.getRecords());
 
         return PageResult.of(list, notePage.getTotal(), pageNum, pageSize);
     }
@@ -129,11 +125,14 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         Map<Long, NoteDO> noteMap = notes.stream()
                 .collect(Collectors.toMap(NoteDO::getId, note -> note));
 
-        List<NoteItemVO> list = noteIds.stream()
+        // 过滤出有效的笔记并保持原有顺序
+        List<NoteDO> orderedNotes = noteIds.stream()
                 .map(noteMap::get)
-                .filter(note -> note != null)
-                .map(this::convertToNoteItem)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
+
+        // 使用批量转换，解决N+1查询问题
+        List<NoteItemVO> list = convertNoteList(orderedNotes);
 
         return PageResult.of(list, total, pageNum, pageSize);
     }
@@ -159,9 +158,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
 
         Page<NoteDO> notePage = noteMapper.selectPage(page, wrapper);
 
-        List<NoteItemVO> list = notePage.getRecords().stream()
-                .map(this::convertToNoteItem)
-                .collect(Collectors.toList());
+        // 使用批量转换，解决N+1查询问题
+        List<NoteItemVO> list = convertNoteList(notePage.getRecords());
 
         return PageResult.of(list, notePage.getTotal(), pageNum, pageSize);
     }
@@ -179,9 +177,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
 
         Page<NoteDO> notePage = noteMapper.selectPage(page, wrapper);
 
-        List<NoteItemVO> list = notePage.getRecords().stream()
-                .map(this::convertToNoteItem)
-                .collect(Collectors.toList());
+        // 使用批量转换，解决N+1查询问题
+        List<NoteItemVO> list = convertNoteList(notePage.getRecords());
 
         return PageResult.of(list, notePage.getTotal(), pageNum, pageSize);
     }
@@ -209,9 +206,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
 
         Page<NoteDO> notePage = noteMapper.selectPage(page, wrapper);
 
-        List<NoteItemVO> list = notePage.getRecords().stream()
-                .map(this::convertToNoteItem)
-                .collect(Collectors.toList());
+        // 使用批量转换，解决N+1查询问题
+        List<NoteItemVO> list = convertNoteList(notePage.getRecords());
 
         return PageResult.of(list, notePage.getTotal(), pageNum, pageSize);
     }
@@ -638,14 +634,70 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
 
         Page<NoteDO> notePage = noteMapper.selectPage(page, wrapper);
 
-        List<NoteItemVO> list = notePage.getRecords().stream()
-                .map(this::convertToNoteItem)
-                .collect(Collectors.toList());
+        // 使用批量转换，解决N+1查询问题
+        List<NoteItemVO> list = convertNoteList(notePage.getRecords());
 
         return PageResult.of(list, notePage.getTotal(), pageNum, pageSize);
     }
 
-    private NoteItemVO convertToNoteItem(NoteDO note) {
+    /**
+     * 批量转换笔记列表 - 解决N+1查询问题
+     * 使用In-Memory Map预加载关联数据，将查询复杂度从O(N)降为O(1)
+     * 
+     * @param notes 笔记列表
+     * @return 转换后的VO列表
+     */
+    private List<NoteItemVO> convertNoteList(List<NoteDO> notes) {
+        if (notes == null || notes.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 1. 提取所有涉及的用户ID和店铺ID
+        Set<Long> userIds = new HashSet<>();
+        Set<Long> shopIds = new HashSet<>();
+        for (NoteDO note : notes) {
+            if (note.getUserId() != null) {
+                userIds.add(note.getUserId());
+            }
+            // 只有商家笔记才需要查询店铺信息
+            if (note.getNoteType() != null && note.getNoteType() == 2 && note.getShopId() != null) {
+                shopIds.add(note.getShopId());
+            }
+        }
+
+        // 2. 批量查询用户信息，转为Map<userId, UserDO>
+        Map<Long, UserDO> userMap = Collections.emptyMap();
+        if (!userIds.isEmpty()) {
+            List<UserDO> users = userMapper.selectBatchIds(userIds);
+            userMap = users.stream()
+                    .collect(Collectors.toMap(UserDO::getId, Function.identity()));
+        }
+
+        // 3. 批量查询店铺信息，转为Map<shopId, ShopDO>
+        Map<Long, ShopDO> shopMap = Collections.emptyMap();
+        if (!shopIds.isEmpty()) {
+            List<ShopDO> shops = shopMapper.selectBatchIds(shopIds);
+            shopMap = shops.stream()
+                    .collect(Collectors.toMap(ShopDO::getId, Function.identity()));
+        }
+
+        // 4. 使用预加载的Map进行转换
+        final Map<Long, UserDO> finalUserMap = userMap;
+        final Map<Long, ShopDO> finalShopMap = shopMap;
+        return notes.stream()
+                .map(note -> convertToNoteItem(note, finalUserMap, finalShopMap))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 转换单个笔记 - 使用预加载的Map获取关联数据
+     * 
+     * @param note    笔记实体
+     * @param userMap 预加载的用户Map
+     * @param shopMap 预加载的店铺Map
+     * @return 笔记VO
+     */
+    private NoteItemVO convertToNoteItem(NoteDO note, Map<Long, UserDO> userMap, Map<Long, ShopDO> shopMap) {
         NoteItemVO item = new NoteItemVO();
         item.setId(note.getId().toString());
         item.setImage(note.getCoverImage());
@@ -654,8 +706,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         item.setViews(note.getViewCount());
         item.setCreatedAt(note.getCreatedAt() != null ? note.getCreatedAt().toString() : null);
 
-        // 查询作者信息
-        UserDO author = userMapper.selectById(note.getUserId());
+        // 从预加载的Map获取作者信息，O(1)复杂度
+        UserDO author = userMap.get(note.getUserId());
         if (author != null) {
             item.setAuthor(author.getUsername());
             item.setAuthorAvatar(author.getAvatar());
@@ -671,9 +723,9 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
             item.setTag("商家");
             item.setTagClass("tag-merchant");
 
-            // 如果有关联店铺，显示店铺信息
+            // 从预加载的Map获取店铺信息，O(1)复杂度
             if (note.getShopId() != null) {
-                ShopDO shop = shopMapper.selectById(note.getShopId());
+                ShopDO shop = shopMap.get(note.getShopId());
                 if (shop != null) {
                     item.setShopId(shop.getId().toString());
                     item.setShopName(shop.getName());

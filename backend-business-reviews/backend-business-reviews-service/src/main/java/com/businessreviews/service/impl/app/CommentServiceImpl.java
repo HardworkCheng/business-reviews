@@ -19,8 +19,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -47,9 +47,8 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
 
         Page<CommentDO> commentPage = commentMapper.selectPage(page, wrapper);
 
-        List<CommentVO> list = commentPage.getRecords().stream()
-                .map(comment -> convertToResponse(comment, userId, true))
-                .collect(Collectors.toList());
+        // 使用批量转换，解决N+1查询问题
+        List<CommentVO> list = convertCommentList(commentPage.getRecords(), userId, true);
 
         return PageResult.of(list, commentPage.getTotal(), pageNum, pageSize);
     }
@@ -64,9 +63,8 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
 
         Page<CommentDO> replyPage = commentMapper.selectPage(page, wrapper);
 
-        List<CommentVO> list = replyPage.getRecords().stream()
-                .map(comment -> convertToResponse(comment, userId, false))
-                .collect(Collectors.toList());
+        // 使用批量转换，解决N+1查询问题
+        List<CommentVO> list = convertCommentList(replyPage.getRecords(), userId, false);
 
         return PageResult.of(list, replyPage.getTotal(), pageNum, pageSize);
     }
@@ -211,7 +209,116 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         return commentLikeMapper.selectCount(wrapper) > 0;
     }
 
+    /**
+     * 批量转换评论列表 - 解决N+1查询问题
+     * 使用In-Memory Map预加载用户信息和回复数据，将查询复杂度从O(N)降为O(1)
+     * 
+     * 优化策略：
+     * 1. 一次性查询所有父评论的回复（使用 IN 条件），避免循环内查询
+     * 2. 批量查询所有涉及的用户信息
+     * 3. 将数据组装成 Map，在内存中进行 O(1) 查找
+     * 
+     * @param comments       评论列表
+     * @param userId         当前用户ID
+     * @param includeReplies 是否包含回复
+     * @return 转换后的VO列表
+     */
+    private List<CommentVO> convertCommentList(List<CommentDO> comments, Long userId, boolean includeReplies) {
+        if (comments == null || comments.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 1. 收集所有主评论的ID和用户ID
+        Set<Long> userIds = new HashSet<>();
+        Set<Long> commentIdsWithReplies = new HashSet<>();
+
+        for (CommentDO comment : comments) {
+            if (comment.getUserId() != null) {
+                userIds.add(comment.getUserId());
+            }
+            // 收集有回复的评论ID，用于后续批量查询
+            if (includeReplies && comment.getReplyCount() != null && comment.getReplyCount() > 0) {
+                commentIdsWithReplies.add(comment.getId());
+            }
+        }
+
+        // 2. 批量查询所有回复（核心优化：一次 SQL 替代 N 次循环查询）
+        List<CommentDO> allReplies = new ArrayList<>();
+        if (!commentIdsWithReplies.isEmpty()) {
+            // 使用 IN 条件一次性查询所有父评论的回复
+            // 注意：这里查询每个父评论的所有回复，然后在内存中限制显示数量
+            LambdaQueryWrapper<CommentDO> replyWrapper = new LambdaQueryWrapper<>();
+            replyWrapper.in(CommentDO::getParentId, commentIdsWithReplies)
+                    .eq(CommentDO::getStatus, 1)
+                    .orderByAsc(CommentDO::getCreatedAt);
+            allReplies = commentMapper.selectList(replyWrapper);
+
+            // 收集回复的用户ID
+            for (CommentDO reply : allReplies) {
+                if (reply.getUserId() != null) {
+                    userIds.add(reply.getUserId());
+                }
+            }
+        }
+
+        // 3. 批量查询用户信息（一次 SQL 查询所有用户）
+        Map<Long, UserDO> userMap = Collections.emptyMap();
+        if (!userIds.isEmpty()) {
+            List<UserDO> users = userMapper.selectBatchIds(userIds);
+            userMap = users.stream()
+                    .collect(Collectors.toMap(UserDO::getId, Function.identity()));
+        }
+
+        // 4. 将回复按父评论ID分组，并限制每个父评论只显示前3条回复
+        Map<Long, List<CommentDO>> replyMap = allReplies.stream()
+                .collect(Collectors.groupingBy(CommentDO::getParentId))
+                .entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> entry.getValue().stream()
+                                .limit(3) // 限制每个父评论显示3条回复
+                                .collect(Collectors.toList())));
+
+        // 5. 转换评论
+        final Map<Long, UserDO> finalUserMap = userMap;
+        return comments.stream()
+                .map(comment -> convertToResponse(comment, userId, includeReplies, finalUserMap, replyMap))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 转换单个评论 - 简化版本，用于新创建的评论
+     * 
+     * @param comment        评论实体
+     * @param userId         当前用户ID
+     * @param includeReplies 是否包含回复
+     * @return 评论VO
+     */
     private CommentVO convertToResponse(CommentDO comment, Long userId, boolean includeReplies) {
+        // 获取评论者信息
+        UserDO user = userMapper.selectById(comment.getUserId());
+        Map<Long, UserDO> userMap = user != null
+                ? Collections.singletonMap(user.getId(), user)
+                : Collections.emptyMap();
+
+        // 新创建的评论没有回复
+        Map<Long, List<CommentDO>> replyMap = Collections.emptyMap();
+
+        return convertToResponse(comment, userId, includeReplies, userMap, replyMap);
+    }
+
+    /**
+     * 转换单个评论 - 使用预加载的Map获取关联数据
+     * 
+     * @param comment        评论实体
+     * @param userId         当前用户ID
+     * @param includeReplies 是否包含回复
+     * @param userMap        预加载的用户Map
+     * @param replyMap       预加载的回复Map
+     * @return 评论VO
+     */
+    private CommentVO convertToResponse(CommentDO comment, Long userId, boolean includeReplies,
+            Map<Long, UserDO> userMap, Map<Long, List<CommentDO>> replyMap) {
         CommentVO response = new CommentVO();
         response.setId(comment.getId());
         response.setContent(comment.getContent());
@@ -220,8 +327,8 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         response.setTime(comment.getCreatedAt());
         response.setTimeAgo(TimeUtil.formatRelativeTime(comment.getCreatedAt()));
 
-        // 查询评论者信息
-        UserDO user = userMapper.selectById(comment.getUserId());
+        // 从预加载的Map获取评论者信息，O(1)复杂度
+        UserDO user = userMap.get(comment.getUserId());
         if (user != null) {
             response.setAuthorId(user.getId());
             response.setAuthor(user.getUsername());
@@ -231,17 +338,30 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         // 检查是否已点赞
         response.setLiked(isCommentLiked(userId, comment.getId()));
 
-        // 查询前3条回复
+        // 从预加载的Map获取回复
         if (includeReplies && comment.getReplyCount() > 0) {
-            LambdaQueryWrapper<CommentDO> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(CommentDO::getParentId, comment.getId())
-                    .eq(CommentDO::getStatus, 1)
-                    .orderByAsc(CommentDO::getCreatedAt)
-                    .last("LIMIT 3");
-            List<CommentDO> replies = commentMapper.selectList(wrapper);
-
+            List<CommentDO> replies = replyMap.getOrDefault(comment.getId(), Collections.emptyList());
             List<CommentVO> replyList = replies.stream()
-                    .map(reply -> convertToResponse(reply, userId, false))
+                    .map(reply -> {
+                        CommentVO replyVO = new CommentVO();
+                        replyVO.setId(reply.getId());
+                        replyVO.setContent(reply.getContent());
+                        replyVO.setLikes(reply.getLikeCount());
+                        replyVO.setReplyCount(reply.getReplyCount());
+                        replyVO.setTime(reply.getCreatedAt());
+                        replyVO.setTimeAgo(TimeUtil.formatRelativeTime(reply.getCreatedAt()));
+
+                        UserDO replyUser = userMap.get(reply.getUserId());
+                        if (replyUser != null) {
+                            replyVO.setAuthorId(replyUser.getId());
+                            replyVO.setAuthor(replyUser.getUsername());
+                            replyVO.setAvatar(replyUser.getAvatar());
+                        }
+
+                        replyVO.setLiked(isCommentLiked(userId, reply.getId()));
+                        replyVO.setReplies(new ArrayList<>());
+                        return replyVO;
+                    })
                     .collect(Collectors.toList());
             response.setReplies(replyList);
         } else {

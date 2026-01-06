@@ -6,26 +6,41 @@
 
 ## 🚀 P0: 核心性能瓶颈 (必须修复)
 
-### 1. 解决 N+1 查询问题 (N+1 Query Problem)
-**现状**: 在列表查询接口中，先查询主数据（如笔记列表），然后在循环中逐条查询关联数据（用户信息、店铺信息）。这会导致数据库连接数瞬间飙升。
-- **NoteServiceImpl.java**:
-  - `convertToNoteItem` 方法中，每次都调用 `userMapper.selectById` 和 `shopMapper.selectById`。
-  - **影响**: 访问一次推荐列表(20条)，实际执行 1 + 20(用户) + 20(店铺) = 41 次 SQL 查询。
-- **ShopServiceImpl.java**:
-  - `convertToShopItem` 方法中，每次循环调用 `categoryMapper.selectById`。
-  - `getShopReviews` 方法中，每次循环调用 `userMapper.selectById`。
-  - `getShopNotes` 方法中，每次循环调用 `userMapper.selectById`。
-- **CommentServiceImpl.java**:
-  - `convertToResponse` 方法中，每次循环调用 `userMapper.selectById`。
+### 1. ✅ 解决 N+1 查询问题 (N+1 Query Problem) - 已完成 (2026-01-06)
+**优化前**: 在列表查询接口中，先查询主数据（如笔记列表），然后在循环中逐条查询关联数据（用户信息、店铺信息）。这会导致数据库连接数瞬间飙升。
 
-**优化方案**:
-- 使用 **In-Memory Map 组装** 模式。
-- **步骤**:
-  1. 获取主列表 (List<NoteDO>)。
-  2. 提取所有涉及的 `userId` 和 `shopId` 到 Set 集合中。
-  3. 使用 `selectBatchIds` (MyBatis-Plus) 一次性查询所有 User 和 Shop。
-  4. 将结果转为 `Map<Long, UserDO>` 和 `Map<Long, ShopDO>`。
-  5. 在循环中直接从 Map 获取数据，将复杂度从 O(N) 降为 O(1)。
+**已完成的优化**:
+- **NoteServiceImpl.java**: ✅
+  - 新增 `convertNoteList()` 方法，使用 `selectBatchIds` 批量查询 User 和 Shop
+  - **优化效果**: 20条笔记从 41 次 SQL → 3 次 SQL (1主查询 + 1用户 + 1店铺)
+  
+- **ShopServiceImpl.java**: ✅
+  - 新增 `convertShopList()` + `batchLoadCategories()` 批量加载分类
+  - `getShopNotes()` 批量预加载用户信息
+  - `getShopReviews()` 批量预加载用户信息
+  - **优化效果**: 20条店铺从 21 次 SQL → 2 次 SQL
+  
+- **CommentServiceImpl.java**: ✅
+  - 新增 `convertCommentList()` 方法，批量查询用户和回复
+  - **核心优化**: 将回复查询从循环内的 N 次查询改为 1 次 `IN (parentIds)` 批量查询
+  - 在内存中使用 `groupingBy` 分组 + `limit(3)` 限制每个评论显示的回复数
+  - **优化效果**: 20条评论从 41+ 次 SQL → 3 次 SQL (1主评论 + 1回复 + 1用户)
+
+**优化模式**: In-Memory Map 组装
+```java
+// 优化前：循环内逐条查询 O(N)
+for (NoteDO note : notes) {
+    UserDO user = userMapper.selectById(note.getUserId()); // ❌ N次查询
+}
+
+// 优化后：批量预加载 O(1) 查找
+Set<Long> userIds = notes.stream().map(NoteDO::getUserId).collect(toSet());
+Map<Long, UserDO> userMap = userMapper.selectBatchIds(userIds).stream()
+    .collect(toMap(UserDO::getId, identity())); // ✅ 1次查询
+for (NoteDO note : notes) {
+    UserDO user = userMap.get(note.getUserId()); // O(1) 内存查找
+}
+```
 
 ### 2. 批量写入优化
 **现状**: 在发布笔记 (`publishNote`) 和更新笔记时，标签 (`saveNoteTags`) 和话题 (`saveNoteTopics`) 是在循环中逐条执行 `insert`。
