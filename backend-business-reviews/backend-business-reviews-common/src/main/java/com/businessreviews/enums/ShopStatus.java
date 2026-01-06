@@ -3,7 +3,10 @@ package com.businessreviews.enums;
 import lombok.Getter;
 
 /**
- * 商家状态枚举
+ * 商家营业状态枚举
+ * <p>
+ * 决定商家在前端的展示状态及是否可接单
+ * </p>
  */
 @Getter
 public enum ShopStatus {

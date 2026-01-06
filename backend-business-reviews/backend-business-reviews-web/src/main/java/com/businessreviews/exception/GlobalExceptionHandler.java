@@ -19,7 +19,11 @@ import java.util.stream.Collectors;
 
 /**
  * 全局异常处理器
- * 统一处理移动端和商家端的异常
+ * <p>
+ * 统一处理移动端和商家端的异常，将异常转换为空统一的Result响应结构。
+ * </p>
+ *
+ * @author businessreviews
  */
 @Slf4j
 @RestControllerAdvice
@@ -27,6 +31,9 @@ public class GlobalExceptionHandler {
 
     /**
      * 处理业务异常
+     *
+     * @param e 业务异常
+     * @return 错误响应
      */
     @ExceptionHandler(BusinessException.class)
     public Result<?> handleBusinessException(BusinessException e) {
@@ -36,6 +43,9 @@ public class GlobalExceptionHandler {
 
     /**
      * 处理参数校验异常
+     *
+     * @param e 参数校验异常
+     * @return 错误响应
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -50,6 +60,9 @@ public class GlobalExceptionHandler {
 
     /**
      * 处理绑定异常
+     *
+     * @param e 绑定异常
+     * @return 错误响应
      */
     @ExceptionHandler(BindException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -64,6 +77,9 @@ public class GlobalExceptionHandler {
 
     /**
      * 处理缺少请求参数异常
+     *
+     * @param e 缺少请求参数异常
+     * @return 错误响应
      */
     @ExceptionHandler(MissingServletRequestParameterException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -74,6 +90,9 @@ public class GlobalExceptionHandler {
 
     /**
      * 处理请求方法不支持异常
+     *
+     * @param e 请求方法不支持异常
+     * @return 错误响应
      */
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
@@ -84,6 +103,9 @@ public class GlobalExceptionHandler {
 
     /**
      * 处理404异常
+     *
+     * @param e 404异常
+     * @return 错误响应
      */
     @ExceptionHandler(NoHandlerFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
@@ -94,6 +116,9 @@ public class GlobalExceptionHandler {
 
     /**
      * 处理文件上传大小超限异常
+     *
+     * @param e 文件上传大小超限异常
+     * @return 错误响应
      */
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -104,6 +129,9 @@ public class GlobalExceptionHandler {
 
     /**
      * 处理其他异常
+     *
+     * @param e 异常
+     * @return 错误响应
      */
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)

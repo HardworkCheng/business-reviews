@@ -15,7 +15,7 @@ import java.util.Map;
 
 /**
  * 商家运营中心 - 门店管理控制器 (Web端)
- * 
+ * <p>
  * 提供商家运营中心的门店管理API：
  * - GET /merchant/shops - 获取门店列表
  * - GET /merchant/shops/{id} - 获取门店详情
@@ -24,8 +24,10 @@ import java.util.Map;
  * - PUT /merchant/shops/{id}/status - 更新门店状态
  * - DELETE /merchant/shops/{id} - 删除门店
  * - GET /merchant/shops/{id}/stats - 获取门店统计数据
- * 
- * @see com.businessreviews.service.MerchantShopService
+ * </p>
+ *
+ * @author businessreviews
+ * @see com.businessreviews.service.merchant.MerchantShopService
  */
 @Slf4j
 @RestController
@@ -37,6 +39,12 @@ public class MerchantShopController {
 
     /**
      * 获取门店列表
+     *
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @param status   状态
+     * @param keyword  关键词
+     * @return 门店列表
      */
     @GetMapping
     public Result<PageResult<ShopItemVO>> getShopList(
@@ -51,6 +59,9 @@ public class MerchantShopController {
 
     /**
      * 获取门店详情
+     *
+     * @param id 门店ID
+     * @return 门店详情
      */
     @GetMapping("/{id}")
     public Result<ShopDetailVO> getShopDetail(@PathVariable Long id) {
@@ -61,6 +72,9 @@ public class MerchantShopController {
 
     /**
      * 新增门店
+     *
+     * @param request 门店信息
+     * @return 成功结果
      */
     @PostMapping
     public Result<Map<String, Long>> createShop(@RequestBody @Valid Map<String, Object> request) {
@@ -72,6 +86,10 @@ public class MerchantShopController {
 
     /**
      * 更新门店信息
+     *
+     * @param id      门店ID
+     * @param request 更新信息
+     * @return 成功结果
      */
     @PutMapping("/{id}")
     public Result<?> updateShop(@PathVariable Long id, @RequestBody @Valid Map<String, Object> request) {
@@ -86,6 +104,10 @@ public class MerchantShopController {
 
     /**
      * 更新门店状态（启用/停用）
+     *
+     * @param id     门店ID
+     * @param status 状态
+     * @return 成功结果
      */
     @PutMapping("/{id}/status")
     public Result<?> updateShopStatus(@PathVariable Long id, @RequestParam Integer status) {
@@ -97,6 +119,9 @@ public class MerchantShopController {
 
     /**
      * 删除门店
+     *
+     * @param id 门店ID
+     * @return 成功结果
      */
     @DeleteMapping("/{id}")
     public Result<?> deleteShop(@PathVariable Long id) {
@@ -108,6 +133,9 @@ public class MerchantShopController {
 
     /**
      * 获取门店统计数据
+     *
+     * @param id 门店ID
+     * @return 统计数据
      */
     @GetMapping("/{id}/stats")
     public Result<Map<String, Object>> getShopStats(@PathVariable Long id) {

@@ -3,7 +3,12 @@ package com.businessreviews.model.dto.merchant;
 import lombok.Data;
 
 /**
- * 商家信息更新请求DTO
+ * 商家资料更新请求传输对象
+ * <p>
+ * 用于商家在管理后台修改自身的基础信息（不包含敏感的账号密码信息）
+ * </p>
+ * 
+ * @author businessreviews
  */
 @Data
 public class MerchantUpdateDTO {

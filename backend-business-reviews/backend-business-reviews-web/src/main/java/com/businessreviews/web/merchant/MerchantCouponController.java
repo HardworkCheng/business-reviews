@@ -15,6 +15,14 @@ import java.util.Map;
 
 /**
  * 商家优惠券管理控制器
+ * <p>
+ * 提供商家对优惠券的管理功能：
+ * - 创建、更新、查询优惠券
+ * - 启用/停用优惠券
+ * - 核销优惠券、验证券码
+ * </p>
+ *
+ * @author businessreviews
  */
 @RestController
 @RequestMapping("/merchant/coupons")
@@ -34,12 +42,16 @@ public class MerchantCouponController {
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) Long shopId) {
         Long merchantId = MerchantContext.requireMerchantId();
-        PageResult<CouponItemVO> result = merchantCouponService.getCouponList(merchantId, pageNum, pageSize, type, status, shopId);
+        PageResult<CouponItemVO> result = merchantCouponService.getCouponList(merchantId, pageNum, pageSize, type,
+                status, shopId);
         return Result.success(result);
     }
 
     /**
      * 获取优惠券详情
+     *
+     * @param id 优惠券ID
+     * @return 优惠券详情
      */
     @GetMapping("/{id}")
     public Result<CouponDetailVO> getCouponDetail(@PathVariable Long id) {
@@ -50,6 +62,9 @@ public class MerchantCouponController {
 
     /**
      * 创建优惠券
+     *
+     * @param request 创建参数
+     * @return 创建结果(ID)
      */
     @PostMapping
     public Result<Map<String, Long>> createCoupon(@RequestBody @Valid CreateCouponDTO request) {
@@ -61,6 +76,10 @@ public class MerchantCouponController {
 
     /**
      * 更新优惠券
+     *
+     * @param id      优惠券ID
+     * @param request 更新参数
+     * @return 成功结果
      */
     @PutMapping("/{id}")
     public Result<?> updateCoupon(@PathVariable Long id, @RequestBody @Valid CreateCouponDTO request) {
@@ -72,6 +91,10 @@ public class MerchantCouponController {
 
     /**
      * 更新优惠券状态（启用/停用）
+     *
+     * @param id     优惠券ID
+     * @param status 状态
+     * @return 成功结果
      */
     @PutMapping("/{id}/status")
     public Result<?> updateCouponStatus(@PathVariable Long id, @RequestParam Integer status) {
@@ -83,6 +106,9 @@ public class MerchantCouponController {
 
     /**
      * 获取优惠券统计数据
+     *
+     * @param id 优惠券ID
+     * @return 统计数据
      */
     @GetMapping("/{id}/stats")
     public Result<Map<String, Object>> getCouponStats(@PathVariable Long id) {
@@ -93,6 +119,11 @@ public class MerchantCouponController {
 
     /**
      * 核销优惠券
+     *
+     * @param id     优惠券ID
+     * @param code   核销码
+     * @param shopId 门店ID
+     * @return 成功结果
      */
     @PostMapping("/{id}/redeem")
     public Result<?> redeemCoupon(@PathVariable Long id, @RequestParam String code, @RequestParam Long shopId) {
@@ -104,6 +135,9 @@ public class MerchantCouponController {
 
     /**
      * 根据券码查询优惠券信息
+     *
+     * @param code 核销码
+     * @return 优惠券核销信息
      */
     @GetMapping("/verify")
     public Result<Map<String, Object>> verifyCoupon(@RequestParam String code) {

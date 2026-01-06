@@ -8,16 +8,19 @@ import com.businessreviews.handler.MessageWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 
 /**
- * WebSocket配置类
- * 用于私信功能的实时通信
+ * WebSocket全局配置类
+ * <p>
+ * 注册WebSocket处理器，配置跨域规则和拦截器
+ * 用于支持私信等实时通信功能
+ * </p>
  */
 @Configuration
 @EnableWebSocket
 @RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketConfigurer {
-    
+
     private final MessageWebSocketHandler messageWebSocketHandler;
-    
+
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         // 注册WebSocket处理器

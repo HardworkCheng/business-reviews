@@ -9,13 +9,18 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 用户端笔记列表项VO
+ * 用户端笔记列表项展示对象
+ * <p>
+ * 用于APP端笔记流展示，包含笔记核心信息及互动数据
+ * </p>
+ * 
+ * @author businessreviews
  */
 @Data
 public class AppNoteItemVO implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
-    
+
     private Long id;
     private String title;
     private String content;
@@ -27,9 +32,9 @@ public class AppNoteItemVO implements Serializable {
     private Long userId;
     private String userNickname;
     private String userAvatar;
-    
+
     @JsonProperty("isLiked")
     private Boolean liked;
-    
+
     private LocalDateTime createTime;
 }

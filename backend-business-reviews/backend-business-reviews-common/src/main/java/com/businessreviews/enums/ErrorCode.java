@@ -3,7 +3,16 @@ package com.businessreviews.enums;
 import lombok.Getter;
 
 /**
- * 错误码枚举
+ * 全局错误码枚举
+ * <p>
+ * 错误码规则：
+ * - 200: 成功
+ * - 400xx: 客户端参数错误 (如 40001 手机号格式错误)
+ * - 401xx: 认证鉴权错误 (如 40101 未登录)
+ * - 403xx: 权限不足 (如 40301 无权限)
+ * - 404xx: 资源未找到 (如 40401 资源不存在)
+ * - 500xx: 服务器内部错误 (如 50001 系统错误)
+ * </p>
  */
 @Getter
 public enum ErrorCode {

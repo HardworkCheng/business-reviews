@@ -17,6 +17,11 @@ import java.util.*;
 
 /**
  * 秒杀活动控制器（移动端）
+ * <p>
+ * 处理移动端秒杀活动的查询和抢购。
+ * </p>
+ *
+ * @author businessreviews
  */
 @Slf4j
 @RestController
@@ -29,90 +34,97 @@ public class SeckillController {
 
     /**
      * 获取秒杀活动列表
-     * 注：当前简化实现，直接返回标记为秒杀的优惠券
-     * 后续可扩展为独立的秒杀活动表
+     * <p>
+     * 获取当前进行的秒杀活动及商品。
+     * </p>
+     *
+     * @param status 活动状态
+     * @return 秒杀活动信息
      */
     @GetMapping("/activities")
     public Result<Map<String, Object>> getSeckillActivities(
             @RequestParam(defaultValue = "2") Integer status) {
-        
+
         // 模拟秒杀活动数据
         // 实际应从 seckill_activities 表查询
         Map<String, Object> activity = new HashMap<>();
         activity.put("id", 1L);
         activity.put("title", "限时秒杀");
-        
+
         // 设置活动结束时间为今天23:59:59
         LocalDateTime endTime = LocalDateTime.now()
                 .withHour(23).withMinute(59).withSecond(59);
         activity.put("startTime", LocalDateTime.now().withHour(0).withMinute(0).withSecond(0));
         activity.put("endTime", endTime);
         activity.put("status", 2); // 进行中
-        
+
         // 获取秒杀优惠券列表
         // 实际应从 seckill_coupons 关联表查询
         // 这里简化为查询所有可用优惠券的前几个作为秒杀券
         LambdaQueryWrapper<CouponDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CouponDO::getStatus, 1)
-               .gt(CouponDO::getEndTime, LocalDateTime.now())
-               .gt(CouponDO::getRemainCount, 0)
-               .orderByDesc(CouponDO::getCreatedAt)
-               .last("LIMIT 5");
-        
+                .gt(CouponDO::getEndTime, LocalDateTime.now())
+                .gt(CouponDO::getRemainCount, 0)
+                .orderByDesc(CouponDO::getCreatedAt)
+                .last("LIMIT 5");
+
         List<CouponDO> coupons = couponMapper.selectList(wrapper);
-        
+
         List<Map<String, Object>> seckillCoupons = new ArrayList<>();
         Random random = new Random();
-        
+
         for (CouponDO coupon : coupons) {
             Map<String, Object> item = new HashMap<>();
             item.put("id", coupon.getId());
             item.put("title", coupon.getTitle());
-            
+
             // 模拟秒杀价格（原价的30%-50%）
-            double originalPrice = coupon.getAmount() != null ? 
-                    coupon.getAmount().doubleValue() * 2 : 20.0;
+            double originalPrice = coupon.getAmount() != null ? coupon.getAmount().doubleValue() * 2 : 20.0;
             double seckillPrice = originalPrice * (0.3 + random.nextDouble() * 0.2);
-            
+
             item.put("seckillPrice", Math.round(seckillPrice * 10) / 10.0);
             item.put("originalPrice", originalPrice);
             item.put("seckillStock", coupon.getTotalCount());
             item.put("remainStock", coupon.getRemainCount());
-            
+
             seckillCoupons.add(item);
         }
-        
+
         activity.put("coupons", seckillCoupons);
-        
+
         return Result.success(activity);
     }
 
     /**
      * 领取秒杀券
+     *
+     * @param seckillId 活动ID
+     * @param couponId  优惠券ID
+     * @return 抢购结果
      */
     @PostMapping("/{seckillId}/coupons/{couponId}/claim")
     public Result<Map<String, Object>> claimSeckillCoupon(
             @PathVariable Long seckillId,
             @PathVariable Long couponId) {
-        
+
         Long userId = UserContext.requireUserId();
-        
+
         // 查询优惠券
         CouponDO coupon = couponMapper.selectById(couponId);
         if (coupon == null) {
             throw new BusinessException(40404, "优惠券不存在");
         }
-        
+
         // 检查优惠券状态
         if (coupon.getStatus() != 1) {
             throw new BusinessException(40001, "优惠券已停用");
         }
-        
+
         // 检查是否过期
         if (coupon.getEndTime().isBefore(LocalDateTime.now())) {
             throw new BusinessException(40001, "优惠券已过期");
         }
-        
+
         // 检查剩余数量（秒杀券需要更严格的库存检查）
         synchronized (this) {
             // 重新查询库存
@@ -120,18 +132,18 @@ public class SeckillController {
             if (coupon.getRemainCount() <= 0) {
                 throw new BusinessException(40001, "优惠券已抢光");
             }
-            
+
             // 检查用户是否已领取该秒杀券
             LambdaQueryWrapper<UserCouponDO> checkWrapper = new LambdaQueryWrapper<>();
             checkWrapper.eq(UserCouponDO::getUserId, userId)
-                       .eq(UserCouponDO::getCouponId, couponId);
+                    .eq(UserCouponDO::getCouponId, couponId);
             Long count = userCouponMapper.selectCount(checkWrapper);
-            
+
             // 秒杀券每人限领1张
             if (count >= 1) {
                 throw new BusinessException(40001, "您已领取过该秒杀券");
             }
-            
+
             // 创建用户优惠券记录
             UserCouponDO userCoupon = new UserCouponDO();
             userCoupon.setCouponId(couponId);
@@ -141,17 +153,17 @@ public class SeckillController {
             userCoupon.setReceiveTime(LocalDateTime.now());
             userCoupon.setCreatedAt(LocalDateTime.now());
             userCouponMapper.insert(userCoupon);
-            
+
             // 减少剩余数量
             coupon.setRemainCount(coupon.getRemainCount() - 1);
             couponMapper.updateById(coupon);
-            
+
             log.info("用户{}抢购秒杀券{}成功", userId, couponId);
-            
+
             Map<String, Object> result = new HashMap<>();
             result.put("userCouponId", userCoupon.getId());
             result.put("code", userCoupon.getCode());
-            
+
             return Result.success(result);
         }
     }

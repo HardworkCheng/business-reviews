@@ -7,7 +7,12 @@ import java.io.Serial;
 import java.io.Serializable;
 
 /**
- * 消息VO
+ * 消息展示对象
+ * <p>
+ * 通用消息结构，包含文本内容或JSON格式的扩展数据（如笔记分享）
+ * </p>
+ * 
+ * @author businessreviews
  */
 @Data
 public class MessageVO implements Serializable {
@@ -20,18 +25,18 @@ public class MessageVO implements Serializable {
     private String receiverId;
     private String content;
     private Integer type;
-    
+
     /**
      * 笔记数据（JSON格式，用于笔记分享消息）
      */
     private String noteData;
-    
+
     /**
      * 是否已读
      */
     @JsonProperty("isRead")
     private Boolean readStatus;
-    
+
     private String createdAt;
     private String timeAgo;
 }

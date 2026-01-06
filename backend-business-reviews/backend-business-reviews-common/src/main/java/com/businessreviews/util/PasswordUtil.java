@@ -6,8 +6,13 @@ import java.security.SecureRandom;
 import java.util.Base64;
 
 /**
- * 密码加密工具类
- * 使用 SHA-256 + 盐值进行加密
+ * 密码加密安全工具类
+ * <p>
+ * 采用 PBKDF2 思想的简化版实现：
+ * 1. 生成16位随机盐值 (Salt)
+ * 2. 使用 SHA-256 算法对 (密码 + 盐) 进行哈希
+ * 3. 最终存储格式：Base64(盐 + 哈希值)
+ * </p>
  */
 public class PasswordUtil {
 

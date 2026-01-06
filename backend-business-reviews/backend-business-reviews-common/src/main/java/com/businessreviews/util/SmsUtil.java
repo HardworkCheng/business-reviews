@@ -4,7 +4,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * 短信工具类
+ * 短信发送工具类
+ * <p>
+ * 封装短信服务商API（目前为模拟实现）
+ * 用于发送验证码、通知短信等
+ * </p>
  */
 @Slf4j
 @Component
@@ -12,8 +16,9 @@ public class SmsUtil {
 
     /**
      * 发送验证码
+     * 
      * @param phone 手机号
-     * @param code 验证码
+     * @param code  验证码
      */
     public void sendCode(String phone, String code) {
         // 这里接入实际的短信服务商API

@@ -16,7 +16,7 @@ import java.util.Map;
 
 /**
  * 移动端笔记控制器 (UniApp)
- * 
+ * <p>
  * 提供移动端用户的笔记相关API：
  * - GET /notes/recommended - 获取推荐笔记列表
  * - GET /notes/my - 获取我的笔记列表
@@ -30,8 +30,10 @@ import java.util.Map;
  * - DELETE /notes/{id} - 删除笔记
  * - POST /notes/{id}/like - 点赞笔记
  * - POST /notes/{id}/bookmark - 收藏笔记
- * 
- * @see com.businessreviews.service.NoteService
+ * </p>
+ *
+ * @author businessreviews
+ * @see com.businessreviews.service.app.NoteService
  */
 @RestController
 @RequestMapping("/notes")
@@ -42,6 +44,10 @@ public class NoteController {
 
     /**
      * 获取推荐笔记列表
+     *
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 推荐笔记列表
      */
     @GetMapping("/recommended")
     public Result<PageResult<NoteItemVO>> getRecommendedNotes(
@@ -53,6 +59,10 @@ public class NoteController {
 
     /**
      * 获取我的笔记列表
+     *
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 我的笔记列表
      */
     @GetMapping("/my")
     public Result<PageResult<NoteItemVO>> getMyNotes(
@@ -63,9 +73,12 @@ public class NoteController {
         return Result.success(result);
     }
 
-
     /**
      * 获取我点赞的笔记列表
+     *
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 点赞笔记列表
      */
     @GetMapping("/liked")
     public Result<PageResult<NoteItemVO>> getLikedNotes(
@@ -78,6 +91,11 @@ public class NoteController {
 
     /**
      * 获取指定用户的笔记列表
+     *
+     * @param userId   用户ID
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 用户笔记列表
      */
     @GetMapping("/user/{userId}")
     public Result<PageResult<NoteItemVO>> getUserNotes(
@@ -90,6 +108,12 @@ public class NoteController {
 
     /**
      * 获取探索页笔记列表
+     *
+     * @param categoryId 分类ID
+     * @param sortBy     排序方式
+     * @param pageNum    页码
+     * @param pageSize   每页数量
+     * @return 探索笔记列表
      */
     @GetMapping("/explore")
     public Result<PageResult<NoteItemVO>> getExploreNotes(
@@ -103,6 +127,13 @@ public class NoteController {
 
     /**
      * 获取附近笔记列表
+     *
+     * @param latitude  纬度
+     * @param longitude 经度
+     * @param distance  距离范围(km)
+     * @param pageNum   页码
+     * @param pageSize  每页数量
+     * @return 附近笔记列表
      */
     @GetMapping("/nearby")
     public Result<PageResult<NoteItemVO>> getNearbyNotes(
@@ -117,6 +148,10 @@ public class NoteController {
 
     /**
      * 获取关注用户的笔记列表
+     *
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 关注用户笔记列表
      */
     @GetMapping("/following")
     public Result<PageResult<NoteItemVO>> getFollowingNotes(
@@ -132,26 +167,32 @@ public class NoteController {
 
     /**
      * 获取笔记详情
+     *
+     * @param id 笔记ID
+     * @return 笔记详情
      */
     @GetMapping("/{id}")
     public Result<NoteDetailVO> getNoteDetail(@PathVariable Long id) {
         Long userId = UserContext.getUserId();
         NoteDetailVO response = noteService.getNoteDetail(id, userId);
-        
+
         // 异步增加浏览量并记录浏览历史
         noteService.increaseViewCount(id, userId);
-        
+
         return Result.success(response);
     }
 
     /**
      * 发布笔记
+     *
+     * @param request 发布参数
+     * @return 成功结果
      */
     @PostMapping
     public Result<Map<String, String>> publishNote(@RequestBody @Valid PublishNoteDTO request) {
         Long userId = UserContext.requireUserId();
         Long noteId = noteService.publishNote(userId, request);
-        
+
         Map<String, String> data = new HashMap<>();
         data.put("noteId", noteId.toString());
         return Result.success("发布成功", data);
@@ -159,6 +200,10 @@ public class NoteController {
 
     /**
      * 更新笔记
+     *
+     * @param id      笔记ID
+     * @param request 更新参数
+     * @return 成功结果
      */
     @PutMapping("/{id}")
     public Result<?> updateNote(@PathVariable Long id, @RequestBody @Valid PublishNoteDTO request) {
@@ -169,6 +214,9 @@ public class NoteController {
 
     /**
      * 删除笔记
+     *
+     * @param id 笔记ID
+     * @return 成功结果
      */
     @DeleteMapping("/{id}")
     public Result<?> deleteNote(@PathVariable Long id) {
@@ -179,13 +227,16 @@ public class NoteController {
 
     /**
      * 点赞笔记（切换状态）
+     *
+     * @param id 笔记ID
+     * @return 点赞状态
      */
     @PostMapping("/{id}/like")
     public Result<Map<String, Object>> likeNote(@PathVariable Long id) {
         Long userId = UserContext.requireUserId();
         Integer likeCount = noteService.likeNote(userId, id);
         boolean isLiked = noteService.isLiked(userId, id);
-        
+
         Map<String, Object> data = new HashMap<>();
         data.put("likeCount", likeCount);
         data.put("isLiked", isLiked);
@@ -194,12 +245,15 @@ public class NoteController {
 
     /**
      * 取消点赞笔记
+     *
+     * @param id 笔记ID
+     * @return 成功结果
      */
     @DeleteMapping("/{id}/like")
     public Result<Map<String, Integer>> unlikeNote(@PathVariable Long id) {
         Long userId = UserContext.requireUserId();
         Integer likeCount = noteService.unlikeNote(userId, id);
-        
+
         Map<String, Integer> data = new HashMap<>();
         data.put("likeCount", likeCount);
         return Result.success("取消点赞成功", data);
@@ -207,13 +261,16 @@ public class NoteController {
 
     /**
      * 收藏笔记（切换状态）
+     *
+     * @param id 笔记ID
+     * @return 收藏状态
      */
     @PostMapping("/{id}/bookmark")
     public Result<Map<String, Object>> bookmarkNote(@PathVariable Long id) {
         Long userId = UserContext.requireUserId();
         noteService.bookmarkNote(userId, id);
         boolean isBookmarked = noteService.isBookmarked(userId, id);
-        
+
         Map<String, Object> data = new HashMap<>();
         data.put("isBookmarked", isBookmarked);
         return Result.success(isBookmarked ? "收藏成功" : "取消收藏成功", data);
@@ -221,6 +278,9 @@ public class NoteController {
 
     /**
      * 取消收藏笔记
+     *
+     * @param id 笔记ID
+     * @return 成功结果
      */
     @DeleteMapping("/{id}/bookmark")
     public Result<?> unbookmarkNote(@PathVariable Long id) {

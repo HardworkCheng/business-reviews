@@ -9,7 +9,9 @@ import java.util.List;
 
 /**
  * 商家周报数据传输对象
- * 用于接收 LLM 分析后的结构化输出
+ * <p>
+ * 用于接收 LLM 分析后的结构化输出，包含情感评分、摘要及改进建议
+ * </p>
  * 
  * @author businessreviews
  */

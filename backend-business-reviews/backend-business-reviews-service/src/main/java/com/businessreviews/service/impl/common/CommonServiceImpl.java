@@ -21,6 +21,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * 通用服务实现类
+ * <p>
+ * 提供全局基础数据服务（如类目、话题）、搜索辅助以及地理位置解析服务。
+ * </p>
+ *
+ * @author businessreviews
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -31,6 +39,15 @@ public class CommonServiceImpl implements CommonService {
     private final SearchHistoryMapper searchHistoryMapper;
     private final RedisUtil redisUtil;
 
+    /**
+     * 获取所有分类列表
+     * <p>
+     * 查询系统中定义的所有分类，包括已禁用和未启用的分类。
+     * 按排序字段(sort_order)升序排列。
+     * </p>
+     *
+     * @return 所有分类的VO列表
+     */
     @Override
     public List<CategoryVO> getAllCategories() {
         // 查询所有分类
@@ -43,6 +60,15 @@ public class CommonServiceImpl implements CommonService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 获取启用分类列表
+     * <p>
+     * 仅查询当前状态为启用(status=1)的分类，适用于前端展示。
+     * 按排序字段(sort_order)升序排列。
+     * </p>
+     *
+     * @return 启用分类的VO列表
+     */
     @Override
     public List<CategoryVO> getCategories() {
         // 查询启用的类目（status=1），按sort_order升序排序
@@ -56,6 +82,13 @@ public class CommonServiceImpl implements CommonService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 获取分类详情
+     *
+     * @param categoryId 分类ID
+     * @return 分类详情VO
+     * @throws BusinessException 如果分类不存在(40402)
+     */
     @Override
     public CategoryVO getCategoryDetail(Long categoryId) {
         CategoryDO category = categoryMapper.selectById(categoryId);
@@ -65,6 +98,16 @@ public class CommonServiceImpl implements CommonService {
         return convertToCategoryVO(category);
     }
 
+    /**
+     * 获取指定分类下的话题列表
+     * <p>
+     * 查询指定分类下状态为启用(status=1)的话题。
+     * 按浏览量(view_count)降序排列，热门话题优先展示。
+     * </p>
+     *
+     * @param categoryId 分类ID
+     * @return 话题VO列表
+     */
     @Override
     public List<TopicVO> getTopics(Long categoryId) {
         LambdaQueryWrapper<TopicDO> wrapper = new LambdaQueryWrapper<>();
@@ -78,6 +121,16 @@ public class CommonServiceImpl implements CommonService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 获取全站热门话题
+     * <p>
+     * 查询全站标记为热门(hot=1)且启用(status=1)的话题。
+     * 按浏览量(view_count)降序排列。
+     * </p>
+     *
+     * @param limit 返回数量限制，默认10条
+     * @return 热门话题VO列表
+     */
     @Override
     public List<TopicVO> getHotTopics(Integer limit) {
         LambdaQueryWrapper<TopicDO> wrapper = new LambdaQueryWrapper<>();
@@ -93,6 +146,16 @@ public class CommonServiceImpl implements CommonService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 获取搜索建议
+     * <p>
+     * 根据用户输入的关键词前缀，从搜索历史中查找匹配的高频搜索词。
+     * 取搜索次数最多的前10条作为建议。
+     * </p>
+     *
+     * @param keyword 用户输入的关键词
+     * @return 建议搜索词列表
+     */
     @Override
     public List<String> getSearchSuggestions(String keyword) {
         if (keyword == null || keyword.trim().isEmpty()) {
@@ -113,6 +176,14 @@ public class CommonServiceImpl implements CommonService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 获取热门搜索词
+     * <p>
+     * 获取全站搜索频率最高的关键词，通常取前20条。
+     * </p>
+     *
+     * @return 热门搜索词列表
+     */
     @Override
     public List<String> getHotSearches() {
         // 查询热门搜索
@@ -145,6 +216,16 @@ public class CommonServiceImpl implements CommonService {
     // 高德地图Web服务Key (建议生产环境通过配置文件注入)
     private static final String AMAP_KEY = "1521141ae4ee08e1a0e37b59d2fd2438";
 
+    /**
+     * 根据IP地址获取城市名称
+     * <p>
+     * 调用高德地图Web服务API进行IP定位。
+     * 如果IP为空或定位失败，默认返回"杭州市"。
+     * </p>
+     *
+     * @param ip 客户端IP地址
+     * @return 城市名称（如"杭州市"）或省份名称
+     */
     @Override
     public String getCityByIp(String ip) {
         // 如果IP为空，高德会默认使用请求来源IP
@@ -177,6 +258,17 @@ public class CommonServiceImpl implements CommonService {
         return "杭州市"; // 默认兜底
     }
 
+    /**
+     * 根据经纬度获取城市名称（逆地理编码）
+     * <p>
+     * 调用高德地图Web服务API进行逆地理编码解析。
+     * 如果解析失败，默认返回"杭州市"。
+     * </p>
+     *
+     * @param longitude 经度
+     * @param latitude  纬度
+     * @return 城市名称（如"杭州市"）
+     */
     @Override
     public String getCityByLocation(String longitude, String latitude) {
         try {

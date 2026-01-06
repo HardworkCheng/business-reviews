@@ -7,8 +7,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * AI内容审核结果对象
- * 用于LangChain4j的结构化输出映射
+ * AI内容审核结果传输对象
+ * <p>
+ * 用于接收LangChain4j的结构化输出映射，封装内容安全审核结果
+ * </p>
  * 
  * 设计说明：
  * 1. LangChain4j会自动将此类的结构（Schema）传递给大模型

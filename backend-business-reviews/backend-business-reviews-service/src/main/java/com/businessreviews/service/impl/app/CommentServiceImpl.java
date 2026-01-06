@@ -23,6 +23,21 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * 评论服务实现类
+ * <p>
+ * 处理笔记评论的增删改查及点赞互动。
+ * 核心功能包括：
+ * 1. 评论列表查询（支持按热度和时间排序）
+ * 2. 评论回复管理（二级评论结构）
+ * 3. 评论点赞与取消
+ * 4. 评论发布与异步审核触发
+ * <p>
+ * 性能优化：使用 In-Memory Map Assembly 模式解决 N+1 查询问题。
+ * </p>
+ *
+ * @author businessreviews
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -35,6 +50,19 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
     private final MessageService messageService;
     private final ApplicationEventPublisher eventPublisher;
 
+    /**
+     * 获取笔记的一级评论列表
+     * <p>
+     * 查询指定笔记下的所有一级评论（parentId为null）。
+     * 排序规则：优先按点赞数降序，其次按创建时间降序。
+     * </p>
+     *
+     * @param noteId   笔记ID
+     * @param userId   当前登录用户ID（用于判断点赞状态）
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 评论VO分页列表
+     */
     @Override
     public PageResult<CommentVO> getNoteComments(Long noteId, Long userId, Integer pageNum, Integer pageSize) {
         Page<CommentDO> page = new Page<>(pageNum, pageSize);
@@ -53,6 +81,19 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         return PageResult.of(list, commentPage.getTotal(), pageNum, pageSize);
     }
 
+    /**
+     * 获取评论的回复列表（二级评论）
+     * <p>
+     * 查询指定评论下的所有回复。
+     * 排序规则：按创建时间升序排列（楼层顺序）。
+     * </p>
+     *
+     * @param commentId 父评论ID
+     * @param userId    当前登录用户ID
+     * @param pageNum   页码
+     * @param pageSize  每页数量
+     * @return 回复VO分页列表
+     */
     @Override
     public PageResult<CommentVO> getCommentReplies(Long commentId, Long userId, Integer pageNum, Integer pageSize) {
         Page<CommentDO> page = new Page<>(pageNum, pageSize);
@@ -69,6 +110,21 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         return PageResult.of(list, replyPage.getTotal(), pageNum, pageSize);
     }
 
+    /**
+     * 发布评论或回复
+     * <p>
+     * 支持发布一级评论或回复已有评论。
+     * 发布成功后会：
+     * 1. 增加笔记评论数
+     * 2. 发送系统通知给被评论者
+     * 3. 触发异步AI内容审核事件
+     * </p>
+     *
+     * @param userId  当前用户ID
+     * @param request 评论参数（包含内容、笔记ID、父评论ID等）
+     * @return 新创建的评论VO
+     * @throws BusinessException 如果笔记或父评论不存在(40402)
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public CommentVO addComment(Long userId, AddCommentDTO request) {
@@ -123,6 +179,17 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         return convertToResponse(comment, userId, false);
     }
 
+    /**
+     * 删除评论
+     * <p>
+     * 软删除评论（status设为0）。
+     * 同时会减少笔记评论数，如果是回复还会减少父评论的回复数。
+     * </p>
+     *
+     * @param userId    当前用户ID
+     * @param commentId 待删除的评论ID
+     * @throws BusinessException 如果评论不存在(40402)或无权限操作(40300)
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteComment(Long userId, Long commentId) {
@@ -147,6 +214,14 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         }
     }
 
+    /**
+     * 点赞评论
+     *
+     * @param userId    当前用户ID
+     * @param commentId 评论ID
+     * @return 点赞后的最新点赞数
+     * @throws BusinessException 如果评论不存在(40402)或已点赞(40001)
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Integer likeComment(Long userId, Long commentId) {
@@ -172,6 +247,14 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         return comment.getLikeCount() + 1;
     }
 
+    /**
+     * 取消点赞评论
+     *
+     * @param userId    当前用户ID
+     * @param commentId 评论ID
+     * @return 取消点赞后的最新点赞数
+     * @throws BusinessException 如果评论不存在(40402)或未点赞(40001)
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Integer unlikeComment(Long userId, Long commentId) {
@@ -199,6 +282,13 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         return Math.max(0, comment.getLikeCount() - 1);
     }
 
+    /**
+     * 检查是否已点赞
+     *
+     * @param userId    用户ID
+     * @param commentId 评论ID
+     * @return true=已点赞, false=未点赞
+     */
     @Override
     public boolean isCommentLiked(Long userId, Long commentId) {
         if (userId == null)

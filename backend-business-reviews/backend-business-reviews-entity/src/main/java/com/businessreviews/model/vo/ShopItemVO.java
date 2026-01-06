@@ -8,7 +8,12 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * 商家列表项VO
+ * 商家卡片展示对象
+ * <p>
+ * 用于首页推荐或搜索结果展示，包含商家封面、评分、人均等核心信息
+ * </p>
+ * 
+ * @author businessreviews
  */
 @Data
 public class ShopItemVO implements Serializable {

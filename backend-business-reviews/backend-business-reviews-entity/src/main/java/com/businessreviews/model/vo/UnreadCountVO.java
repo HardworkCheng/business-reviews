@@ -6,7 +6,12 @@ import java.io.Serial;
 import java.io.Serializable;
 
 /**
- * 未读消息数VO
+ * 未读消息计数展示对象
+ * <p>
+ * 包含各类型消息（点赞、评论、关注、系统、私信）的未读统计
+ * </p>
+ * 
+ * @author businessreviews
  */
 @Data
 public class UnreadCountVO implements Serializable {

@@ -6,7 +6,12 @@ import java.io.Serial;
 import java.io.Serializable;
 
 /**
- * 会话VO
+ * 私信会话简要信息对象
+ * <p>
+ * 包含会话基础信息及未读计数
+ * </p>
+ * 
+ * @author businessreviews
  */
 @Data
 public class ConversationVO implements Serializable {

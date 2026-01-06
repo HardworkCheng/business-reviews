@@ -30,6 +30,21 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * 笔记服务实现类
+ * <p>
+ * 处理C端用户笔记的核心业务逻辑。
+ * 核心功能包括：
+ * 1. 笔记列表查询（推荐、附近、关注、个人、收藏）
+ * 2. 笔记详情查询（含关联信息预加载）
+ * 3. 笔记互动（点赞、收藏、浏览）
+ * 4. 笔记发布与管理（CRUD、异步审核）
+ * <p>
+ * 性能优化：使用 In-Memory Map Assembly 模式解决 N+1 查询问题。
+ * </p>
+ *
+ * @author businessreviews
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -52,6 +67,17 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
     private final MessageService messageService;
     private final ApplicationEventPublisher eventPublisher;
 
+    /**
+     * 获取首页推荐笔记
+     * <p>
+     * 混合查询用户笔记和商家笔记。
+     * 排序规则：优先按推荐值(recommend)降序，其次按点赞数降序，最后按创建时间降序。
+     * </p>
+     *
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 笔记VO分页列表
+     */
     @Override
     public PageResult<NoteItemVO> getRecommendedNotes(Integer pageNum, Integer pageSize) {
         // 尝试从缓存获取
@@ -73,6 +99,18 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         return PageResult.of(list, notePage.getTotal(), pageNum, pageSize);
     }
 
+    /**
+     * 获取用户的笔记列表
+     * <p>
+     * 查询指定用户发布的已发布状态(status=1)笔记。
+     * 按创建时间倒序排列。
+     * </p>
+     *
+     * @param userId   用户ID
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 笔记VO分页列表
+     */
     @Override
     public PageResult<NoteItemVO> getUserNotes(Long userId, Integer pageNum, Integer pageSize) {
         Page<NoteDO> page = new Page<>(pageNum, pageSize);
@@ -89,6 +127,18 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         return PageResult.of(list, notePage.getTotal(), pageNum, pageSize);
     }
 
+    /**
+     * 获取用户点赞的笔记列表
+     * <p>
+     * 查询用户点赞过的笔记，按点赞时间倒序排列。
+     * 仅显示当前状态为已发布(status=1)的笔记。
+     * </p>
+     *
+     * @param userId   当前用户ID
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 笔记VO分页列表
+     */
     @Override
     public PageResult<NoteItemVO> getLikedNotes(Long userId, Integer pageNum, Integer pageSize) {
         // 获取用户点赞的笔记ID列表
@@ -137,6 +187,21 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         return PageResult.of(list, total, pageNum, pageSize);
     }
 
+    /**
+     * 获取发现页笔记（按分类或排序）
+     * <p>
+     * 支持多种排序方式：
+     * - hot: 按热度（点赞数）降序
+     * - new: 按发布时间倒序
+     * - default: 综合排序（热度+时间）
+     * </p>
+     *
+     * @param categoryId 分类ID（可选）
+     * @param sortBy     排序方式 (hot/new/default)
+     * @param pageNum    页码
+     * @param pageSize   每页数量
+     * @return 笔记VO分页列表
+     */
     @Override
     public PageResult<NoteItemVO> getExploreNotes(Long categoryId, String sortBy, Integer pageNum, Integer pageSize) {
         Page<NoteDO> page = new Page<>(pageNum, pageSize);
@@ -164,6 +229,20 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         return PageResult.of(list, notePage.getTotal(), pageNum, pageSize);
     }
 
+    /**
+     * 获取附近笔记
+     * <p>
+     * 查询带有地理位置信息的笔记。
+     * 当前实现为简化版，未进行实际距离计算过滤，仅按时间排序。
+     * </p>
+     *
+     * @param latitude  纬度
+     * @param longitude 经度
+     * @param distance  搜索半径(km)
+     * @param pageNum   页码
+     * @param pageSize  每页数量
+     * @return 笔记VO分页列表
+     */
     @Override
     public PageResult<NoteItemVO> getNearbyNotes(Double latitude, Double longitude, Double distance, Integer pageNum,
             Integer pageSize) {
@@ -183,6 +262,18 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         return PageResult.of(list, notePage.getTotal(), pageNum, pageSize);
     }
 
+    /**
+     * 获取关注人笔记
+     * <p>
+     * 查询当前用户关注的所有用户发布的笔记。
+     * 按创建时间倒序排列。
+     * </p>
+     *
+     * @param userId   当前用户ID
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 笔记VO分页列表
+     */
     @Override
     public PageResult<NoteItemVO> getFollowingNotes(Long userId, Integer pageNum, Integer pageSize) {
         // 获取关注的用户ID列表
@@ -212,6 +303,18 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         return PageResult.of(list, notePage.getTotal(), pageNum, pageSize);
     }
 
+    /**
+     * 获取笔记详情
+     * <p>
+     * 返回笔记完整信息，包括作者、内容、图片、位置、话题等。
+     * 同时返回当前用户对该笔记的互动状态（点赞、收藏、关注作者）。
+     * </p>
+     *
+     * @param noteId 笔记ID
+     * @param userId 当前用户ID（可选）
+     * @return 笔记详情VO
+     * @throws BusinessException 如果笔记不存在或已下架(40402)
+     */
     @Override
     public NoteDetailVO getNoteDetail(Long noteId, Long userId) {
         NoteDO note = noteMapper.selectById(noteId);
@@ -287,6 +390,20 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         return response;
     }
 
+    /**
+     * 发布笔记
+     * <p>
+     * 1. 保存笔记基础信息
+     * 2. 识别是否为商家笔记
+     * 3. 异步触发AI内容审核
+     * 4. 保存标签和话题关联
+     * 5. 更新用户发布统计
+     * </p>
+     *
+     * @param userId  当前用户ID
+     * @param request 发布请求参数
+     * @return 新建笔记ID
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long publishNote(Long userId, PublishNoteDTO request) {
@@ -429,6 +546,18 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         userStatsMapper.decrementNoteCount(userId);
     }
 
+    /**
+     * 点赞笔记
+     * <p>
+     * 用户对笔记进行点赞。如果已点赞则自动切换为取消点赞。
+     * 点赞成功后会发送通知给作者。
+     * </p>
+     *
+     * @param userId 当前用户ID
+     * @param noteId 笔记ID
+     * @return 最新的点赞数
+     * @throws BusinessException 如果笔记不存在或已下架(40402)
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Integer likeNote(Long userId, Long noteId) {
@@ -497,6 +626,16 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         return Math.max(0, note.getLikeCount() - 1);
     }
 
+    /**
+     * 收藏笔记
+     * <p>
+     * 用户收藏笔记。如果已收藏则自动切换为取消收藏。
+     * </p>
+     *
+     * @param userId 当前用户ID
+     * @param noteId 笔记ID
+     * @throws BusinessException 如果笔记不存在或已下架(40402)
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void bookmarkNote(Long userId, Long noteId) {
@@ -552,6 +691,15 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         userStatsMapper.decrementFavoriteCount(userId);
     }
 
+    /**
+     * 增加笔记浏览量 (异步)
+     * <p>
+     * 增加浏览计数并记录用户的浏览历史。
+     * </p>
+     *
+     * @param noteId 笔记ID
+     * @param userId 当前用户ID（可选，未登录不记录历史）
+     */
     @Override
     @Async("asyncExecutor")
     public void increaseViewCount(Long noteId, Long userId) {

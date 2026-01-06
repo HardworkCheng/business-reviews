@@ -9,52 +9,97 @@ import com.businessreviews.model.dataobject.MessageDO;
 
 /**
  * 用户端消息服务接口
+ * <p>
  * 提供UniApp移动端的私信、系统通知等功能
+ * </p>
+ * 
+ * @author businessreviews
  */
 public interface MessageService extends IService<MessageDO> {
 
     /**
      * 获取会话列表
+     * 
+     * @param userId   当前用户ID
+     * @param pageNum  页码
+     * @param pageSize 每页大小
+     * @return 会话列表分页数据
      */
     PageResult<ConversationVO> getConversations(Long userId, Integer pageNum, Integer pageSize);
 
     /**
      * 获取聊天记录
+     * 
+     * @param userId       当前用户ID
+     * @param targetUserId 对方用户ID
+     * @param pageNum      页码
+     * @param pageSize     每页大小
+     * @return 消息列表分页数据
      */
     PageResult<MessageVO> getChatHistory(Long userId, Long targetUserId, Integer pageNum, Integer pageSize);
 
     /**
      * 发送消息
+     * 
+     * @param userId       发送者ID
+     * @param targetUserId 接收者ID
+     * @param content      消息内容
+     * @param type         消息类型（1文本，2图片，3语音）
+     * @return 发送成功的消息VO
      */
     MessageVO sendMessage(Long userId, Long targetUserId, String content, Integer type);
 
     /**
      * 标记消息已读
+     * 
+     * @param userId       当前用户ID
+     * @param targetUserId 对方用户ID
      */
     void markAsRead(Long userId, Long targetUserId);
 
     /**
      * 获取系统通知列表
+     * 
+     * @param userId   当前用户ID
+     * @param type     通知类型（0全部，1点赞，2评论，3关注，4系统）
+     * @param pageNum  页码
+     * @param pageSize 每页大小
+     * @return 通知列表分页数据
      */
     PageResult<NotificationVO> getNotifications(Long userId, Integer type, Integer pageNum, Integer pageSize);
 
     /**
      * 标记通知已读
+     * 
+     * @param userId         当前用户ID
+     * @param notificationId 通知ID
      */
     void markNotificationAsRead(Long userId, Long notificationId);
 
     /**
      * 标记所有通知已读
+     * 
+     * @param userId 当前用户ID
+     * @param type   通知类型（0全部）
      */
     void markAllNotificationsAsRead(Long userId, Integer type);
 
     /**
      * 获取未读消息数量
+     * 
+     * @param userId 当前用户ID
+     * @return 未读数统计对象
      */
     Object getUnreadCount(Long userId);
 
     /**
      * 发送系统通知
+     * 
+     * @param userId    接收者用户ID
+     * @param title     通知标题
+     * @param content   通知内容
+     * @param type      通知类型
+     * @param relatedId 关联ID
      */
     void sendNotification(Long userId, String title, String content, Integer type, Long relatedId);
 

@@ -62,6 +62,16 @@ public class VisionNoteServiceImpl implements VisionNoteService {
             正文内容
             """;
 
+    /**
+     * 生成探店笔记
+     * <p>
+     * 调用多模态大模型（Vision Model），基于图片和标签生成图文并茂的探店笔记。
+     * 自动提取标题和正文。
+     * </p>
+     *
+     * @param request 生成请求（图片URL列表、标签等）
+     * @return 生成结果VO（title, content）
+     */
     @Override
     public NoteGenerateVO generateNote(NoteGenerateRequest request) {
         // 1. 参数校验

@@ -22,6 +22,21 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * 店铺服务实现类
+ * <p>
+ * 处理店铺/商家的核心业务逻辑。
+ * 核心功能包括：
+ * 1. 店铺列表查询（推荐、附近、搜索、分类筛选）
+ * 2. 店铺详情与评价查询
+ * 3. 店铺收藏与取消
+ * 4. 已入驻商家列表查询
+ * <p>
+ * 性能优化：使用 In-Memory Map Assembly 模式解决 N+1 查询问题。
+ * </p>
+ *
+ * @author businessreviews
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -35,6 +50,20 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
     private final UserStatsMapper userStatsMapper;
     private final ShopReviewMapper shopReviewMapper;
 
+    /**
+     * 获取店铺列表（多条件筛选）
+     * <p>
+     * 支持按分类、关键词、排序方式进行综合查询。
+     * 排序方式包括：评分、热度、价格升序/降序。
+     * </p>
+     *
+     * @param categoryId 分类ID
+     * @param keyword    搜索关键词
+     * @param sortBy     排序方式 (rating/popular/price_asc/price_desc)
+     * @param pageNum    页码
+     * @param pageSize   每页数量
+     * @return 店铺VO分页列表
+     */
     @Override
     public PageResult<ShopItemVO> getShopList(Long categoryId, String keyword, String sortBy, Integer pageNum,
             Integer pageSize) {
@@ -72,6 +101,21 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
         return PageResult.of(list, shopPage.getTotal(), pageNum, pageSize);
     }
 
+    /**
+     * 获取附近店铺
+     * <p>
+     * 基于经纬度查询附近的店铺，并计算距离。
+     * 同时也支持按分类筛选。
+     * </p>
+     *
+     * @param latitude   用户当前纬度
+     * @param longitude  用户当前经度
+     * @param distance   搜索半径(km)
+     * @param categoryId 分类ID
+     * @param pageNum    页码
+     * @param pageSize   每页数量
+     * @return 店铺VO分页列表（包含距离信息）
+     */
     @Override
     public PageResult<ShopItemVO> getNearbyShops(Double latitude, Double longitude, Double distance,
             Long categoryId, Integer pageNum, Integer pageSize) {
@@ -107,6 +151,18 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
         return PageResult.of(list, shopPage.getTotal(), pageNum, pageSize);
     }
 
+    /**
+     * 搜索店铺
+     * <p>
+     * 根据关键词模糊搜索店铺名称或地址。
+     * 结果按评分降序排列。
+     * </p>
+     *
+     * @param keyword  搜索关键词
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 店铺VO分页列表
+     */
     @Override
     public PageResult<ShopItemVO> searchShops(String keyword, Integer pageNum, Integer pageSize) {
         Page<ShopDO> page = new Page<>(pageNum, pageSize);
@@ -125,6 +181,18 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
         return PageResult.of(list, shopPage.getTotal(), pageNum, pageSize);
     }
 
+    /**
+     * 获取店铺详情
+     * <p>
+     * 返回店铺的完整信息，包括评分明细、营业时间等。
+     * 同时检查当前用户的收藏状态。
+     * </p>
+     *
+     * @param shopId 店铺ID
+     * @param userId 当前用户ID（可选）
+     * @return 店铺详情VO
+     * @throws BusinessException 如果店铺不存在或暂停营业(40402)
+     */
     @Override
     public ShopDetailVO getShopDetail(Long shopId, Long userId) {
         ShopDO shop = shopMapper.selectById(shopId);
@@ -162,6 +230,18 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
         return response;
     }
 
+    /**
+     * 获取店铺关联的笔记列表
+     * <p>
+     * 查询在该店铺发布的或关联该店铺的所有笔记。
+     * 包含批量预加载用户信息以优化性能。
+     * </p>
+     *
+     * @param shopId   店铺ID
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 笔记列表
+     */
     @Override
     public PageResult<Object> getShopNotes(Long shopId, Integer pageNum, Integer pageSize) {
         Page<NoteDO> page = new Page<>(pageNum, pageSize);
@@ -211,6 +291,13 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
         return PageResult.of(list, notePage.getTotal(), pageNum, pageSize);
     }
 
+    /**
+     * 收藏店铺
+     *
+     * @param userId 用户ID
+     * @param shopId 店铺ID
+     * @throws BusinessException 如果店铺不存在(40402)或已收藏(40001)
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void bookmarkShop(Long userId, Long shopId) {
@@ -233,6 +320,13 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
         userStatsMapper.incrementFavoriteCount(userId);
     }
 
+    /**
+     * 取消收藏店铺
+     *
+     * @param userId 用户ID
+     * @param shopId 店铺ID
+     * @throws BusinessException 如果未收藏(40001)
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void unbookmarkShop(Long userId, Long shopId) {
@@ -262,6 +356,19 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
         return userFavoriteMapper.selectCount(wrapper) > 0;
     }
 
+    /**
+     * 获取店铺评价列表
+     * <p>
+     * 查询用户对店铺的直接评分和评价内容。
+     * 支持按评分或时间排序。
+     * </p>
+     *
+     * @param shopId   店铺ID
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @param sortBy   排序方式 (rating/default)
+     * @return 评价列表
+     */
     @Override
     public PageResult<Object> getShopReviews(Long shopId, Integer pageNum, Integer pageSize, String sortBy) {
         Page<ShopReviewDO> page = new Page<>(pageNum, pageSize);
@@ -317,6 +424,18 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
         return PageResult.of(list, reviewPage.getTotal(), pageNum, pageSize);
     }
 
+    /**
+     * 发表店铺评价
+     * <p>
+     * 用户提交对店铺的评分和评价内容。
+     * 评价提交后会自动触发店铺综合评分的重新计算和更新。
+     * </p>
+     *
+     * @param userId  用户ID
+     * @param shopId  店铺ID
+     * @param request 评价内容 (rating, tasteScore, etc.)
+     * @throws BusinessException 如果店铺不存在(40402)
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void postShopReview(Long userId, Long shopId, Map<String, Object> request) {
@@ -499,6 +618,17 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
         return R * c;
     }
 
+    /**
+     * 获取已入驻商家列表
+     * <p>
+     * 仅返回已绑定商家账号(merchantId不为空)的店铺。
+     * </p>
+     *
+     * @param keyword  搜索关键词
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 店铺VO分页列表
+     */
     @Override
     public PageResult<ShopItemVO> getRegisteredShops(String keyword, Integer pageNum, Integer pageSize) {
         Page<ShopDO> page = new Page<>(pageNum, pageSize);

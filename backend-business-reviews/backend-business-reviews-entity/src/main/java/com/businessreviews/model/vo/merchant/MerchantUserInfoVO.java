@@ -7,8 +7,12 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * 商家端用户信息VO
- * 迁移自 dto.response.MerchantUserInfoResponse
+ * 商家端用户信息展示对象
+ * <p>
+ * 包含商家详细资料、认证信息及营业执照等
+ * </p>
+ * 
+ * @author businessreviews
  */
 @Data
 public class MerchantUserInfoVO implements Serializable {

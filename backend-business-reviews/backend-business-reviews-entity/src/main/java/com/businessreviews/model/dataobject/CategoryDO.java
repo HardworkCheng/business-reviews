@@ -7,45 +7,50 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * 商家分类数据对象
+ * 商家分类数据映射对象
+ * <p>
+ * 对应数据库表 categories，维护商家的业务类别
+ * </p>
+ * 
+ * @author businessreviews
  */
 @Data
 @TableName("categories")
 public class CategoryDO implements Serializable {
-    
+
     private static final long serialVersionUID = 1L;
-    
+
     @TableId(type = IdType.AUTO)
     private Integer id;
-    
+
     /**
      * 分类名称
      */
     private String name;
-    
+
     /**
      * 图标
      */
     private String icon;
-    
+
     /**
      * 主题颜色
      */
     private String color;
-    
+
     /**
      * 排序顺序
      */
     private Integer sortOrder;
-    
+
     /**
      * 状态（1启用，2禁用）
      */
     private Integer status;
-    
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
-    
+
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
 }

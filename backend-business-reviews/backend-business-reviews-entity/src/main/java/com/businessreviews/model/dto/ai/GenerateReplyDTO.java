@@ -5,7 +5,10 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
- * AI 生成回复请求 DTO
+ * AI智能回复生成请求传输对象
+ * <p>
+ * 封装用户评价内容及可选的补偿策略，用于请求AI生成建议回复
+ * </p>
  * 
  * @author businessreviews
  */

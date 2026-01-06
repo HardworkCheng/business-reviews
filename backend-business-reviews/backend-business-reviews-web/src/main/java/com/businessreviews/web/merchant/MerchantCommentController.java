@@ -12,6 +12,14 @@ import java.util.Map;
 
 /**
  * 商家评论管理控制器
+ * <p>
+ * 提供商家对评论的管理功能：
+ * - 查询评论列表、回复评论、删除评论
+ * - 评论置顶、导出评论
+ * - 评论统计、数据看板
+ * </p>
+ *
+ * @author businessreviews
  */
 @RestController
 @RequestMapping("/merchant/comments")
@@ -22,6 +30,14 @@ public class MerchantCommentController {
 
     /**
      * 获取评论列表
+     *
+     * @param pageNum    页码
+     * @param pageSize   每页数量
+     * @param shopId     门店ID
+     * @param status     状态
+     * @param keyword    关键词
+     * @param isNegative 是否差评
+     * @return 评论列表
      */
     @GetMapping
     public Result<PageResult<CommentVO>> getCommentList(
@@ -39,6 +55,10 @@ public class MerchantCommentController {
 
     /**
      * 回复评论
+     *
+     * @param id      评论ID
+     * @param request 回复内容
+     * @return 成功结果
      */
     @PostMapping("/{id}/reply")
     public Result<?> replyComment(@PathVariable Long id, @RequestBody Map<String, String> request) {
@@ -51,6 +71,9 @@ public class MerchantCommentController {
 
     /**
      * 删除评论
+     *
+     * @param id 评论ID
+     * @return 成功结果
      */
     @DeleteMapping("/{id}")
     public Result<?> deleteComment(@PathVariable Long id) {
@@ -62,6 +85,8 @@ public class MerchantCommentController {
 
     /**
      * 获取评论统计
+     *
+     * @return 统计数据
      */
     @GetMapping("/stats")
     public Result<Map<String, Object>> getCommentStats() {
@@ -72,6 +97,9 @@ public class MerchantCommentController {
 
     /**
      * 获取数据概览
+     *
+     * @param shopId 门店ID
+     * @return 概览数据
      */
     @GetMapping("/dashboard")
     public Result<Map<String, Object>> getDashboard(@RequestParam(required = false) Long shopId) {
@@ -82,6 +110,10 @@ public class MerchantCommentController {
 
     /**
      * 置顶评论
+     *
+     * @param id      评论ID
+     * @param request 置顶状态
+     * @return 成功结果
      */
     @PutMapping("/{id}/top")
     public Result<?> topComment(@PathVariable Long id, @RequestBody Map<String, Boolean> request) {
@@ -93,6 +125,11 @@ public class MerchantCommentController {
 
     /**
      * 导出评论
+     *
+     * @param response 响应对象
+     * @param shopId   门店ID
+     * @param status   状态
+     * @param keyword  关键词
      */
     @GetMapping("/export")
     public void exportComments(

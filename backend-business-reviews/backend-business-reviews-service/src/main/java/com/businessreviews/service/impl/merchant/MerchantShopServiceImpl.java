@@ -33,6 +33,16 @@ import java.util.stream.Collectors;
 
 /**
  * 商家门店服务实现类
+ * <p>
+ * 处理商家门店信息的管理。
+ * 核心功能包括：
+ * 1. 门店的创建、修改、状态管理（营业/打烊）与删除
+ * 2. 门店列表与详情查询
+ * 3. 门店经营数据统计（人气、笔记数、评价数、评分）
+ * 4. 自动创建默认店铺机制
+ * </p>
+ *
+ * @author businessreviews
  */
 @Slf4j
 @Service
@@ -45,6 +55,20 @@ public class MerchantShopServiceImpl implements MerchantShopService {
     private final ShopReviewMapper shopReviewMapper;
     private final CategoryMapper categoryMapper;
 
+    /**
+     * 获取门店列表
+     * <p>
+     * 查询商家名下的所有门店。
+     * 如果商家没有任何门店，会自动创建一个默认门店。
+     * </p>
+     *
+     * @param merchantId 商家ID
+     * @param pageNum    页码
+     * @param pageSize   每页数量
+     * @param status     状态 (1:营业中, 2:休息中/打烊, 0:停用)
+     * @param keyword    搜索关键词 (门店名/地址)
+     * @return 门店VO分页列表
+     */
     @Override
     public PageResult<ShopItemVO> getShopList(Long merchantId, Integer pageNum, Integer pageSize,
             Integer status, String keyword) {
@@ -127,6 +151,14 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         }
     }
 
+    /**
+     * 获取门店详情
+     *
+     * @param merchantId 商家ID
+     * @param shopId     门店ID
+     * @return 门店详情VO
+     * @throws BusinessException 如果不存在
+     */
     @Override
     public ShopDetailVO getShopDetail(Long merchantId, Long shopId) {
         log.info("获取门店详情: merchantId={}, shopId={}", merchantId, shopId);
@@ -143,6 +175,14 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         return convertToShopDetailVO(shop);
     }
 
+    /**
+     * 创建门店
+     *
+     * @param merchantId 商家ID
+     * @param operatorId 操作人ID
+     * @param request    门店信息参数
+     * @return 新创建的门店ID
+     */
     @Override
     @Transactional
     public Long createShop(Long merchantId, Long operatorId, Map<String, Object> request) {
@@ -200,6 +240,15 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         return shop.getId();
     }
 
+    /**
+     * 更新门店
+     *
+     * @param merchantId 商家ID
+     * @param operatorId 操作人ID
+     * @param shopId     门店ID
+     * @param request    更新参数
+     * @throws BusinessException 如果无权操作
+     */
     @Override
     @Transactional
     public void updateShop(Long merchantId, Long operatorId, Long shopId, Map<String, Object> request) {
@@ -308,6 +357,17 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         }
     }
 
+    /**
+     * 更新门店状态
+     * <p>
+     * 设置门店营业或打烊等状态。
+     * </p>
+     *
+     * @param merchantId 商家ID
+     * @param operatorId 操作人ID
+     * @param shopId     门店ID
+     * @param status     新状态
+     */
     @Override
     @Transactional
     public void updateShopStatus(Long merchantId, Long operatorId, Long shopId, Integer status) {
@@ -334,6 +394,13 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         log.info("门店状态更新成功: shopId={}, status={}", shopId, status);
     }
 
+    /**
+     * 删除门店
+     *
+     * @param merchantId 商家ID
+     * @param operatorId 操作人ID
+     * @param shopId     门店ID
+     */
     @Override
     @Transactional
     public void deleteShop(Long merchantId, Long operatorId, Long shopId) {
@@ -358,6 +425,16 @@ public class MerchantShopServiceImpl implements MerchantShopService {
         log.info("门店删除成功: shopId={}", shopId);
     }
 
+    /**
+     * 获取门店经营统计
+     * <p>
+     * 统计门店的浏览人气、笔记数、评价数及各项评分。
+     * </p>
+     *
+     * @param merchantId 商家ID
+     * @param shopId     门店ID
+     * @return 统计数据Map
+     */
     @Override
     public Map<String, Object> getShopStats(Long merchantId, Long shopId) {
         log.info("获取门店统计: merchantId={}, shopId={}", merchantId, shopId);

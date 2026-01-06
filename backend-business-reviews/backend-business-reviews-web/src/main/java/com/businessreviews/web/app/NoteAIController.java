@@ -11,11 +11,13 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * AI智能笔记生成控制器
- * 
+ * <p>
  * 提供探店笔记AI智能生成接口：
  * - POST /note/generate - 根据图片和标签生成探店笔记
- * 
+ * </p>
+ *
  * @author businessreviews
+ * @see com.businessreviews.service.ai.VisionNoteService
  */
 @Slf4j
 @RestController
@@ -27,9 +29,10 @@ public class NoteAIController {
 
     /**
      * AI智能生成探店笔记
-     * 
+     * <p>
      * 根据用户上传的图片URL和可选的标签，利用视觉AI模型生成小红书风格的探店笔记
-     * 
+     * </p>
+     *
      * @param request 生成请求，包含商家名、图片URL列表、标签列表
      * @return 生成的笔记标题和正文
      */

@@ -28,7 +28,17 @@ import java.util.Random;
 
 /**
  * 商家认证服务实现类
- * 已整合merchant_users表到merchants表，直接使用merchants表进行认证
+ * <p>
+ * 处理商家端的登录、注册及认证相关的业务逻辑。
+ * 已整合 merchant_users 表到 merchants 表，统一使用 merchants 表进行认证管理。
+ * 核心功能包括：
+ * 1. 发送短信验证码（用于登录或注册）
+ * 2. 商家登录（验证码登录、密码登录）
+ * 3. 商家注册与入驻（同时自动创建关联的UniApp账号和默认门店）
+ * 4. 商家信息更新与注销
+ * </p>
+ *
+ * @author businessreviews
  */
 @Slf4j
 @Service
@@ -43,6 +53,15 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
 
     private static final String CODE_CHARSET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
+    /**
+     * 发送商家端验证码
+     * <p>
+     * 生成6位随机验证码并存储到Redis（有效期5分钟）。
+     * 包含1分钟的发送频率限制。
+     * </p>
+     *
+     * @param phone 手机号
+     */
     @Override
     public void sendCode(String phone) {
         // 检查发送频率
@@ -66,6 +85,17 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         log.info("商家端验证码已发送: phone={}, code={}", phone, code);
     }
 
+    /**
+     * 验证码登录
+     * <p>
+     * 验证手机号和验证码，成功后生成JWT Token。
+     * </p>
+     *
+     * @param phone 手机号
+     * @param code  验证码
+     * @return 登录结果（含Token和商家信息）
+     * @throws BusinessException 如果验证失败
+     */
     @Override
     public MerchantLoginVO loginByCode(String phone, String code) {
         // 验证验证码
@@ -91,6 +121,16 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         return buildLoginResponse(merchant);
     }
 
+    /**
+     * 密码登录
+     * <p>
+     * 验证手机号和加密密码。
+     * </p>
+     *
+     * @param request 登录请求
+     * @return 登录结果
+     * @throws BusinessException 如果账号或密码错误
+     */
     @Override
     public MerchantLoginVO loginByPassword(MerchantLoginDTO request) {
         // 查找商家（直接使用merchants表）
@@ -111,6 +151,15 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         return buildLoginResponse(merchant);
     }
 
+    /**
+     * 获取当前登录商家信息
+     * <p>
+     * 返回商家的详细资料及权限列表。
+     * </p>
+     *
+     * @param merchantId 商家ID
+     * @return 商家信息VO
+     */
     @Override
     public MerchantUserInfoVO getCurrentUserInfo(Long merchantId) {
         MerchantDO merchant = merchantMapper.selectById(merchantId);
@@ -135,6 +184,14 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         return response;
     }
 
+    /**
+     * 退出登录
+     * <p>
+     * 将Token加入黑名单使其失效。
+     * </p>
+     *
+     * @param token JWT Token
+     */
     @Override
     public void logout(String token) {
         if (token != null && token.startsWith("Bearer ")) {
@@ -147,6 +204,18 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         }
     }
 
+    /**
+     * 商家注册入驻
+     * <p>
+     * 1. 验证手机验证码
+     * 2. 创建商家账号(merchants)
+     * 3. 自动同步创建UniApp用户端账号(users)
+     * 4. 自动创建默认门店(shop)
+     * </p>
+     *
+     * @param request 注册信息
+     * @return 注册并自动登录的结果
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MerchantLoginVO register(MerchantRegisterDTO request) {
@@ -273,6 +342,16 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         return response;
     }
 
+    /**
+     * 更新商家资料
+     * <p>
+     * 更新商家的基本信息、联系方式及营业资质。
+     * 同时会同步更新关联门店的名称和电话。
+     * </p>
+     *
+     * @param merchantId 商家ID
+     * @param request    更新请求
+     */
     @Override
     public void updateProfile(Long merchantId, com.businessreviews.model.dto.merchant.MerchantUpdateDTO request) {
         MerchantDO merchant = merchantMapper.selectById(merchantId);

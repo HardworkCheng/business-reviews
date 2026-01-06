@@ -7,8 +7,13 @@ import java.io.Serial;
 import java.io.Serializable;
 
 /**
- * 用户资料VO
+ * 他人个人主页展示对象
+ * <p>
+ * 用于展示他人的用户信息及相关统计数据
+ * </p>
  * 注意：Boolean字段使用@JsonProperty保持API兼容性
+ * 
+ * @author businessreviews
  */
 @Data
 public class UserProfileVO implements Serializable {
@@ -22,7 +27,7 @@ public class UserProfileVO implements Serializable {
     private Integer followerCount;
     private Integer likeCount;
     private Integer noteCount;
-    
+
     /**
      * 是否已关注
      * 注意：按照阿里巴巴规范，Boolean字段不使用is前缀

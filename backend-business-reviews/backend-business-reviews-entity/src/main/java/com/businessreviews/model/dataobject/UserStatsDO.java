@@ -7,50 +7,55 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * 用户统计数据对象
+ * 用户统计数据映射对象
+ * <p>
+ * 对应数据库表 user_stats，聚合存储用户的关注、粉丝、获赞等统计指标
+ * </p>
+ * 
+ * @author businessreviews
  */
 @Data
 @TableName("user_stats")
 public class UserStatsDO implements Serializable {
-    
+
     private static final long serialVersionUID = 1L;
-    
+
     @TableId(type = IdType.AUTO)
     private Long id;
-    
+
     /**
      * 用户ID
      */
     private Long userId;
-    
+
     /**
      * 关注数
      */
     private Integer followingCount;
-    
+
     /**
      * 粉丝数
      */
     private Integer followerCount;
-    
+
     /**
      * 获赞总数
      */
     private Integer likeCount;
-    
+
     /**
      * 收藏总数
      */
     private Integer favoriteCount;
-    
+
     /**
      * 笔记总数
      */
     private Integer noteCount;
-    
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
-    
+
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
 }

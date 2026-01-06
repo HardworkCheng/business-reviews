@@ -7,8 +7,10 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * 商家数据对象（DO）
- * 与数据库表merchants一一对应
+ * 商家主体数据映射对象
+ * <p>
+ * 对应数据库表 merchants，存储商家的基础资质认证及主体信息
+ * </p>
  * 
  * @author businessreviews
  */

@@ -19,26 +19,46 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
+/**
+ * OSS文件存储服务实现类
+ * <p>
+ * 基于阿里云OSS实现文件上传、流式上传及文件删除功能。
+ * </p>
+ *
+ * @author businessreviews
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class OssServiceImpl implements OssService {
-    
+
     private final OssConfig ossConfig;
-    
+
+    /**
+     * 上传文件
+     * <p>
+     * 将MultipartFile上传到指定文件夹。
+     * 会进行文件类型、大小校验，并生成唯一的随机文件名。
+     * </p>
+     *
+     * @param file   前端上传的文件对象
+     * @param folder OSS中的目标文件夹名称
+     * @return 上传后的文件完整URL
+     * @throws BusinessException 如果文件校验失败或上传过程中发生异常
+     */
     @Override
     public String uploadFile(MultipartFile file, String folder) {
         // 验证文件
         validateFile(file);
-        
+
         try {
             // 生成文件名
             String fileName = generateFileName(file.getOriginalFilename());
             String objectKey = buildObjectKey(folder, fileName);
-            
+
             // 将文件内容读取到字节数组，避免 InputStream 重置问题
             byte[] fileBytes = file.getBytes();
-            
+
             // 使用字节数组创建新的 InputStream 上传到 OSS
             return uploadToOss(new ByteArrayInputStream(fileBytes), objectKey, fileBytes.length);
         } catch (IOException e) {
@@ -46,15 +66,24 @@ public class OssServiceImpl implements OssService {
             throw new BusinessException(50000, "文件上传失败");
         }
     }
-    
+
+    /**
+     * 流式上传文件
+     *
+     * @param inputStream 文件输入流
+     * @param fileName    文件名（需包含扩展名）
+     * @param folder      OSS中的目标文件夹名称
+     * @return 上传后的文件完整URL
+     * @throws BusinessException 如果上传过程中发生异常
+     */
     @Override
     public String uploadStream(InputStream inputStream, String fileName, String folder) {
         try {
             String objectKey = buildObjectKey(folder, fileName);
-            
+
             // 将输入流读取到字节数组，避免重置问题
             byte[] bytes = inputStream.readAllBytes();
-            
+
             // 使用字节数组创建新的 InputStream 上传到 OSS
             return uploadToOss(new ByteArrayInputStream(bytes), objectKey, bytes.length);
         } catch (IOException e) {
@@ -62,17 +91,22 @@ public class OssServiceImpl implements OssService {
             throw new BusinessException(50000, "流上传失败");
         }
     }
-    
+
+    /**
+     * 删除文件
+     *
+     * @param fileUrl 文件的完整URL
+     */
     @Override
     public void deleteFile(String fileUrl) {
         if (fileUrl == null || fileUrl.isEmpty()) {
             return;
         }
-        
+
         // 直接删除OSS文件
         deleteOssFile(fileUrl);
     }
-    
+
     /**
      * 上传到阿里云OSS
      */
@@ -81,31 +115,29 @@ public class OssServiceImpl implements OssService {
         try {
             // 创建OSSClient实例
             ossClient = new OSSClientBuilder().build(
-                ossConfig.getEndpoint(),
-                ossConfig.getAccessKeyId(),
-                ossConfig.getAccessKeySecret()
-            );
-            
+                    ossConfig.getEndpoint(),
+                    ossConfig.getAccessKeyId(),
+                    ossConfig.getAccessKeySecret());
+
             // 创建上传请求，设置内容长度
             PutObjectRequest putObjectRequest = new PutObjectRequest(
-                ossConfig.getBucketName(),
-                objectKey,
-                inputStream
-            );
-            
+                    ossConfig.getBucketName(),
+                    objectKey,
+                    inputStream);
+
             // 设置元数据，指定内容长度
             com.aliyun.oss.model.ObjectMetadata metadata = new com.aliyun.oss.model.ObjectMetadata();
             metadata.setContentLength(contentLength);
             putObjectRequest.setMetadata(metadata);
-            
+
             // 上传文件
             ossClient.putObject(putObjectRequest);
-            
+
             // 返回文件URL
             String fileUrl = ossConfig.getUrlPrefix() + "/" + objectKey;
             log.info("文件上传成功到OSS: {}", fileUrl);
             return fileUrl;
-            
+
         } catch (Exception e) {
             log.error("OSS上传失败: {}", objectKey, e);
             throw new BusinessException(50000, "OSS上传失败: " + e.getMessage());
@@ -123,7 +155,7 @@ public class OssServiceImpl implements OssService {
             }
         }
     }
-    
+
     /**
      * 删除OSS文件
      */
@@ -134,16 +166,15 @@ public class OssServiceImpl implements OssService {
             if (objectKey == null) {
                 return;
             }
-            
+
             ossClient = new OSSClientBuilder().build(
-                ossConfig.getEndpoint(),
-                ossConfig.getAccessKeyId(),
-                ossConfig.getAccessKeySecret()
-            );
-            
+                    ossConfig.getEndpoint(),
+                    ossConfig.getAccessKeyId(),
+                    ossConfig.getAccessKeySecret());
+
             ossClient.deleteObject(ossConfig.getBucketName(), objectKey);
             log.info("OSS文件删除成功: {}", objectKey);
-            
+
         } catch (Exception e) {
             log.error("OSS文件删除失败: {}", fileUrl, e);
         } finally {
@@ -152,7 +183,7 @@ public class OssServiceImpl implements OssService {
             }
         }
     }
-    
+
     /**
      * 验证文件
      */
@@ -160,18 +191,18 @@ public class OssServiceImpl implements OssService {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(40001, "文件不能为空");
         }
-        
+
         // 验证文件大小
         if (file.getSize() > FileUploadConstants.MAX_FILE_SIZE) {
             throw new BusinessException(40001, "文件大小不能超过" + FileUploadConstants.MAX_FILE_SIZE_DESC);
         }
-        
+
         // 验证文件类型
         String originalFilename = file.getOriginalFilename();
         if (originalFilename == null) {
             throw new BusinessException(40001, "文件名不能为空");
         }
-        
+
         String extension = getExtension(originalFilename).toLowerCase();
         boolean isAllowed = false;
         for (String allowedExt : FileUploadConstants.ALLOWED_IMAGE_EXTENSIONS) {
@@ -180,12 +211,12 @@ public class OssServiceImpl implements OssService {
                 break;
             }
         }
-        
+
         if (!isAllowed) {
             throw new BusinessException(40001, "仅支持JPG、PNG、GIF、WEBP、BMP格式的图片");
         }
     }
-    
+
     /**
      * 生成唯一文件名
      */
@@ -193,7 +224,7 @@ public class OssServiceImpl implements OssService {
         String extension = getExtension(originalFilename);
         return UUID.randomUUID().toString().replace("-", "") + extension;
     }
-    
+
     /**
      * 构建对象key (带日期目录)
      */
@@ -201,7 +232,7 @@ public class OssServiceImpl implements OssService {
         String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
         return folder + "/" + date + "/" + fileName;
     }
-    
+
     /**
      * 获取文件扩展名
      */
@@ -209,7 +240,7 @@ public class OssServiceImpl implements OssService {
         int lastDot = filename.lastIndexOf(".");
         return lastDot == -1 ? "" : filename.substring(lastDot);
     }
-    
+
     /**
      * 从URL中提取ObjectKey
      */

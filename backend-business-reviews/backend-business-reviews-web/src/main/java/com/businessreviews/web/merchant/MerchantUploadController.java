@@ -14,6 +14,11 @@ import java.util.Map;
 
 /**
  * 商家文件上传控制器
+ * <p>
+ * 提供商家运营中心的文件上传API，支持单文件、多文件上传。
+ * </p>
+ *
+ * @author businessreviews
  */
 @Slf4j
 @RestController
@@ -25,6 +30,10 @@ public class MerchantUploadController {
 
     /**
      * 上传单个文件
+     *
+     * @param file   文件
+     * @param folder 文件夹（可选）
+     * @return 文件URL
      */
     @PostMapping
     public Result<Map<String, String>> uploadFile(
@@ -43,6 +52,10 @@ public class MerchantUploadController {
 
     /**
      * 批量上传文件
+     *
+     * @param files  文件数组
+     * @param folder 文件夹（可选）
+     * @return 文件URL列表
      */
     @PostMapping("/batch")
     public Result<Map<String, List<String>>> uploadFiles(
@@ -62,7 +75,7 @@ public class MerchantUploadController {
             return Result.error("批量文件上传失败: " + e.getMessage());
         }
     }
-    
+
     /**
      * 公开上传接口（用于商家入驻注册时上传图片，无需登录）
      * 仅允许上传到 merchant/logo, merchant/avatar, merchant/license 目录
@@ -73,13 +86,13 @@ public class MerchantUploadController {
             @RequestParam(value = "folder", defaultValue = "merchant/register") String folder) {
         try {
             // 安全检查：只允许上传到注册相关的目录
-            if (!folder.startsWith("merchant/logo") && 
-                !folder.startsWith("merchant/avatar") && 
-                !folder.startsWith("merchant/license") &&
-                !folder.startsWith("merchant/register")) {
+            if (!folder.startsWith("merchant/logo") &&
+                    !folder.startsWith("merchant/avatar") &&
+                    !folder.startsWith("merchant/license") &&
+                    !folder.startsWith("merchant/register")) {
                 return Result.error("不允许上传到该目录");
             }
-            
+
             String url = ossService.uploadFile(file, folder);
             Map<String, String> result = new HashMap<>();
             result.put("url", url);

@@ -4,7 +4,10 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
 /**
- * 时间工具类
+ * 时间格式化工具类
+ * <p>
+ * 提供人性化的时间显示格式（如：刚刚、几分钟前、几天前）
+ * </p>
  */
 public class TimeUtil {
 
@@ -15,10 +18,10 @@ public class TimeUtil {
         if (dateTime == null) {
             return "";
         }
-        
+
         LocalDateTime now = LocalDateTime.now();
         long minutes = ChronoUnit.MINUTES.between(dateTime, now);
-        
+
         if (minutes < 1) {
             return "刚刚";
         } else if (minutes < 60) {

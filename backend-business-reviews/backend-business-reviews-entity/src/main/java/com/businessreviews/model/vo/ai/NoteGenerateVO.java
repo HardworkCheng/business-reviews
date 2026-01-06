@@ -6,9 +6,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * AI智能生成探店笔记响应VO
- * 
- * 包含生成的笔记标题和正文内容
+ * AI智能生成探店笔记响应对象
+ * <p>
+ * 包含生成的笔记标题和正文内容，符合平台内容风格
+ * </p>
  * 
  * @author businessreviews
  */

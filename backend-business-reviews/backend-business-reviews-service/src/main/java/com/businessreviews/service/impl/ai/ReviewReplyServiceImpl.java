@@ -23,6 +23,17 @@ public class ReviewReplyServiceImpl implements ReviewReplyService {
 
     private final SmartReplyAgent smartReplyAgent;
 
+    /**
+     * 智能生成回复
+     * <p>
+     * 根据评论内容和赠礼策略，调用AI生成个性化回复。
+     * 包含情感识别、安抚或感谢话术。
+     * </p>
+     *
+     * @param reviewText 评论内容
+     * @param strategy   赠礼策略（如"送可乐"）
+     * @return AI生成的回复内容
+     */
     @Override
     public String generateReply(String reviewText, String strategy) {
         // 参数校验

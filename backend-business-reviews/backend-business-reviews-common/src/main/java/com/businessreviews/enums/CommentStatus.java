@@ -7,9 +7,9 @@ import lombok.Getter;
  */
 @Getter
 public enum CommentStatus {
-    /** 正常 */
+    /** 正常显示 */
     NORMAL(1, "正常"),
-    /** 隐藏 */
+    /** 隐藏 (如被折叠或违规屏蔽) */
     HIDDEN(2, "隐藏");
 
     private final int code;

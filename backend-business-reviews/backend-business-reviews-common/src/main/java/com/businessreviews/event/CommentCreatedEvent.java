@@ -5,7 +5,12 @@ import org.springframework.context.ApplicationEvent;
 
 /**
  * 评论创建事件
- * 用于触发异步内容审核
+ * <p>
+ * 当用户发布新评论后发布此事件，用于解耦触发：
+ * 1. 内容安全审核（文本/图片）
+ * 2. 消息通知（通知被评论人）
+ * 3. 统计数据更新
+ * </p>
  * 
  * @author businessreviews
  */

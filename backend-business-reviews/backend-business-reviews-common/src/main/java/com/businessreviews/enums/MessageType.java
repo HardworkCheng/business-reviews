@@ -3,7 +3,10 @@ package com.businessreviews.enums;
 import lombok.Getter;
 
 /**
- * 消息类型枚举
+ * 聊天消息类型枚举
+ * <p>
+ * 定义系统支持的IM消息格式
+ * </p>
  */
 @Getter
 public enum MessageType {

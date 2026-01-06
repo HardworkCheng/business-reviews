@@ -4,31 +4,37 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+/**
+ * 阿里云OSS对象存储配置类
+ * <p>
+ * 读取配置文件中 aliyun.oss 前缀的配置项
+ * </p>
+ */
 @Data
 @Component
 @ConfigurationProperties(prefix = "aliyun.oss")
 public class OssConfig {
-    
+
     /**
      * OSS服务endpoint
      */
     private String endpoint;
-    
+
     /**
      * 阿里云AccessKeyId
      */
     private String accessKeyId;
-    
+
     /**
      * 阿里云AccessKeySecret
      */
     private String accessKeySecret;
-    
+
     /**
      * Bucket名称
      */
     private String bucketName;
-    
+
     /**
      * URL前缀
      */

@@ -14,15 +14,17 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * 商家运营中心 - 认证控制器 (Web端)
- * 
+ * <p>
  * 提供商家运营中心的认证相关API：
  * - POST /merchant/auth/send-code - 发送验证码
  * - POST /merchant/auth/login - 登录（支持密码和验证码）
  * - POST /merchant/auth/register - 商家入驻注册
  * - GET /merchant/auth/profile - 获取当前用户信息
  * - POST /merchant/auth/logout - 退出登录
- * 
- * @see com.businessreviews.service.MerchantAuthService
+ * </p>
+ *
+ * @author businessreviews
+ * @see com.businessreviews.service.merchant.MerchantAuthService
  */
 @RestController
 @RequestMapping("/merchant/auth")
@@ -33,6 +35,9 @@ public class MerchantAuthController {
 
     /**
      * 发送验证码
+     *
+     * @param request 请求参数
+     * @return 成功结果
      */
     @PostMapping("/send-code")
     public Result<?> sendCode(@RequestBody @Valid SendCodeDTO request) {
@@ -41,7 +46,10 @@ public class MerchantAuthController {
     }
 
     /**
-     * 登录（支持密码和验证码两种方式）
+     * 登录（支持密码和验证码）
+     *
+     * @param request 登录请求参数
+     * @return 登录结果
      */
     @PostMapping("/login")
     public Result<MerchantLoginVO> login(@RequestBody @Valid MerchantLoginDTO request) {
@@ -55,7 +63,10 @@ public class MerchantAuthController {
     }
 
     /**
-     * 商家入驻注册（完整信息）
+     * 商家入驻注册
+     *
+     * @param request 注册请求参数
+     * @return 注册结果
      */
     @PostMapping("/register")
     public Result<MerchantLoginVO> register(@RequestBody @Valid MerchantRegisterDTO request) {
@@ -65,6 +76,8 @@ public class MerchantAuthController {
 
     /**
      * 获取当前用户信息
+     *
+     * @return 用户信息
      */
     @GetMapping("/profile")
     public Result<MerchantUserInfoVO> getProfile() {
@@ -75,6 +88,9 @@ public class MerchantAuthController {
 
     /**
      * 更新当前用户信息
+     *
+     * @param request 更新请求参数
+     * @return 成功结果
      */
     @PutMapping("/profile")
     public com.businessreviews.common.Result<?> updateProfile(
@@ -86,6 +102,9 @@ public class MerchantAuthController {
 
     /**
      * 退出登录
+     *
+     * @param authorization Token
+     * @return 成功结果
      */
     @PostMapping("/logout")
     public Result<?> logout(@RequestHeader(value = "Authorization", required = false) String authorization) {

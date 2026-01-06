@@ -1,7 +1,11 @@
 package com.businessreviews.context;
 
 /**
- * 用户上下文，用于在请求中存储当前用户信息
+ * 用户上下文管理工具
+ * <p>
+ * 基于ThreadLocal实现，用于在一次请求的生命周期内存储和获取当前登录用户的ID。
+ * 通常在拦截器(Interceptor)中设置，在Controller或Service中获取。
+ * </p>
  */
 public class UserContext {
 

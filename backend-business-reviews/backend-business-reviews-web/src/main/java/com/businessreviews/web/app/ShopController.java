@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * 移动端店铺控制器 (UniApp)
- * 
+ * <p>
  * 提供移动端用户的店铺相关API：
  * - GET /shops - 获取商家列表（支持分类筛选和关键词搜索）
  * - GET /shops/nearby - 获取附近商家
@@ -23,8 +23,10 @@ import org.springframework.web.bind.annotation.*;
  * - POST /shops/{id}/bookmark - 收藏商家
  * - DELETE /shops/{id}/bookmark - 取消收藏商家
  * - GET /shops/registered - 获取已注册商户列表
- * 
- * @see com.businessreviews.service.ShopService
+ * </p>
+ *
+ * @author businessreviews
+ * @see com.businessreviews.service.app.ShopService
  */
 @RestController
 @RequestMapping("/shops")
@@ -35,6 +37,13 @@ public class ShopController {
 
     /**
      * 获取商家列表（支持分类筛选和关键词搜索）
+     *
+     * @param categoryId 分类ID
+     * @param keyword    关键词
+     * @param sortBy     排序方式
+     * @param pageNum    页码
+     * @param pageSize   每页数量
+     * @return 商家列表
      */
     @GetMapping
     public Result<PageResult<ShopItemVO>> getShopList(
@@ -58,13 +67,18 @@ public class ShopController {
             @RequestParam(required = false) Long categoryId,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize) {
-        PageResult<ShopItemVO> result = shopService.getNearbyShops(latitude, longitude, distance, categoryId, pageNum, pageSize);
+        PageResult<ShopItemVO> result = shopService.getNearbyShops(latitude, longitude, distance, categoryId, pageNum,
+                pageSize);
         return Result.success(result);
     }
 
-
     /**
      * 搜索商家
+     *
+     * @param keyword  关键词
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 商家列表
      */
     @GetMapping("/search")
     public Result<PageResult<ShopItemVO>> searchShops(
@@ -77,6 +91,9 @@ public class ShopController {
 
     /**
      * 获取商家详情
+     *
+     * @param id 商家ID
+     * @return 商家详情VO
      */
     @GetMapping("/{id}")
     public Result<ShopDetailVO> getShopDetail(@PathVariable Long id) {
@@ -87,6 +104,11 @@ public class ShopController {
 
     /**
      * 获取商家笔记列表
+     *
+     * @param id       商家ID
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 笔记列表
      */
     @GetMapping("/{id}/notes")
     public Result<PageResult<Object>> getShopNotes(
@@ -99,6 +121,9 @@ public class ShopController {
 
     /**
      * 收藏商家
+     *
+     * @param id 商家ID
+     * @return 成功结果
      */
     @PostMapping("/{id}/bookmark")
     public Result<?> bookmarkShop(@PathVariable Long id) {
@@ -109,6 +134,9 @@ public class ShopController {
 
     /**
      * 取消收藏商家
+     *
+     * @param id 商家ID
+     * @return 成功结果
      */
     @DeleteMapping("/{id}/bookmark")
     public Result<?> unbookmarkShop(@PathVariable Long id) {
@@ -119,6 +147,12 @@ public class ShopController {
 
     /**
      * 获取商家评价列表
+     *
+     * @param id       商家ID
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @param sortBy   排序方式
+     * @return 评价列表
      */
     @GetMapping("/{id}/reviews")
     public Result<PageResult<Object>> getShopReviews(
@@ -132,6 +166,10 @@ public class ShopController {
 
     /**
      * 发表商家评价
+     *
+     * @param id      商家ID
+     * @param request 评价内容
+     * @return 成功结果
      */
     @PostMapping("/{id}/reviews")
     public Result<?> postShopReview(
@@ -164,7 +202,14 @@ public class ShopController {
 
     /**
      * 获取已注册商户列表（merchantId不为空的商户）
-     * 用于笔记发布时关联商户
+     * <p>
+     * 用于笔记发布时关联商户。
+     * </p>
+     *
+     * @param keyword  关键词
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 商户列表
      */
     @GetMapping("/registered")
     public Result<PageResult<ShopItemVO>> getRegisteredShops(

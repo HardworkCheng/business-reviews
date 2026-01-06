@@ -6,8 +6,13 @@ import jakarta.validation.constraints.Email;
 import lombok.Data;
 
 /**
- * 商家入驻注册请求DTO
- * 整合了原merchant_users表和merchants表的所有必要字段
+ * 商家入驻注册请求传输对象
+ * <p>
+ * 包含商家的登录账号信息、基本资料、资质证明等。
+ * 注册成功后需经过后台审核才可正式营业。
+ * </p>
+ * 
+ * @author businessreviews
  */
 @Data
 public class MerchantRegisterDTO {

@@ -12,6 +12,11 @@ import java.util.Map;
 
 /**
  * 商家数据看板控制器
+ * <p>
+ * 提供商家运营数据分析，包括笔记、优惠券、用户等维度的数据统计。
+ * </p>
+ *
+ * @author businessreviews
  */
 @RestController
 @RequestMapping("/merchant")
@@ -23,6 +28,8 @@ public class MerchantDashboardController {
 
     /**
      * 获取数据看板数据
+     *
+     * @return 看板统计数据
      */
     @GetMapping("/dashboard")
     public Result<Map<String, Object>> getDashboardData() {
@@ -33,6 +40,10 @@ public class MerchantDashboardController {
 
     /**
      * 获取笔记分析数据
+     *
+     * @param startDate 开始日期
+     * @param endDate   结束日期
+     * @return 笔记分析数据
      */
     @GetMapping("/analytics/notes")
     public Result<Map<String, Object>> getNoteAnalytics(
@@ -45,6 +56,10 @@ public class MerchantDashboardController {
 
     /**
      * 获取优惠券分析数据
+     *
+     * @param startDate 开始日期
+     * @param endDate   结束日期
+     * @return 优惠券分析数据
      */
     @GetMapping("/analytics/coupons")
     public Result<Map<String, Object>> getCouponAnalytics(
@@ -57,6 +72,10 @@ public class MerchantDashboardController {
 
     /**
      * 获取用户分析数据
+     *
+     * @param startDate 开始日期
+     * @param endDate   结束日期
+     * @return 用户分析数据
      */
     @GetMapping("/analytics/users")
     public Result<Map<String, Object>> getUserAnalytics(

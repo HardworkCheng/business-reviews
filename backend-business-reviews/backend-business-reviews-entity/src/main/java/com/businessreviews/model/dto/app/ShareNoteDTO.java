@@ -7,17 +7,22 @@ import lombok.Data;
 import java.util.List;
 
 /**
- * 分享笔记请求DTO
+ * 笔记分享请求传输对象
+ * <p>
+ * 将笔记内容分享给站内好友。
+ * </p>
+ * 
+ * @author businessreviews
  */
 @Data
 public class ShareNoteDTO {
-    
+
     /**
      * 笔记ID
      */
     @NotNull(message = "笔记ID不能为空")
     private Long noteId;
-    
+
     /**
      * 接收者用户ID列表
      */

@@ -3,7 +3,10 @@ package com.businessreviews.enums;
 import lombok.Getter;
 
 /**
- * 收藏类型枚举
+ * 收藏对象类型枚举
+ * <p>
+ * 区分收藏夹中的内容类型
+ * </p>
  */
 @Getter
 public enum FavoriteType {

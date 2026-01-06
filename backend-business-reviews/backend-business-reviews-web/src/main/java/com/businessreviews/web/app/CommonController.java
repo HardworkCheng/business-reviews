@@ -19,6 +19,12 @@ import java.util.Map;
 
 /**
  * 公共接口控制器
+ * <p>
+ * 提供无需登录即可访问的公共数据接口。
+ * 包括：分类查询、话题查询、搜索功能、IP定位等。
+ * </p>
+ *
+ * @author businessreviews
  */
 @RestController
 @RequestMapping("")
@@ -31,6 +37,8 @@ public class CommonController {
 
     /**
      * 获取所有分类（移动端使用）
+     *
+     * @return 分类列表
      */
     @GetMapping("/categories")
     public Result<List<CategoryVO>> getAllCategories() {
@@ -50,24 +58,51 @@ public class CommonController {
         return Result.success(list);
     }
 
+    /**
+     * 获取分类详情
+     *
+     * @param id 分类ID
+     * @return 分类详情
+     */
     @GetMapping("/categories/{id}")
     public Result<CategoryVO> getCategoryDetail(@PathVariable Long id) {
         CategoryVO response = commonService.getCategoryDetail(id);
         return Result.success(response);
     }
 
+    /**
+     * 获取话题列表
+     *
+     * @param categoryId 分类ID（可选）
+     * @return 话题列表
+     */
     @GetMapping("/topics")
     public Result<List<TopicVO>> getTopics(@RequestParam(required = false) Long categoryId) {
         List<TopicVO> list = commonService.getTopics(categoryId);
         return Result.success(list);
     }
 
+    /**
+     * 获取热门话题
+     *
+     * @param limit 数量限制
+     * @return 热门话题列表
+     */
     @GetMapping("/topics/hot")
     public Result<List<TopicVO>> getHotTopics(@RequestParam(defaultValue = "10") Integer limit) {
         List<TopicVO> list = commonService.getHotTopics(limit);
         return Result.success(list);
     }
 
+    /**
+     * 综合搜索
+     *
+     * @param keyword  搜索关键词
+     * @param type     搜索类型 (all:综合, note:笔记, shop:商家)
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 搜索结果Map (notes, shops)
+     */
     @GetMapping("/search")
     public Result<Map<String, Object>> search(
             @RequestParam String keyword,
@@ -90,12 +125,23 @@ public class CommonController {
         return Result.success(result);
     }
 
+    /**
+     * 获取搜索建议
+     *
+     * @param keyword 关键词
+     * @return 建议列表
+     */
     @GetMapping("/search/suggestions")
     public Result<List<String>> getSearchSuggestions(@RequestParam String keyword) {
         List<String> suggestions = commonService.getSearchSuggestions(keyword);
         return Result.success(suggestions);
     }
 
+    /**
+     * 获取热门搜索
+     *
+     * @return 热门搜索词列表
+     */
     @GetMapping("/search/hot")
     public Result<List<String>> getHotSearches() {
         List<String> hotSearches = commonService.getHotSearches();
@@ -140,6 +186,10 @@ public class CommonController {
 
     /**
      * 逆地理编码（经纬度转城市）
+     *
+     * @param longitude 经度
+     * @param latitude  纬度
+     * @return 城市信息
      */
     @GetMapping("/common/location/regeo")
     public Result<Map<String, String>> getCityByLocation(@RequestParam String longitude,

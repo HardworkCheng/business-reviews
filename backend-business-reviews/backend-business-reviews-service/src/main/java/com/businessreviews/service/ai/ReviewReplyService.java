@@ -2,6 +2,9 @@ package com.businessreviews.service.ai;
 
 /**
  * 差评智能回复服务接口
+ * <p>
+ * 提供基于规则或简单AI的差评自动回复生成功能
+ * </p>
  * 
  * @author businessreviews
  */

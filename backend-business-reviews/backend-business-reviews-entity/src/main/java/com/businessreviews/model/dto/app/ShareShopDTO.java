@@ -7,7 +7,12 @@ import lombok.Data;
 import java.util.List;
 
 /**
- * 分享店铺请求DTO
+ * 商家分享请求传输对象
+ * <p>
+ * 将商家主页信息分享给站内好友。
+ * </p>
+ * 
+ * @author businessreviews
  */
 @Data
 public class ShareShopDTO {

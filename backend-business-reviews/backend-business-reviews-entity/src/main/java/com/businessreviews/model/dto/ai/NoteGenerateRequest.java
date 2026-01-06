@@ -8,7 +8,10 @@ import lombok.NoArgsConstructor;
 import java.util.List;
 
 /**
- * AI智能生成探店笔记请求DTO
+ * AI智能生成探店笔记请求传输对象
+ * <p>
+ * 封装生成笔记所需的商家名称、图片URL列表及用户标签
+ * </p>
  * 
  * 包含三个主要输入：
  * - shopName: 商家名称（用于在笔记中提及店铺）

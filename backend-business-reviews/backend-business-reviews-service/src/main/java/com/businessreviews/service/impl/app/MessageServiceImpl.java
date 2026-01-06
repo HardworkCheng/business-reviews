@@ -32,6 +32,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * 消息服务实现类
+ * <p>
+ * 处理站内信、私信、系统通知以及WebSocket实时推送。
+ * 核心功能包括：
+ * 1. 会话列表与聊天记录查询
+ * 2. 私信发送与实时推送
+ * 3. 消息已读状态管理
+ * 4. 系统通知（点赞、评论、关注、AI审核）的分发与存储
+ * </p>
+ *
+ * @author businessreviews
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -46,6 +59,18 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
     private final com.businessreviews.handler.MessageWebSocketHandler webSocketHandler;
     private final ObjectMapper objectMapper;
 
+    /**
+     * 获取会话列表
+     * <p>
+     * 查询当前用户的所有私信会话，每个会话只返回最新的一条消息。
+     * 包含对方用户基本信息及未读消息数。
+     * </p>
+     *
+     * @param userId   当前用户ID
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 会话VO分页列表
+     */
     @Override
     public PageResult<ConversationVO> getConversations(Long userId, Integer pageNum, Integer pageSize) {
         log.info("获取会话列表: userId={}, pageNum={}, pageSize={}", userId, pageNum, pageSize);
@@ -107,6 +132,19 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
         return PageResult.of(list, total, pageNum, pageSize);
     }
 
+    /**
+     * 获取与指定用户的聊天记录
+     * <p>
+     * 查询当前用户与目标用户之间的所有往来消息。
+     * 按时间倒序排列（最新消息在前）。
+     * </p>
+     *
+     * @param userId       当前用户ID
+     * @param targetUserId 对方用户ID
+     * @param pageNum      页码
+     * @param pageSize     每页数量
+     * @return 消息VO分页列表
+     */
     @Override
     public PageResult<MessageVO> getChatHistory(Long userId, Long targetUserId, Integer pageNum, Integer pageSize) {
         Page<MessageDO> page = new Page<>(pageNum, pageSize);
@@ -126,6 +164,19 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
         return PageResult.of(list, messagePage.getTotal(), pageNum, pageSize);
     }
 
+    /**
+     * 发送私信
+     * <p>
+     * 保存消息到数据库，并通过WebSocket实时推送给接收者。
+     * </p>
+     *
+     * @param userId       发送者ID
+     * @param targetUserId 接收者ID
+     * @param content      消息内容
+     * @param type         消息类型 (1:文本, 2:图片, 3:语音, 4:笔记分享, 5:店铺分享)
+     * @return 发送的消息VO
+     * @throws BusinessException 如果目标用户不存在(40401)
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MessageVO sendMessage(Long userId, Long targetUserId, String content, Integer type) {
@@ -174,12 +225,33 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
         return response;
     }
 
+    /**
+     * 标记会话已读
+     * <p>
+     * 将指定发送者发给当前用户的所有未读消息标记为已读。
+     * </p>
+     *
+     * @param userId       当前用户ID（接收者）
+     * @param targetUserId 对方用户ID（发送者）
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void markAsRead(Long userId, Long targetUserId) {
         messageMapper.markAsRead(userId, targetUserId);
     }
 
+    /**
+     * 获取系统通知列表
+     * <p>
+     * 查询各类系统通知（点赞、评论、关注、系统消息等）。
+     * </p>
+     *
+     * @param userId   当前用户ID
+     * @param type     通知类型 (1:点赞, 2:评论, 3:关注, 4:系统, 5:AI审核)
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 通知VO分页列表
+     */
     @Override
     public PageResult<NotificationVO> getNotifications(Long userId, Integer type, Integer pageNum, Integer pageSize) {
         // 使用 system_notices 表获取通知（包含发送者信息）
@@ -220,6 +292,15 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
         notificationMapper.markAllAsRead(userId, type);
     }
 
+    /**
+     * 获取未读消息统计
+     * <p>
+     * 统计各类消息（私信、点赞、评论、关注、系统通知）的未读数量。
+     * </p>
+     *
+     * @param userId 当前用户ID
+     * @return 未读数量统计VO
+     */
     @Override
     public Object getUnreadCount(Long userId) {
         UnreadCountVO response = new UnreadCountVO();
@@ -264,6 +345,19 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
         notificationMapper.insert(notification);
     }
 
+    /**
+     * 发送系统通知（核心方法）
+     * <p>
+     * 保存通知并可扩展为推送。
+     * </p>
+     *
+     * @param userId     接收用户ID
+     * @param fromUserId 发送用户ID (0或null代表系统)
+     * @param type       通知类型
+     * @param targetId   关联目标ID（如笔记ID）
+     * @param content    通知文本内容
+     * @param imageUrl   通知相关图片（如笔记封面）
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void sendSystemNotice(Long userId, Long fromUserId, Integer type, Long targetId, String content,
@@ -281,6 +375,18 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
         log.info("发送系统通知: userId={}, fromUserId={}, type={}, targetId={}", userId, fromUserId, type, targetId);
     }
 
+    /**
+     * 分享笔记给好友
+     * <p>
+     * 将笔记以特殊消息类型(type=4)批量发送给指定好友。
+     * 消息中包含笔记的快照数据（JSON格式）。
+     * </p>
+     *
+     * @param userId  分享者ID
+     * @param noteId  笔记ID
+     * @param userIds 接收者ID列表
+     * @throws BusinessException 如果笔记或用户不存在
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void shareNoteToUsers(Long userId, Long noteId, List<Long> userIds) {
@@ -500,6 +606,19 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
      */
     private static final int NOTICE_TYPE_AUDIT = 5;
 
+    /**
+     * 发送AI审核结果通知
+     * <p>
+     * 当内容被AI拦截时，发送系统通知给用户，告知违规原因和整改建议。
+     * 同时也通过WebSocket实时推送。
+     * </p>
+     *
+     * @param userId       接收用户ID
+     * @param contentType  内容类型（如"笔记"、"评论"）
+     * @param contentTitle 内容标题（可选）
+     * @param reason       违规原因
+     * @param suggestion   整改建议
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void sendAuditNotification(Long userId, String contentType, String contentTitle, String reason,
@@ -559,6 +678,16 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
         }
     }
 
+    /**
+     * 分享店铺给好友
+     * <p>
+     * 将店铺以特殊消息类型(type=5)批量发送给指定好友。
+     * </p>
+     *
+     * @param userId  分享者ID
+     * @param shopId  店铺ID
+     * @param userIds 接收者ID列表
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void shareShopToUsers(Long userId, Long shopId, List<Long> userIds) {

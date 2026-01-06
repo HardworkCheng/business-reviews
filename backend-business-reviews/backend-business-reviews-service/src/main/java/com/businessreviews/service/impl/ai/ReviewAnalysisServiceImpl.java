@@ -49,6 +49,15 @@ public class ReviewAnalysisServiceImpl implements ReviewAnalysisService {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    /**
+     * 生成商家周报
+     * <p>
+     * 统计过去7天内的评论数据，并调用AI进行情感分析和建议生成。
+     * </p>
+     *
+     * @param shopId 门店ID
+     * @return 周报数据DTO
+     */
     @Override
     public WeeklyReportDTO generateReport(Long shopId) {
         log.info("开始生成商家周报, shopId: {}", shopId);

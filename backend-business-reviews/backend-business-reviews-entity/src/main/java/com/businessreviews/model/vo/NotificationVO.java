@@ -7,7 +7,12 @@ import java.io.Serial;
 import java.io.Serializable;
 
 /**
- * 通知VO
+ * 全局通知展示对象
+ * <p>
+ * 用于展示系统级公告或重要提醒，包含发送者及关联内容摘要
+ * </p>
+ * 
+ * @author businessreviews
  */
 @Data
 public class NotificationVO implements Serializable {
@@ -18,21 +23,21 @@ public class NotificationVO implements Serializable {
     private String content;
     private Integer type;
     private String relatedId;
-    
+
     /**
      * 是否已读
      */
     @JsonProperty("isRead")
     private Boolean readStatus;
-    
+
     private String createdAt;
     private String timeAgo;
-    
+
     // 发送者信息
     private Long fromUserId;
     private String fromUsername;
     private String fromAvatar;
-    
+
     // 笔记信息
     private Long noteId;
     private String noteTitle;

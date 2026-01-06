@@ -22,8 +22,13 @@ import java.util.concurrent.Executors;
 
 /**
  * 商家 AI 回复控制器
- * 
+ * <p>
+ * 提供商家运营中心的智能回复生成API，支持同步和流式（SSE）两种模式。
+ * </p>
+ *
  * @author businessreviews
+ * @see com.businessreviews.service.ai.ReviewReplyService
+ * @see com.businessreviews.service.ai.SmartReplyStreamAgent
  */
 @Slf4j
 @RestController
@@ -39,7 +44,7 @@ public class MerchantReplyController {
 
     /**
      * AI 生成差评回复（同步版本，保持向后兼容）
-     * 
+     *
      * @param dto 请求参数
      * @return 生成的回复内容
      */
@@ -61,8 +66,10 @@ public class MerchantReplyController {
 
     /**
      * AI 生成差评回复（SSE 流式版本）
-     * 使用 Server-Sent Events 实现打字机效果
-     * 
+     * <p>
+     * 使用 Server-Sent Events 实现打字机效果。
+     * </p>
+     *
      * @param dto 请求参数
      * @return SseEmitter 用于流式推送
      */

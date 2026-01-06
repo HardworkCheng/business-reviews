@@ -28,6 +28,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * 用户服务实现类
+ * <p>
+ * 处理C端用户的个人信息管理、社交关系及互动历史。
+ * 核心功能包括：
+ * 1. 用户信息查询与修改（改密、换绑手机）
+ * 2. 用户个人主页数据聚合
+ * 3. 关注与粉丝管理
+ * 4. 用户历史记录查询（笔记、收藏、浏览历史）
+ * </p>
+ *
+ * @author businessreviews
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -48,6 +61,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         return userMapper.selectByPhone(phone);
     }
 
+    /**
+     * 注册新用户
+     * <p>
+     * 创建用户基础信息和统计信息记录。
+     * 用户名默认为"用户"+手机号后四位，头像随机分配。
+     * </p>
+     *
+     * @param phone 手机号
+     * @return 注册成功的用户实体
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public UserDO register(String phone) {
@@ -73,6 +96,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         return user;
     }
 
+    /**
+     * 获取当前登录用户个人信息
+     * <p>
+     * 返回用户详细资料及各项统计数据（关注、粉丝、获赞等）。
+     * </p>
+     *
+     * @param userId 用户ID
+     * @return 用户个人信息VO
+     * @throws BusinessException 如果用户不存在(40401)
+     */
     @Override
     public UserInfoVO getUserInfo(Long userId) {
         UserDO user = userMapper.selectById(userId);
@@ -108,6 +141,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         return response;
     }
 
+    /**
+     * 更新用户信息
+     * <p>
+     * 修改用户资料（头像、昵称、简介等）。
+     * 修改成功后会清除Redis缓存。
+     * </p>
+     *
+     * @param userId  用户ID
+     * @param request 更新请求参数
+     * @throws BusinessException 如果用户不存在(40401)
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateUserInfo(Long userId, UpdateUserInfoDTO request) {
@@ -147,6 +191,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         redisUtil.delete(RedisKeyConstants.USER_INFO + userId);
     }
 
+    /**
+     * 获取他人个人主页信息
+     * <p>
+     * 查看其他用户的公开资料及统计数据。
+     * 同时返回当前用户对该用户的关注状态。
+     * </p>
+     *
+     * @param userId        目标用户ID
+     * @param currentUserId 当前登录用户ID（可选）
+     * @return 用户主页VO
+     * @throws BusinessException 如果用户不存在(40401)
+     */
     @Override
     public UserProfileVO getUserProfile(Long userId, Long currentUserId) {
         UserDO user = userMapper.selectById(userId);
@@ -179,6 +235,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         return response;
     }
 
+    /**
+     * 获取我的笔记列表
+     * <p>
+     * 查询当前用户发布的所有笔记，包括审核中和违规的笔记。
+     * </p>
+     *
+     * @param userId   用户ID
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 笔记VO分页列表
+     */
     @Override
     public PageResult<NoteItemVO> getMyNotes(Long userId, Integer pageNum, Integer pageSize) {
         Page<NoteDO> page = new Page<>(pageNum, pageSize);
@@ -198,6 +265,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         return PageResult.of(list, notePage.getTotal(), pageNum, pageSize);
     }
 
+    /**
+     * 获取我的收藏列表
+     * <p>
+     * 查询用户收藏的笔记或店铺。
+     * </p>
+     *
+     * @param userId   用户ID
+     * @param type     收藏类型 (1:笔记, 2:店铺, null:全部)
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 收藏VO分页列表
+     */
     @Override
     public PageResult<FavoriteItemVO> getMyFavorites(Long userId, Integer type, Integer pageNum, Integer pageSize) {
         Page<UserFavoriteDO> page = new Page<>(pageNum, pageSize);
@@ -239,6 +318,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         return PageResult.of(list, favPage.getTotal(), pageNum, pageSize);
     }
 
+    /**
+     * 获取浏览历史
+     * <p>
+     * 查询用户的浏览记录（笔记或店铺）。
+     * </p>
+     *
+     * @param userId   用户ID
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 历史记录VO分页列表
+     */
     @Override
     public PageResult<HistoryItemVO> getBrowseHistory(Long userId, Integer pageNum, Integer pageSize) {
         Page<BrowseHistoryDO> page = new Page<>(pageNum, pageSize);
@@ -285,6 +375,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         return PageResult.of(list, historyPage.getTotal(), pageNum, pageSize);
     }
 
+    /**
+     * 关注用户
+     *
+     * @param userId       当前用户ID
+     * @param targetUserId 目标用户ID
+     * @throws BusinessException 如果关注自己(40001)、用户不存在(40401)或已关注(40001)
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void followUser(Long userId, Long targetUserId) {
@@ -320,6 +417,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
                 user.getUsername() + " 关注了你", user.getAvatar());
     }
 
+    /**
+     * 取消关注用户
+     *
+     * @param userId       当前用户ID
+     * @param targetUserId 目标用户ID
+     * @throws BusinessException 如果未关注(40001)
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void unfollowUser(Long userId, Long targetUserId) {
@@ -341,6 +445,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         userStatsMapper.decrementFollowerCount(targetUserId);
     }
 
+    /**
+     * 获取关注列表
+     *
+     * @param userId   用户ID
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 用户列表VO
+     */
     @Override
     public PageResult<UserItemVO> getFollowingList(Long userId, Integer pageNum, Integer pageSize) {
         Page<UserFollowDO> page = new Page<>(pageNum, pageSize);
@@ -365,6 +477,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         return PageResult.of(list, followPage.getTotal(), pageNum, pageSize);
     }
 
+    /**
+     * 获取粉丝列表
+     * <p>
+     * 同时会返回当前用户是否回关了这些粉丝。
+     * </p>
+     *
+     * @param userId   用户ID
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 用户列表VO
+     */
     @Override
     public PageResult<UserItemVO> getFollowerList(Long userId, Integer pageNum, Integer pageSize) {
         Page<UserFollowDO> page = new Page<>(pageNum, pageSize);
@@ -453,6 +576,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         return phone.substring(0, 3) + "****" + phone.substring(7);
     }
 
+    /**
+     * 修改密码
+     * <p>
+     * 需要验证手机验证码和旧密码。
+     * 修改成功后会清除Redis缓存。
+     * </p>
+     *
+     * @param userId  用户ID
+     * @param request 修改密码请求（含旧密码、新密码、验证码）
+     * @throws BusinessException 如果验证失败
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void changePassword(Long userId, ChangePasswordDTO request) {
@@ -501,6 +635,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         log.info("用户{}:密码修改成功", userId);
     }
 
+    /**
+     * 更换绑定手机号
+     * <p>
+     * 需要验证旧手机号验证码和新手机号验证码。
+     * 24小时内只能修改一次。
+     * </p>
+     *
+     * @param userId  用户ID
+     * @param request 换绑请求（含新旧手机号及验证码）
+     * @throws BusinessException 如果验证失败或频率超限
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void changePhone(Long userId, ChangePhoneDTO request) {

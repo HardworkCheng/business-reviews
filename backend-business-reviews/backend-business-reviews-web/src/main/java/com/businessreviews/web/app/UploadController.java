@@ -14,6 +14,11 @@ import java.util.Map;
 
 /**
  * 移动端文件上传控制器
+ * <p>
+ * 提供图片上传服务，包括单图、多图和头像上传。
+ * </p>
+ *
+ * @author businessreviews
  */
 @RestController
 @RequestMapping("/upload")
@@ -25,6 +30,10 @@ public class UploadController {
 
     /**
      * 上传单个图片
+     *
+     * @param file        文件
+     * @param httpRequest HTTP请求
+     * @return 图片URL
      */
     @PostMapping("/image")
     public Result<Map<String, String>> uploadImage(
@@ -32,7 +41,7 @@ public class UploadController {
             HttpServletRequest httpRequest) {
         Long userId = getUserId(httpRequest);
         String url = uploadService.uploadImage(file, userId);
-        
+
         Map<String, String> data = new HashMap<>();
         data.put("url", url);
         return Result.success("上传成功", data);
@@ -40,6 +49,10 @@ public class UploadController {
 
     /**
      * 上传多个图片
+     *
+     * @param files       文件数组
+     * @param httpRequest HTTP请求
+     * @return 图片URL数组
      */
     @PostMapping("/images")
     public Result<Map<String, String[]>> uploadImages(
@@ -47,7 +60,7 @@ public class UploadController {
             HttpServletRequest httpRequest) {
         Long userId = getUserId(httpRequest);
         String[] urls = uploadService.uploadImages(files, userId);
-        
+
         Map<String, String[]> data = new HashMap<>();
         data.put("urls", urls);
         return Result.success("上传成功", data);
@@ -55,6 +68,10 @@ public class UploadController {
 
     /**
      * 上传头像
+     *
+     * @param file        文件
+     * @param httpRequest HTTP请求
+     * @return 头像URL
      */
     @PostMapping("/avatar")
     public Result<Map<String, String>> uploadAvatar(
@@ -62,26 +79,26 @@ public class UploadController {
             HttpServletRequest httpRequest) {
         Long userId = getUserId(httpRequest);
         String url = uploadService.uploadAvatar(file, userId);
-        
+
         Map<String, String> data = new HashMap<>();
         data.put("url", url);
         return Result.success("上传成功", data);
     }
-    
+
     /**
      * 手动解析token获取userId
      */
     private Long getUserId(HttpServletRequest httpRequest) {
         // 从 UserContext 获取
         Long userId = UserContext.getUserId();
-        
+
         // 如果 UserContext 中没有,直接从请求头获取
         if (userId == null) {
             String authorization = httpRequest.getHeader("Authorization");
-            
+
             if (authorization != null && authorization.startsWith("Bearer ")) {
                 String token = authorization.substring(7);
-                
+
                 try {
                     userId = jwtUtil.getUserIdFromToken(token);
                     UserContext.setUserId(userId);
@@ -92,7 +109,7 @@ public class UploadController {
                 throw new RuntimeException("未登录");
             }
         }
-        
+
         return userId;
     }
 }

@@ -23,7 +23,17 @@ import java.math.RoundingMode;
 
 /**
  * 商家评论服务实现类
- * 管理商家评价（shop_reviews表）
+ * <p>
+ * 处理商家端的评价管理业务。
+ * 核心功能包括：
+ * 1. 评论列表查询（支持状态、关键词、差评筛选）
+ * 2. 评论回复与删除（包含每日删除限额控制）
+ * 3. 评论数据统计（总数、待回复、差评数）
+ * 4. 评价看板数据计算（今日新增、评分趋势、待处理事项）
+ * 5. 评论导出（Excel格式）
+ * </p>
+ *
+ * @author businessreviews
  */
 @Slf4j
 @Service
@@ -35,6 +45,22 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
     private final MerchantMapper merchantMapper;
     private final UserMapper userMapper;
 
+    /**
+     * 获取评论列表
+     * <p>
+     * 支持多维度筛选：门店、状态、关键词、是否差评。
+     * 自动计算各状态Tab的统计数量。
+     * </p>
+     *
+     * @param merchantId 商家ID
+     * @param shopId     门店ID（可选，若为空则查询商家所有门店）
+     * @param pageNum    页码
+     * @param pageSize   每页数量
+     * @param status     状态（1:正常, 2:删除, 0:待审核）
+     * @param keyword    搜索关键词
+     * @param isNegative 是否仅查看差评（评分<=2）
+     * @return 评论VO分页列表（包含Tab计数）
+     */
     @Override
     public PageResult<CommentVO> getCommentList(Long merchantId, Long shopId, Integer pageNum, Integer pageSize,
             Integer status, String keyword, Boolean isNegative) {
@@ -136,6 +162,19 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
         return counts;
     }
 
+    /**
+     * 回复评论
+     * <p>
+     * 商家对用户评论进行回复。
+     * 只能回复属于自己门店的评论。
+     * </p>
+     *
+     * @param merchantId 商家ID
+     * @param operatorId 操作人ID
+     * @param commentId  评论ID
+     * @param content    回复内容
+     * @throws BusinessException 如果评论不存在(40404)或无权操作(40300)
+     */
     @Override
     @Transactional
     public void replyComment(Long merchantId, Long operatorId, Long commentId, String content) {
@@ -163,6 +202,19 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
         log.info("商家评论回复成功: reviewId={}", review.getId());
     }
 
+    /**
+     * 删除评论
+     * <p>
+     * 软删除评论（状态置为2）。
+     * 包含安全控制：每日最多只能删除2条评论。
+     * 删除后会重新计算门店评分。
+     * </p>
+     *
+     * @param merchantId 商家ID
+     * @param operatorId 操作人ID
+     * @param commentId  评论ID
+     * @throws BusinessException 如果超过每日限额或无权操作
+     */
     @Override
     @Transactional
     public void deleteComment(Long merchantId, Long operatorId, Long commentId) {
@@ -206,6 +258,15 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
         recalculateShopRatings(review.getShopId());
     }
 
+    /**
+     * 获取评论基础统计
+     * <p>
+     * 统计总评论数、待回复数等。
+     * </p>
+     *
+     * @param merchantId 商家ID
+     * @return 统计数据Map
+     */
     @Override
     public Map<String, Object> getCommentStats(Long merchantId) {
         log.info("获取商家评论统计: merchantId={}", merchantId);
@@ -237,6 +298,19 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
         return stats;
     }
 
+    /**
+     * 获取评价看板数据
+     * <p>
+     * 提供数据概览，包括：
+     * 1. 今日新增评论及趋势
+     * 2. 平均评分
+     * 3. 待处理事项（待回复、差评）
+     * </p>
+     *
+     * @param merchantId 商家ID
+     * @param shopId     门店ID（可选）
+     * @return 看板数据Map
+     */
     @Override
     public Map<String, Object> getDashboard(Long merchantId, Long shopId) {
         log.info("获取数据概览: merchantId={}, shopId={}", merchantId, shopId);
@@ -334,6 +408,17 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
         return dashboard;
     }
 
+    /**
+     * 置顶/取消置顶评论
+     * <p>
+     * 将优质评论置顶显示。
+     * 目前仅记录日志，需数据库字段支持。
+     * </p>
+     *
+     * @param merchantId 商家ID
+     * @param commentId  评论ID
+     * @param isTop      是否置顶
+     */
     @Override
     @Transactional
     public void topComment(Long merchantId, Long commentId, Boolean isTop) {
@@ -468,6 +553,19 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
         return response;
     }
 
+    /**
+     * 导出评论数据
+     * <p>
+     * 根据筛选条件将评论数据导出为Excel文件。
+     * 使用Hutool工具类生成Excel。
+     * </p>
+     *
+     * @param merchantId 商家ID
+     * @param response   HTTP响应对象
+     * @param shopId     门店ID
+     * @param status     状态
+     * @param keyword    关键词
+     */
     @Override
     public void exportComments(Long merchantId, jakarta.servlet.http.HttpServletResponse response, Long shopId,
             Integer status, String keyword) {

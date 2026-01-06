@@ -6,7 +6,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * AI 生成回复响应 VO
+ * AI 生成回复响应对象
+ * <p>
+ * 用于封装AI生成的回复内容及元数据
+ * </p>
  * 
  * @author businessreviews
  */

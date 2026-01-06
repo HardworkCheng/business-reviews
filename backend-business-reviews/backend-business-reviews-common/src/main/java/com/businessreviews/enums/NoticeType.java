@@ -3,7 +3,10 @@ package com.businessreviews.enums;
 import lombok.Getter;
 
 /**
- * 通知类型枚举
+ * 系统通知类型枚举
+ * <p>
+ * 用于消息中心的消息分类展示
+ * </p>
  */
 @Getter
 public enum NoticeType {

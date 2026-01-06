@@ -31,6 +31,15 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
 
     private final ContentAuditAgent contentAuditAgent;
 
+    /**
+     * 审核普通文本内容
+     * <p>
+     * 检查文本是否包含敏感、违规内容。
+     * </p>
+     *
+     * @param text 待审核文本
+     * @return 审核结果
+     */
     @Override
     public AuditResult auditContent(String text) {
         if (text == null || text.trim().isEmpty()) {
@@ -64,6 +73,16 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
         }
     }
 
+    /**
+     * 审核笔记内容
+     * <p>
+     * 组合审核标题和正文。
+     * </p>
+     *
+     * @param title   笔记标题
+     * @param content 笔记正文
+     * @return 审核结果
+     */
     @Override
     public AuditResult auditNote(String title, String content) {
         // 将标题和内容合并进行审核
@@ -79,6 +98,12 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
         return auditContent(fullContent.toString());
     }
 
+    /**
+     * 审核评论内容
+     *
+     * @param content 评论内容
+     * @return 审核结果
+     */
     @Override
     public AuditResult auditComment(String content) {
         log.info("审核评论内容，长度: {} 字符", content != null ? content.length() : 0);
