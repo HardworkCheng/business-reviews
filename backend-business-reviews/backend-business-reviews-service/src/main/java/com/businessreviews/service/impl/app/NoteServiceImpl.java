@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.businessreviews.constants.RedisKeyConstants;
 import com.businessreviews.common.PageResult;
 import com.businessreviews.enums.NoteStatus;
+import com.businessreviews.enums.NoteType;
+import com.businessreviews.enums.TopicStatus;
 import com.businessreviews.event.NoteCreatedEvent;
 import com.businessreviews.model.dto.app.PublishNoteDTO;
 import com.businessreviews.model.vo.NoteDetailVO;
@@ -468,12 +470,12 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         // 检查用户是否是商家账号，如果是则设置商家笔记标识
         Long merchantId = findMerchantIdByUserId(userId);
         if (merchantId != null) {
-            note.setNoteType(2); // 商家笔记
+            note.setNoteType(NoteType.MERCHANT.getCode()); // 商家笔记
             note.setMerchantId(merchantId);
             note.setSyncStatus(1); // 已同步
             log.info("用户{}是商家账号，设置为商家笔记，merchantId={}", userId, merchantId);
         } else {
-            note.setNoteType(1); // 用户笔记
+            note.setNoteType(NoteType.USER.getCode()); // 用户笔记
         }
 
         noteMapper.insert(note);
@@ -567,7 +569,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         }
 
         // 软删除
-        note.setStatus(0);
+        note.setStatus(NoteStatus.DELETED.getCode());
         noteMapper.updateById(note);
 
         // 更新用户笔记数
@@ -1006,14 +1008,14 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, NoteDO> implements 
         // 查找已存在的话题
         LambdaQueryWrapper<TopicDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(TopicDO::getName, topicName)
-                .eq(TopicDO::getStatus, 1);
+                .eq(TopicDO::getStatus, TopicStatus.NORMAL.getCode());
         TopicDO topic = topicMapper.selectOne(wrapper);
 
         if (topic == null) {
             // 创建新话题
             topic = new TopicDO();
             topic.setName(topicName);
-            topic.setStatus(1);
+            topic.setStatus(TopicStatus.NORMAL.getCode());
             topic.setHot(0);
             topic.setNoteCount(0);
             topic.setViewCount(0);

@@ -21,11 +21,11 @@ import java.util.Random;
 @Component
 @RequiredArgsConstructor
 public class SmsManager {
-    
+
     private final RedisUtil redisUtil;
-    
+
     private static final Random RANDOM = new Random();
-    
+
     /**
      * 发送验证码
      *
@@ -34,33 +34,33 @@ public class SmsManager {
      */
     public String sendCode(String phone) {
         // 检查发送频率限制
-        String limitKey = RedisKeyConstants.SMS_LIMIT_PREFIX + phone;
+        String limitKey = RedisKeyConstants.SMS_LIMIT + phone;
         if (redisUtil.hasKey(limitKey)) {
             throw new BusinessException(40001, "验证码发送过于频繁，请稍后再试");
         }
-        
+
         // 生成验证码
         String code = generateCode();
-        
+
         // 发送短信（实际调用短信服务商API）
         boolean success = doSendSms(phone, code);
         if (!success) {
             throw new BusinessException(50000, "短信发送失败，请稍后重试");
         }
-        
+
         // 保存验证码到Redis
-        String codeKey = RedisKeyConstants.SMS_CODE_PREFIX + phone;
-        redisUtil.set(codeKey, code, SmsCodeConstants.CODE_EXPIRE_SECONDS);
-        
+        String codeKey = RedisKeyConstants.SMS_CODE + phone;
+        redisUtil.set(codeKey, code, SmsCodeConstants.EXPIRE_TIME);
+
         // 设置发送频率限制
         redisUtil.set(limitKey, "1", SmsCodeConstants.SEND_INTERVAL_SECONDS);
-        
+
         log.info("验证码已发送到手机 {}", maskPhone(phone));
-        
+
         // 开发环境返回验证码，生产环境返回null
         return code;
     }
-    
+
     /**
      * 验证验证码
      *
@@ -72,23 +72,23 @@ public class SmsManager {
         if (phone == null || code == null) {
             return false;
         }
-        
-        String codeKey = RedisKeyConstants.SMS_CODE_PREFIX + phone;
+
+        String codeKey = RedisKeyConstants.SMS_CODE + phone;
         String cachedCode = redisUtil.get(codeKey);
-        
+
         if (cachedCode == null) {
             return false;
         }
-        
+
         boolean valid = cachedCode.equals(code);
         if (valid) {
             // 验证成功后删除验证码
             redisUtil.delete(codeKey);
         }
-        
+
         return valid;
     }
-    
+
     /**
      * 获取缓存的验证码（用于验证）
      *
@@ -96,20 +96,20 @@ public class SmsManager {
      * @return 验证码
      */
     public String getCachedCode(String phone) {
-        String codeKey = RedisKeyConstants.SMS_CODE_PREFIX + phone;
+        String codeKey = RedisKeyConstants.SMS_CODE + phone;
         return redisUtil.get(codeKey);
     }
-    
+
     /**
      * 删除验证码
      *
      * @param phone 手机号
      */
     public void removeCode(String phone) {
-        String codeKey = RedisKeyConstants.SMS_CODE_PREFIX + phone;
+        String codeKey = RedisKeyConstants.SMS_CODE + phone;
         redisUtil.delete(codeKey);
     }
-    
+
     /**
      * 实际发送短信
      * 这里接入实际的短信服务商API（如阿里云短信、腾讯云短信等）
@@ -120,7 +120,7 @@ public class SmsManager {
         log.info("发送验证码到手机 {}: {}", phone, code);
         return true;
     }
-    
+
     /**
      * 生成随机验证码
      */
@@ -131,7 +131,7 @@ public class SmsManager {
         }
         return sb.toString();
     }
-    
+
     /**
      * 手机号脱敏
      */

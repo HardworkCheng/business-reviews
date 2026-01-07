@@ -1,7 +1,9 @@
 package com.businessreviews.config;
 
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -16,6 +18,10 @@ import java.time.Duration;
  * 配置多个ChatLanguageModel Bean，用于不同的业务场景：
  * - deepSeekChatModel: DeepSeek模型，用于商家端评论分析和智能回复
  * - visionChatModel: 通义千问Qwen-VL模型，用于用户端探店笔记AI生成（支持图片识别）
+ * 
+ * 同时配置对应的 StreamingChatLanguageModel 支持 SSE 流式输出：
+ * - deepSeekStreamingChatModel: DeepSeek流式模型
+ * - visionStreamingChatModel: 通义千问Qwen-VL流式模型
  * 
  * @author businessreviews
  */
@@ -67,14 +73,18 @@ public class AiModelConfig {
     @Value("${ai.qwen-vision.timeout}")
     private Integer qwenVisionTimeout;
 
+    // ============================================================
+    // 同步模型 Bean
+    // ============================================================
+
     /**
-     * DeepSeek 聊天模型 Bean
+     * DeepSeek 聊天模型 Bean（同步版本）
      * 
      * 用于商家端的AI功能：
      * - 评论分析（ReviewAnalysisAgent）
      * - 智能回复（SmartReplyAgent）
      * 
-     * @Primary 标注为默认的 ChatLanguageModel，@AiService 注解的类会自动使用此模型
+     * @Primary 标注为默认的 ChatLanguageModel
      */
     @Bean
     @Primary
@@ -94,7 +104,7 @@ public class AiModelConfig {
     }
 
     /**
-     * 通义千问 Qwen-VL 视觉模型 Bean
+     * 通义千问 Qwen-VL 视觉模型 Bean（同步版本）
      * 
      * 用于用户端的AI功能：
      * - 探店笔记AI智能生成（VisionNoteService）
@@ -106,6 +116,59 @@ public class AiModelConfig {
         log.info("初始化 通义千问 Qwen-VL 视觉模型: {}", qwenVisionModelName);
 
         return OpenAiChatModel.builder()
+                .apiKey(qwenVisionApiKey)
+                .baseUrl(qwenVisionBaseUrl)
+                .modelName(qwenVisionModelName)
+                .temperature(qwenVisionTemperature)
+                .maxTokens(qwenVisionMaxTokens)
+                .timeout(Duration.ofSeconds(qwenVisionTimeout))
+                .logRequests(true)
+                .logResponses(true)
+                .build();
+    }
+
+    // ============================================================
+    // 流式模型 Bean（支持 SSE 打字机效果）
+    // ============================================================
+
+    /**
+     * DeepSeek 流式聊天模型 Bean
+     * 
+     * 用于商家端的流式AI功能：
+     * - 智能回复流式生成（SmartReplyStreamAgent）
+     * 
+     * @Primary 标注为默认的 StreamingChatLanguageModel
+     */
+    @Bean
+    @Primary
+    public StreamingChatLanguageModel deepSeekStreamingChatModel() {
+        log.info("初始化 DeepSeek 流式聊天模型: {}", deepSeekModelName);
+
+        return OpenAiStreamingChatModel.builder()
+                .apiKey(deepSeekApiKey)
+                .baseUrl(deepSeekBaseUrl)
+                .modelName(deepSeekModelName)
+                .temperature(deepSeekTemperature)
+                .maxTokens(deepSeekMaxTokens)
+                .timeout(Duration.ofSeconds(deepSeekTimeout))
+                .logRequests(true)
+                .logResponses(true)
+                .build();
+    }
+
+    /**
+     * 通义千问 Qwen-VL 流式视觉模型 Bean
+     * 
+     * 用于用户端的流式AI功能：
+     * - 探店笔记流式生成（VisionNoteStreamService）
+     * 
+     * 此模型支持图片识别 + 流式输出，实现打字机效果
+     */
+    @Bean("visionStreamingChatModel")
+    public StreamingChatLanguageModel visionStreamingChatModel() {
+        log.info("初始化 通义千问 Qwen-VL 流式视觉模型: {}", qwenVisionModelName);
+
+        return OpenAiStreamingChatModel.builder()
                 .apiKey(qwenVisionApiKey)
                 .baseUrl(qwenVisionBaseUrl)
                 .modelName(qwenVisionModelName)

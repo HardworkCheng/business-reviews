@@ -245,7 +245,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { publishNote, generateNoteByAI } from '../../api/note'
+import { publishNote, generateNoteByAI, generateNoteByAIStream } from '../../api/note'
 import { uploadImages } from '../../api/upload'
 import { getHotTopics, search } from '../../api/common'
 import { getRegisteredShops } from '../../api/shop'
@@ -308,7 +308,7 @@ const stopLoadingAnimation = () => {
 	aiLoadingText.value = ''
 }
 
-// AI魔法生成笔记
+// AI魔法生成笔记（流式打字机效果）
 const handleMagicGenerate = async () => {
 	// 验证是否有图片
 	if (imageList.value.length === 0) {
@@ -326,28 +326,33 @@ const handleMagicGenerate = async () => {
 	
 	generating.value = true
 	startLoadingAnimation()
-	uni.showLoading({ title: aiLoadingStages[0], mask: true })
 	
-	// 动态更新 Loading 文案
-	const updateLoadingText = setInterval(() => {
-		if (aiLoadingText.value) {
-			uni.showLoading({ title: aiLoadingText.value, mask: true })
-		}
-	}, 2500)
+	// 清空现有内容，准备流式输入
+	title.value = ''
+	content.value = ''
 	
 	try {
 		// 1. 先上传图片获取公网URL（如果还没上传）
 		let imageUrls = []
 		if (uploadedImageUrls.value.length === 0) {
+			uni.showLoading({ title: '正在上传图片...', mask: true })
 			console.log('开始上传图片到OSS...')
 			const uploadResult = await uploadImages(imageList.value)
 			imageUrls = uploadResult.urls
 			uploadedImageUrls.value = imageUrls
 			console.log('图片上传成功:', imageUrls)
+			uni.hideLoading()
 		} else {
 			imageUrls = uploadedImageUrls.value
 			console.log('使用已缓存的图片URL:', imageUrls)
 		}
+		
+		// 显示生成中的状态
+		uni.showToast({
+			title: 'AI正在创作中...',
+			icon: 'none',
+			duration: 60000 // 保持显示
+		})
 		
 		// 2. 构建AI生成请求
 		const generateRequest = {
@@ -356,33 +361,74 @@ const handleMagicGenerate = async () => {
 			tags: selectedTopics.value.map(t => t.name)
 		}
 		
-		console.log('调用AI生成笔记，请求:', generateRequest)
+		console.log('调用AI流式生成笔记，请求:', generateRequest)
 		
-		// 3. 调用AI生成接口
-		const result = await generateNoteByAI(generateRequest)
+		// 3. 使用流式 API，实现打字机效果
+		let fullText = ''
+		let isParsingTitle = true // 默认先解析标题
+		let titleText = ''
+		let contentText = ''
 		
-		console.log('AI生成结果:', result)
-		
-		// 4. 填充标题和内容
-		if (result.title) {
-			title.value = result.title
-		}
-		if (result.content) {
-			content.value = result.content
-		}
-		
-		clearInterval(updateLoadingText)
-		stopLoadingAnimation()
-		uni.hideLoading()
-		uni.showToast({
-			title: 'AI创作完成！',
-			icon: 'success',
-			duration: 1500
-		})
+		await generateNoteByAIStream(
+			generateRequest,
+			// onToken 回调：每个 token 到达时触发
+			(token) => {
+				fullText += token
+				
+				// 检查是否遇到分隔符 "---"
+				if (isParsingTitle && fullText.includes('---')) {
+					// 分隔标题和正文
+					const parts = fullText.split('---')
+					titleText = parts[0].trim()
+					contentText = parts.slice(1).join('---').trim()
+					isParsingTitle = false
+					
+					// 更新显示（打字机效果）
+					title.value = titleText
+					content.value = contentText
+				} else if (isParsingTitle) {
+					// 还在解析标题阶段
+					title.value = fullText.trim()
+				} else {
+					// 正在解析正文阶段
+					const parts = fullText.split('---')
+					contentText = parts.slice(1).join('---').trim()
+					content.value = contentText
+				}
+			},
+			// onComplete 回调：生成完成时触发
+			(finalText) => {
+				console.log('AI流式生成完成，总长度:', finalText.length)
+				
+				// 最终解析
+				if (finalText.includes('---')) {
+					const parts = finalText.split('---')
+					title.value = parts[0].trim().replace(/^(标题[:：]?\s*)/, '')
+					content.value = parts.slice(1).join('---').trim().replace(/^(正文[:：]?\s*)/, '')
+				} else if (finalText.includes('\n\n')) {
+					const parts = finalText.split('\n\n')
+					title.value = parts[0].trim()
+					content.value = parts.slice(1).join('\n\n').trim()
+				}
+				
+				uni.hideToast()
+				stopLoadingAnimation()
+				uni.showToast({
+					title: 'AI创作完成！',
+					icon: 'success',
+					duration: 1500
+				})
+			},
+			// onError 回调：发生错误时触发
+			(error) => {
+				console.error('AI流式生成失败:', error)
+				throw error
+			}
+		)
 		
 	} catch (e) {
-		clearInterval(updateLoadingText)
 		stopLoadingAnimation()
+		uni.hideToast()
 		uni.hideLoading()
 		console.error('AI生成失败:', e)
 		uni.showToast({

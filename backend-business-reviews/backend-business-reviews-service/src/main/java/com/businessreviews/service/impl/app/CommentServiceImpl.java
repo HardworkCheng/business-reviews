@@ -10,6 +10,8 @@ import com.businessreviews.model.vo.CommentVO;
 import com.businessreviews.model.dataobject.*;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.*;
+import com.businessreviews.enums.CommentStatus;
+import com.businessreviews.enums.NoteStatus;
 import com.businessreviews.service.app.CommentService;
 import com.businessreviews.service.app.MessageService;
 import com.businessreviews.util.TimeUtil;
@@ -130,7 +132,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
     public CommentVO addComment(Long userId, AddCommentDTO request) {
         // 检查笔记是否存在
         NoteDO note = noteMapper.selectById(request.getNoteId());
-        if (note == null || note.getStatus() != 1) {
+        if (note == null || note.getStatus() != NoteStatus.NORMAL.getCode()) {
             throw new BusinessException(40402, "笔记不存在");
         }
 
@@ -138,7 +140,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         comment.setNoteId(Long.parseLong(request.getNoteId()));
         comment.setUserId(userId);
         comment.setContent(request.getContent());
-        comment.setStatus(1);
+        comment.setStatus(CommentStatus.NORMAL.getCode());
         comment.setLikeCount(0);
         comment.setReplyCount(0);
 
@@ -202,7 +204,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         }
 
         // 软删除
-        comment.setStatus(0);
+        comment.setStatus(CommentStatus.DELETED.getCode());
         commentMapper.updateById(comment);
 
         // 更新笔记评论数

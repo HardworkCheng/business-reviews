@@ -18,13 +18,9 @@ public final class RedisKeyConstants {
 
     /** 短信验证码 Key前缀 (后面拼接手机号) */
     public static final String SMS_CODE = "sms:code:";
-    /** @deprecated 请使用 SMS_CODE */
-    public static final String SMS_CODE_PREFIX = "sms:code:";
 
     /** 短信发送频率限制 Key前缀 */
     public static final String SMS_LIMIT = "sms:limit:";
-    /** @deprecated 请使用 SMS_LIMIT */
-    public static final String SMS_LIMIT_PREFIX = "sms:limit:";
 
     /** 商家端-短信验证码 Key前缀 */
     public static final String MERCHANT_SMS_CODE = "merchant:sms:code:";

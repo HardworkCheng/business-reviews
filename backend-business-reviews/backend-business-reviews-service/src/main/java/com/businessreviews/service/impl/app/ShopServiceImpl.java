@@ -10,6 +10,7 @@ import com.businessreviews.model.vo.ShopItemVO;
 import com.businessreviews.model.dataobject.*;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.*;
+import com.businessreviews.enums.ReviewStatus;
 import com.businessreviews.service.app.ShopService;
 import com.businessreviews.util.RedisUtil;
 import com.businessreviews.constants.RedisKeyConstants;
@@ -580,7 +581,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
         }
 
         review.setContent((String) request.get("content"));
-        review.setStatus(1);
+        review.setStatus(ReviewStatus.NORMAL.getCode());
         review.setLikeCount(0);
         review.setCreatedAt(LocalDateTime.now());
 
@@ -593,7 +594,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
     private void updateShopRating(Long shopId) {
         LambdaQueryWrapper<ShopReviewDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ShopReviewDO::getShopId, shopId)
-                .eq(ShopReviewDO::getStatus, 1);
+                .eq(ShopReviewDO::getStatus, ReviewStatus.NORMAL.getCode());
         List<ShopReviewDO> reviews = shopReviewMapper.selectList(wrapper);
 
         if (!reviews.isEmpty()) {

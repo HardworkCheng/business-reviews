@@ -7,6 +7,8 @@ import lombok.Getter;
  */
 @Getter
 public enum CommentStatus {
+    /** 已删除 */
+    DELETED(0, "已删除"),
     /** 正常显示 */
     NORMAL(1, "正常"),
     /** 隐藏 (如被折叠或违规屏蔽) */

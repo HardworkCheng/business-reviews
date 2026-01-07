@@ -18,8 +18,6 @@ public final class SmsCodeConstants {
 
     /** 验证码有效期（秒）：5分钟 */
     public static final long EXPIRE_TIME = 300;
-    /** @deprecated 兼容旧代码，请使用 EXPIRE_TIME */
-    public static final long CODE_EXPIRE_SECONDS = 300;
 
     /** 发送频率限制（秒）：60秒 (防止接口被刷) */
     public static final long LIMIT_TIME = 60;

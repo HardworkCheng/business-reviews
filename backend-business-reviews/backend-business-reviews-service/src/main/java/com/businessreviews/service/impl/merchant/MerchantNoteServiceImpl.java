@@ -16,6 +16,10 @@ import com.businessreviews.mapper.NoteCommentMapper;
 import com.businessreviews.mapper.NoteMapper;
 import com.businessreviews.mapper.ShopMapper;
 import com.businessreviews.mapper.UserMapper;
+import com.businessreviews.enums.NoteType;
+import com.businessreviews.enums.NoteStatus;
+import com.businessreviews.enums.UserStatus;
+import com.businessreviews.enums.CommentStatus;
 import com.businessreviews.service.merchant.MerchantNoteService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -188,7 +192,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
 
         // 设置商家笔记特有字段
         note.setUserId(userId); // 使用确保存在的用户ID
-        note.setNoteType(2); // 标记为商家笔记
+        note.setNoteType(NoteType.MERCHANT.getCode()); // 标记为商家笔记
         note.setMerchantId(merchantId); // 设置商家ID
 
         // 设置状态和推荐
@@ -254,7 +258,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         user.setAvatar(merchant.getLogo() != null ? merchant.getLogo() : "https://via.placeholder.com/100"); // 使用商家Logo或默认头像
         user.setBio(merchant.getName() + "的官方账号");
         user.setGender(0);
-        user.setStatus(1);
+        user.setStatus(UserStatus.NORMAL.getCode());
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
 
@@ -346,7 +350,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
             throw new BusinessException(40404, "笔记不存在");
         }
 
-        note.setStatus(1); // 正常/已发布
+        note.setStatus(NoteStatus.NORMAL.getCode()); // 正常/已发布
         note.setUpdatedAt(LocalDateTime.now());
         noteMapper.updateById(note);
         log.info("笔记发布成功: noteId={}", noteId);
@@ -374,7 +378,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
             throw new BusinessException(40404, "笔记不存在");
         }
 
-        note.setStatus(2); // 隐藏/已下线
+        note.setStatus(NoteStatus.HIDDEN.getCode()); // 隐藏/已下线
         note.setUpdatedAt(LocalDateTime.now());
         noteMapper.updateById(note);
         log.info("笔记下线成功: noteId={}", noteId);
@@ -661,7 +665,7 @@ public class MerchantNoteServiceImpl implements MerchantNoteService {
         }
 
         comment.setLikeCount(0);
-        comment.setStatus(1);
+        comment.setStatus(CommentStatus.NORMAL.getCode());
         comment.setCreatedAt(LocalDateTime.now());
         comment.setUpdatedAt(LocalDateTime.now());
 

@@ -15,6 +15,8 @@ import lombok.Getter;
  */
 @Getter
 public enum NoteStatus {
+    /** 已删除 - 用户删除或系统删除 */
+    DELETED(0, "已删除"),
     /** 正常/已发布 - 审核通过，公开可见 */
     NORMAL(1, "正常"),
     /** 隐藏/已拒绝 - 审核不通过或用户隐藏，不公开显示 */

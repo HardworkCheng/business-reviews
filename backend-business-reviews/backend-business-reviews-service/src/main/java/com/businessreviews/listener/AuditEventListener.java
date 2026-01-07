@@ -9,6 +9,8 @@ import com.businessreviews.mapper.NoteMapper;
 import com.businessreviews.mapper.CommentMapper;
 import com.businessreviews.model.dataobject.NoteDO;
 import com.businessreviews.model.dataobject.CommentDO;
+import com.businessreviews.enums.NoteStatus;
+import com.businessreviews.enums.CommentStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -71,13 +73,13 @@ public class AuditEventListener {
             }
 
             if (result.isSafe()) {
-                // 审核通过：状态更新为1（正常/已发布）
-                note.setStatus(1);
+                // 审核通过：状态更新为正常/已发布
+                note.setStatus(NoteStatus.NORMAL.getCode());
                 noteMapper.updateById(note);
                 log.info("笔记 [{}] 审核通过，已发布", noteId);
             } else {
-                // 审核不通过：状态更新为2（隐藏/已拒绝）
-                note.setStatus(2);
+                // 审核不通过：状态更新为隐藏/已拒绝
+                note.setStatus(NoteStatus.HIDDEN.getCode());
                 noteMapper.updateById(note);
                 log.warn("笔记 [{}] 审核不通过，类型: {}, 原因: {}, 建议: {}",
                         noteId, result.getType(), result.getReason(), result.getSuggestion());
@@ -136,8 +138,8 @@ public class AuditEventListener {
                 // 评论默认就是状态1（正常），无需更新
                 log.info("评论 [{}] 审核通过", commentId);
             } else {
-                // 审核不通过：状态更新为2（隐藏）
-                comment.setStatus(2);
+                // 审核不通过：状态更新为隐藏
+                comment.setStatus(CommentStatus.HIDDEN.getCode());
                 commentMapper.updateById(comment);
                 log.warn("评论 [{}] 审核不通过，类型: {}, 原因: {}",
                         commentId, result.getType(), result.getReason());

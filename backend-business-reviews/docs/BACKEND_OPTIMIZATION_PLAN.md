@@ -156,20 +156,58 @@ for (NoteDO note : notes) {
   - `MerchantUserInfoVO.phone`: @Sensitive(type = SensitiveType.PHONE)
   - `MerchantUserInfoVO.contactEmail`: @Sensitive(type = SensitiveType.EMAIL)
 
-### 7. Redis 序列化配置隐患
+### 7. Redis 序列化配置隐患 - 已完成 (2026-01-06)
 **现状**: `RedisConfig` 使用了 `GenericJackson2JsonRedisSerializer`。虽然灵活，但如果 Redis 中存储的 Java 类名发生重构或包路径变更，**反序列化会直接报错**，导致缓存数据不可用甚至服务异常。
 **优化方案**:
 - 建议手动指定 Key 的序列化方式，对于 Value，如果对性能和版本兼容性要求极其严格，可以考虑自定义序列化器，或者确保 Model 类路径相对稳定。
+
+**已完成的优化**:
+- **移除 `GenericJackson2JsonRedisSerializer`**: 不再使用会嵌入 `@class` 字段的序列化方式
+- **改用 `Jackson2JsonRedisSerializer`**: 序列化为纯 JSON，不包含类型信息
+- **创建专用 ObjectMapper (`redisObjectMapper`)**: 
+  - 支持 Java 8 时间类型
+  - 忽略未知属性，提高版本兼容性
+  - 不使用时间戳，使用 ISO-8601 格式
+  - 不启用 DefaultTyping，避免类路径依赖
+- **设计原则文档化**: 在配置类中添加详细的 JavaDoc 说明序列化策略
+- **兼容性保障**:
+  - 推荐使用 `StringRedisTemplate` + `RedisUtil` 工具类
+  - 保留 `RedisTemplate<String, Object>` 以兼容旧代码
 
 ---
 
 ## 🛠 P2: 代码质量与维护性
 
-### 8. 消除"魔法数字" (Magic Numbers)
+### 8. 消除"魔法数字" (Magic Numbers) - 已完成 (2026-01-06)
 **现状**: 代码中充斥着大量的 `1` (正常), `2` (隐藏/商家笔记), `0` (删除/未点赞)。虽然有 Enum 类，但并未完全利用。
 - `note.setStatus(1)` -> `note.setStatus(NoteStatus.NORMAL.getCode())`
 - `item.setNoteType(1)` -> `item.setNoteType(NoteType.USER.getCode())`
 **优化方案**: 将所有硬编码数字替换为对应的 Enum 枚举引用，提高代码可读性。
+
+**已完成的优化**:
+- **新增枚举类**:
+  - `NoteType`: 笔记类型枚举 (USER=1, MERCHANT=2)
+  - `CouponStatus`: 优惠券状态枚举 (DISABLED=0, ENABLED=1, EXPIRED=2)
+  - `UserCouponStatus`: 用户优惠券状态枚举 (UNUSED=1, USED=2, EXPIRED=3)
+  - `MerchantStatus`: 商家状态枚举 (DISABLED=0, NORMAL=1, PENDING=2)
+  - `TopicStatus`: 话题状态枚举 (DISABLED=0, NORMAL=1)
+  - `ReviewStatus`: 评价状态枚举 (DELETED=0, NORMAL=1, HIDDEN=2)
+- **更新已有枚举**:
+  - `NoteStatus`: 添加 DELETED(0) 状态
+  - `CommentStatus`: 添加 DELETED(0) 状态
+- **重构的 Service 类**:
+  - `NoteServiceImpl`: 笔记状态、类型设置
+  - `CommentServiceImpl`: 评论状态设置
+  - `AuthServiceImpl`: 用户状态设置
+  - `UserServiceImpl`: 用户状态设置
+  - `MerchantAuthServiceImpl`: 商家状态设置
+  - `MerchantShopServiceImpl`: 店铺状态设置
+  - `MerchantNoteServiceImpl`: 商家笔记状态、类型、用户状态设置
+  - `MerchantCouponServiceImpl`: 优惠券状态设置
+  - `AuditEventListener`: 审核结果状态设置
+- **重构的 Controller 类**:
+  - `CouponController`: 用户优惠券状态设置
+  - `SeckillController`: 秒杀券状态设置
 
 ### 9. 数据库索引复核
 **现状**: 虽然定义了基础索引，但部分高频组合查询可能未命中索引。
@@ -179,18 +217,48 @@ for (NoteDO note : notes) {
 - **推荐排序**: 推荐流使用了 `status=1` AND `type in (1,2)` ORDER BY `recommend` DESC, `like` DESC。
   - 建议索引: `idx_status_rec_like (status, recommend, like_count)`。
 
-### 10. 重复的常量类
+### 10. 重复的常量类 - 已完成 (2026-01-06)
 **现状**: 项目中同时存在 `Constants` (在 common 包与废弃) 和独立的 `RedisKeyConstants`, `SmsCodeConstants` 等。
 **优化方案**:
 - 删除废弃的 `com.businessreviews.common.Constants` 类。
+
+**已完成的优化**:
+- **删除废弃的 Constants 类**: 移除 `com.businessreviews.common.Constants.java`
+- **清理废弃常量**:
+  - `RedisKeyConstants`: 删除 `SMS_CODE_PREFIX`、`SMS_LIMIT_PREFIX`（保留 `SMS_CODE`、`SMS_LIMIT`）
+  - `SmsCodeConstants`: 删除 `CODE_EXPIRE_SECONDS`（保留 `EXPIRE_TIME`）
+- **更新引用代码**: `SmsManager.java` 统一使用新常量名
+- **当前常量类结构**:
+  - `RedisKeyConstants`: Redis Key 前缀定义
+  - `SmsCodeConstants`: 短信验证码配置
+  - `CacheExpireConstants`: 缓存过期时间配置
+  - `PageConstants`: 分页参数默认值
+  - `FileUploadConstants`: 文件上传限制
 
 ---
 
 ## 📊 P3: 交互体验优化 (后端支持)
 
-### 11. 对话式 AI 响应支持 (SSE)
+### 11. 对话式 AI 响应支持 (SSE) - 已完成 (2026-01-06)
 **现状**: AI 创作和回复目前看似是同步或简单的异步事件。
 **建议**: 为了获得 ChatGPT 式的打字机体验，后端 Controller 应提供 `SseEmitter` 接口（Server-Sent Events），支持流式输出 AI 生成的内容，而不是等待生成完毕再一次性返回。
+
+**已完成的优化**:
+- **新增流式模型配置**:
+  - `AiModelConfig`: 添加 `StreamingChatLanguageModel` Bean
+    - `deepSeekStreamingChatModel`: DeepSeek 流式模型（商家端）
+    - `visionStreamingChatModel`: 通义千问 Qwen-VL 流式模型（用户端）
+- **新增流式服务**:
+  - `VisionNoteStreamService`: 流式笔记生成服务接口
+  - `VisionNoteStreamServiceImpl`: 实现流式输出，使用 `StreamingResponseHandler` 回调
+- **新增 SSE 接口**:
+  - `POST /note/generate/stream`: 用户端笔记流式生成
+  - `POST /merchant/reply/generate/stream`: 商家端智能回复流式生成（已存在）
+- **SSE 事件协议**:
+  - `token` 事件: 每个生成的字符/词元
+  - `done` 事件: 生成完成信号 `[DONE]`
+  - `error` 事件: 生成失败错误信息
+- **技术文档**: `docs/SSE_STREAMING_AI_SOLUTION.md`
 
 ---
 

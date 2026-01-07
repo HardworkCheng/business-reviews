@@ -15,6 +15,7 @@ import com.businessreviews.model.dataobject.*;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.*;
 import com.businessreviews.service.app.MessageService;
+import com.businessreviews.enums.UserStatus;
 import com.businessreviews.service.app.UserService;
 import com.businessreviews.util.RedisUtil;
 import com.businessreviews.util.TimeUtil;
@@ -81,7 +82,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         // 使用DefaultAvatar常量类随机选择一个默认头像
         user.setAvatar(DefaultAvatar.getRandomAvatar());
 
-        user.setStatus(1);
+        user.setStatus(UserStatus.NORMAL.getCode());
         userMapper.insert(user);
 
         UserStatsDO stats = new UserStatsDO();

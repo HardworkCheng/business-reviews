@@ -4,7 +4,7 @@
  */
 
 // 获取当前环境的基础URL
-const getBaseUrl = () => {
+export const getBaseUrl = () => {
   // H5环境下使用代理，避免跨域问题
   // #ifdef H5
   return '/api'

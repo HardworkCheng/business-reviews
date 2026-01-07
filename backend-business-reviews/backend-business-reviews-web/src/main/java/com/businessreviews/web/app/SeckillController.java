@@ -8,6 +8,7 @@ import com.businessreviews.model.dataobject.UserCouponDO;
 import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.CouponMapper;
 import com.businessreviews.mapper.UserCouponMapper;
+import com.businessreviews.enums.UserCouponStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -149,7 +150,7 @@ public class SeckillController {
             userCoupon.setCouponId(couponId);
             userCoupon.setUserId(userId);
             userCoupon.setCode(generateCouponCode());
-            userCoupon.setStatus(1);
+            userCoupon.setStatus(UserCouponStatus.UNUSED.getCode());
             userCoupon.setReceiveTime(LocalDateTime.now());
             userCoupon.setCreatedAt(LocalDateTime.now());
             userCouponMapper.insert(userCoupon);

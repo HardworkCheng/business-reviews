@@ -16,6 +16,9 @@ import com.businessreviews.service.merchant.MerchantAuthService;
 import com.businessreviews.util.JwtUtil;
 import com.businessreviews.util.RedisUtil;
 import com.businessreviews.util.PasswordUtil;
+import com.businessreviews.enums.MerchantStatus;
+import com.businessreviews.enums.UserStatus;
+import com.businessreviews.enums.ShopStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -254,7 +257,7 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         merchant.setLastLoginAt(LocalDateTime.now());
 
         // 状态
-        merchant.setStatus(1); // 1正常
+        merchant.setStatus(MerchantStatus.NORMAL.getCode()); // 正常
 
         merchantMapper.insert(merchant);
         log.info("商家入驻成功: merchantId={}, name={}", merchant.getId(), merchant.getName());
@@ -296,7 +299,7 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         user.setPassword(request.getPassword());
         user.setBio(request.getMerchantName() + " 官方账号");
         user.setGender(0); // 未知
-        user.setStatus(1); // 正常
+        user.setStatus(UserStatus.NORMAL.getCode()); // 正常
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
 
@@ -317,7 +320,7 @@ public class MerchantAuthServiceImpl implements MerchantAuthService {
         shop.setAddress("待完善"); // 默认地址，商家后续可在门店管理中修改
         shop.setDescription(request.getMerchantName() + " 欢迎您的光临"); // 默认描述
         shop.setCategoryId(1); // 默认分类（美食）
-        shop.setStatus(1); // 营业中
+        shop.setStatus(ShopStatus.OPEN.getCode()); // 营业中
         shop.setRating(new BigDecimal("5.0")); // 默认评分
         shop.setTasteScore(new BigDecimal("5.0"));
         shop.setEnvironmentScore(new BigDecimal("5.0"));

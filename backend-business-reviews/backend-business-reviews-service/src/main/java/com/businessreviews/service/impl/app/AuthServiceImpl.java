@@ -16,6 +16,7 @@ import com.businessreviews.exception.BusinessException;
 import com.businessreviews.mapper.UserMapper;
 import com.businessreviews.mapper.UserStatsMapper;
 import com.businessreviews.mapper.VerificationCodeMapper;
+import com.businessreviews.enums.UserStatus;
 import com.businessreviews.service.app.AuthService;
 import com.businessreviews.util.JwtUtil;
 import com.businessreviews.util.RedisUtil;
@@ -306,7 +307,7 @@ public class AuthServiceImpl implements AuthService {
         user.setAvatar(getRandomAvatar());
 
         user.setPassword(phone); // FIXME: 新用户默认密码目前设为手机号，建议后续引导修改
-        user.setStatus(1); // 状态：正常
+        user.setStatus(UserStatus.NORMAL.getCode()); // 状态：正常
 
         int insertResult = userMapper.insert(user);
         log.info("用户插入结果: {}, 用户ID: {}", insertResult, user.getId());

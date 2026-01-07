@@ -16,6 +16,7 @@ import com.businessreviews.mapper.MerchantMapper;
 import com.businessreviews.mapper.NoteMapper;
 import com.businessreviews.mapper.ShopMapper;
 import com.businessreviews.mapper.ShopReviewMapper;
+import com.businessreviews.enums.ShopStatus;
 import com.businessreviews.service.merchant.MerchantShopService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -132,7 +133,7 @@ public class MerchantShopServiceImpl implements MerchantShopService {
             shop.setMerchantId(merchantId);
             shop.setName(merchant.getName() != null ? merchant.getName() : "我的店铺");
             shop.setDescription("欢迎来到我的店铺");
-            shop.setStatus(1); // 营业中
+            shop.setStatus(ShopStatus.OPEN.getCode()); // 营业中
             shop.setCategoryId(1); // 默认分类
             shop.setBusinessHours("09:00-22:00");
             shop.setRating(BigDecimal.valueOf(5.0));

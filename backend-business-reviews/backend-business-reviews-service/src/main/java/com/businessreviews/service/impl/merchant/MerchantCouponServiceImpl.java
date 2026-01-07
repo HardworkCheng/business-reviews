@@ -15,6 +15,7 @@ import com.businessreviews.mapper.CouponMapper;
 import com.businessreviews.mapper.MerchantMapper;
 import com.businessreviews.mapper.ShopMapper;
 import com.businessreviews.mapper.UserCouponMapper;
+import com.businessreviews.enums.CouponStatus;
 import com.businessreviews.service.merchant.MerchantCouponService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -201,7 +202,7 @@ public class MerchantCouponServiceImpl implements MerchantCouponService {
         coupon.setUseStartTime(request.getStartTime());
         coupon.setUseEndTime(request.getEndTime());
 
-        coupon.setStatus(1); // 默认启用
+        coupon.setStatus(CouponStatus.ENABLED.getCode()); // 默认启用
         coupon.setCreatedAt(LocalDateTime.now());
         coupon.setUpdatedAt(LocalDateTime.now());
 
