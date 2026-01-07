@@ -25,8 +25,9 @@ export const getAvailableCoupons = (pageNum = 1, pageSize = 20, keyword = '', ty
   const params = { pageNum, pageSize }
   if (keyword) params.keyword = keyword
   if (type) params.type = type
-  // 移除 noAuth，让请求在用户登录时携带token，以便后端判断是否已领取
-  return get('/app/coupons/available', params)
+  // 添加 noAuth: true，允许未登录用户也能看到优惠券列表
+  // 后端仍可通过 Token 判断已领取状态（如果有 Token）
+  return get('/app/coupons/available', params, { noAuth: true })
 }
 
 /**

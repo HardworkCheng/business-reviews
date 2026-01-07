@@ -109,20 +109,21 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
      * 获取附近店铺
      * <p>
      * 基于经纬度查询附近的店铺，并计算距离。
-     * 同时也支持按分类筛选。
+     * 支持按分类筛选和排序方向（从近到远/从远到近）。
      * </p>
      *
      * @param latitude   用户当前纬度
      * @param longitude  用户当前经度
      * @param distance   搜索半径(km)
      * @param categoryId 分类ID
+     * @param sortOrder  排序方向（asc-从近到远，desc-从远到近）
      * @param pageNum    页码
      * @param pageSize   每页数量
      * @return 店铺VO分页列表（包含距离信息）
      */
     @Override
     public PageResult<ShopItemVO> getNearbyShops(Double latitude, Double longitude, Double distance,
-            Long categoryId, Integer pageNum, Integer pageSize) {
+            Long categoryId, String sortOrder, Integer pageNum, Integer pageSize) {
 
         // 使用 Redis GEO 查询附近商家（按距离升序）
         // 计算需要跳过的数量和获取的数量
@@ -139,7 +140,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
 
         if (geoResults.isEmpty()) {
             log.info("Redis GEO 未找到附近商家，降级查询数据库");
-            return fallbackNearbyShops(latitude, longitude, distance, categoryId, pageNum, pageSize);
+            return fallbackNearbyShops(latitude, longitude, distance, categoryId, sortOrder, pageNum, pageSize);
         }
 
         // 提取商家ID列表
@@ -183,8 +184,15 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
             Double dist = distanceMap.get(shopId);
             if (dist != null) {
                 item.setDistance(String.format("%.1fkm", dist));
+                // 存储原始距离值用于排序
+                item.setDistanceValue(dist);
             }
             allItems.add(item);
+        }
+
+        // 如果是降序（从远到近），反转整个列表
+        if ("desc".equalsIgnoreCase(sortOrder)) {
+            Collections.reverse(allItems);
         }
 
         // 手动分页
@@ -193,18 +201,27 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
         int toIndex = (int) Math.min(offset + pageSize, allItems.size());
         List<ShopItemVO> pageItems = allItems.subList(fromIndex, toIndex);
 
-        log.info("Redis GEO 附近商家查询: lat={}, lng={}, distance={}km, found={}",
-                latitude, longitude, distance, total);
+        log.info("Redis GEO 附近商家查询: lat={}, lng={}, distance={}km, sortOrder={}, found={}",
+                latitude, longitude, distance, sortOrder, total);
 
         return PageResult.of(pageItems, total, pageNum, pageSize);
     }
 
     /**
      * 降级方案：当 Redis GEO 不可用时，使用数据库查询
+     *
+     * @param latitude   用户纬度
+     * @param longitude  用户经度
+     * @param distance   搜索半径
+     * @param categoryId 分类ID
+     * @param sortOrder  排序方向
+     * @param pageNum    页码
+     * @param pageSize   每页数量
+     * @return 附近商家列表
      */
     private PageResult<ShopItemVO> fallbackNearbyShops(Double latitude, Double longitude, Double distance,
-            Long categoryId, Integer pageNum, Integer pageSize) {
-        Page<ShopDO> page = new Page<>(pageNum, pageSize);
+            Long categoryId, String sortOrder, Integer pageNum, Integer pageSize) {
+        // 不使用分页，全部查出后按距离排序再手动分页
         LambdaQueryWrapper<ShopDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ShopDO::getStatus, 1)
                 .isNotNull(ShopDO::getLatitude)
@@ -214,26 +231,46 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, ShopDO> implements 
             wrapper.eq(ShopDO::getCategoryId, categoryId);
         }
 
-        wrapper.orderByDesc(ShopDO::getRating);
-
-        Page<ShopDO> shopPage = shopMapper.selectPage(page, wrapper);
+        List<ShopDO> allShops = shopMapper.selectList(wrapper);
 
         // 批量预加载分类信息，解决N+1问题
-        Map<Integer, CategoryDO> categoryMap = batchLoadCategories(shopPage.getRecords());
+        Map<Integer, CategoryDO> categoryMap = batchLoadCategories(allShops);
 
-        List<ShopItemVO> list = shopPage.getRecords().stream()
+        // 计算距离并转换为VO
+        List<ShopItemVO> list = allShops.stream()
                 .map(shop -> {
                     ShopItemVO item = convertToShopItem(shop, categoryMap);
                     if (shop.getLatitude() != null && shop.getLongitude() != null) {
                         double dist = calculateDistance(latitude, longitude,
                                 shop.getLatitude().doubleValue(), shop.getLongitude().doubleValue());
                         item.setDistance(String.format("%.1fkm", dist));
+                        item.setDistanceValue(dist);
                     }
                     return item;
                 })
                 .collect(Collectors.toList());
 
-        return PageResult.of(list, shopPage.getTotal(), pageNum, pageSize);
+        // 按距离排序
+        if ("desc".equalsIgnoreCase(sortOrder)) {
+            // 从远到近
+            list.sort((a, b) -> Double.compare(
+                    b.getDistanceValue() != null ? b.getDistanceValue() : 0,
+                    a.getDistanceValue() != null ? a.getDistanceValue() : 0));
+        } else {
+            // 从近到远（默认）
+            list.sort((a, b) -> Double.compare(
+                    a.getDistanceValue() != null ? a.getDistanceValue() : Double.MAX_VALUE,
+                    b.getDistanceValue() != null ? b.getDistanceValue() : Double.MAX_VALUE));
+        }
+
+        // 手动分页
+        long total = list.size();
+        int offset = (pageNum - 1) * pageSize;
+        int fromIndex = Math.min(offset, list.size());
+        int toIndex = Math.min(offset + pageSize, list.size());
+        List<ShopItemVO> pageItems = list.subList(fromIndex, toIndex);
+
+        return PageResult.of(pageItems, total, pageNum, pageSize);
     }
 
     /**

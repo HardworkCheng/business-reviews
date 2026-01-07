@@ -62,7 +62,8 @@ const {
   currentCity, 
   userLatitude, 
   userLongitude, 
-  getCurrentCity, 
+  getCurrentCity,
+  getUserLocation,
   reLocation 
 } = useUserLocation()
 
@@ -88,9 +89,22 @@ const filterBarRef = ref(null)
 // Original search.vue had local categories list. FilterBar has it now.
 // We can ask FilterBar to emit value? 
 // `FilterBar` emits `change` with `{type, value}`. Value is the object.
-const onFilterChange = (event) => {
+const onFilterChange = async (event) => {
     if (event.type === 'category') {
         selectedCategoryId.value = event.value.id
+    }
+    
+    // 如果是距离排序，需要先确保位置已获取
+    if (sortField.value === 'distance' && (!userLatitude.value || !userLongitude.value)) {
+        uni.showLoading({ title: '正在获取位置...', mask: true })
+        const success = await getUserLocation()
+        uni.hideLoading()
+        
+        if (!success) {
+            uni.showToast({ title: '无法获取位置，请检查定位权限', icon: 'none' })
+            // 降级到默认排序
+            sortField.value = null
+        }
     }
     
     // Trigger Refresh
@@ -98,7 +112,15 @@ const onFilterChange = (event) => {
     doFetch()
 }
 
-const doFetch = () => {
+const doFetch = async () => {
+    // 如果是距离排序但没有位置，尝试获取位置
+    if (sortField.value === 'distance' && (!userLatitude.value || !userLongitude.value)) {
+        console.log('距离排序需要位置，尝试获取...')
+        const success = await getUserLocation()
+        if (!success) {
+            console.warn('无法获取位置，降级到普通列表')
+        }
+    }
     fetchShopList(userLatitude.value, userLongitude.value)
 }
 

@@ -64,6 +64,7 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
      * <p>
      * 查询当前用户的所有私信会话，每个会话只返回最新的一条消息。
      * 包含对方用户基本信息及未读消息数。
+     * 使用批量查询优化，避免 N+1 问题。
      * </p>
      *
      * @param userId   当前用户ID
@@ -82,6 +83,36 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
 
         log.info("查询到会话数量: {}, 总数: {}", conversations.size(), total);
 
+        if (conversations.isEmpty()) {
+            return PageResult.of(new java.util.ArrayList<>(), 0L, pageNum, pageSize);
+        }
+
+        // ========== 批量查询优化 ==========
+        // 1. 收集所有对方用户ID
+        java.util.Set<Long> otherUserIds = new java.util.HashSet<>();
+        for (Map<String, Object> conv : conversations) {
+            Object otherUserIdObj = conv.get("other_user_id");
+            Long otherUserId = null;
+            if (otherUserIdObj instanceof Long) {
+                otherUserId = (Long) otherUserIdObj;
+            } else if (otherUserIdObj instanceof Number) {
+                otherUserId = ((Number) otherUserIdObj).longValue();
+            }
+            if (otherUserId != null) {
+                otherUserIds.add(otherUserId);
+            }
+        }
+
+        // 2. 批量查询用户信息
+        java.util.Map<Long, UserDO> userMap = new java.util.HashMap<>();
+        if (!otherUserIds.isEmpty()) {
+            List<UserDO> users = userMapper.selectBatchIds(otherUserIds);
+            userMap = users.stream()
+                    .collect(java.util.stream.Collectors.toMap(UserDO::getId, u -> u, (a, b) -> a));
+        }
+
+        final java.util.Map<Long, UserDO> finalUserMap = userMap;
+
         List<ConversationVO> list = conversations.stream()
                 .map(conv -> {
                     log.debug("处理会话数据: {}", conv);
@@ -97,7 +128,8 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
                     }
 
                     if (otherUserId != null) {
-                        UserDO otherUser = userMapper.selectById(otherUserId);
+                        // 从预查询的 Map 获取用户信息
+                        UserDO otherUser = finalUserMap.get(otherUserId);
                         if (otherUser != null) {
                             response.setUserId(otherUser.getId().toString());
                             response.setUsername(otherUser.getUsername());
@@ -137,6 +169,7 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
      * <p>
      * 查询当前用户与目标用户之间的所有往来消息。
      * 按时间倒序排列（最新消息在前）。
+     * 使用批量查询优化，避免 N+1 问题。
      * </p>
      *
      * @param userId       当前用户ID
@@ -156,9 +189,28 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
                 .orderByDesc(MessageDO::getCreatedAt);
 
         Page<MessageDO> messagePage = messageMapper.selectPage(page, wrapper);
+        List<MessageDO> messages = messagePage.getRecords();
 
-        List<MessageVO> list = messagePage.getRecords().stream()
-                .map(this::convertToMessageVO)
+        if (messages.isEmpty()) {
+            return PageResult.of(new java.util.ArrayList<>(), 0L, pageNum, pageSize);
+        }
+
+        // 批量查询发送者信息（实际上聊天只涉及两个人，但保持通用性）
+        java.util.Set<Long> senderIds = messages.stream()
+                .map(MessageDO::getSenderId)
+                .collect(java.util.stream.Collectors.toSet());
+
+        java.util.Map<Long, UserDO> userMap = new java.util.HashMap<>();
+        if (!senderIds.isEmpty()) {
+            List<UserDO> users = userMapper.selectBatchIds(senderIds);
+            userMap = users.stream()
+                    .collect(java.util.stream.Collectors.toMap(UserDO::getId, u -> u, (a, b) -> a));
+        }
+
+        final java.util.Map<Long, UserDO> finalUserMap = userMap;
+
+        List<MessageVO> list = messages.stream()
+                .map(msg -> convertToMessageVOOptimized(msg, finalUserMap))
                 .collect(Collectors.toList());
 
         return PageResult.of(list, messagePage.getTotal(), pageNum, pageSize);
@@ -244,6 +296,7 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
      * 获取系统通知列表
      * <p>
      * 查询各类系统通知（点赞、评论、关注、系统消息等）。
+     * 使用批量查询优化，避免 N+1 问题。
      * </p>
      *
      * @param userId   当前用户ID
@@ -266,9 +319,46 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
         wrapper.orderByDesc(SystemNoticeDO::getCreatedAt);
 
         Page<SystemNoticeDO> noticePage = systemNoticeMapper.selectPage(page, wrapper);
+        List<SystemNoticeDO> notices = noticePage.getRecords();
 
-        List<NotificationVO> list = noticePage.getRecords().stream()
-                .map(this::convertSystemNoticeToVO)
+        if (notices.isEmpty()) {
+            return PageResult.of(new java.util.ArrayList<>(), 0L, pageNum, pageSize);
+        }
+
+        // ========== 批量查询优化 ==========
+        // 1. 收集所有发送者用户ID
+        java.util.Set<Long> fromUserIds = notices.stream()
+                .map(SystemNoticeDO::getFromUserId)
+                .filter(id -> id != null && id > 0) // 排除系统用户(0)
+                .collect(java.util.stream.Collectors.toSet());
+
+        // 2. 收集所有需要查询笔记信息的 targetId（点赞和评论通知）
+        java.util.Set<Long> noteIds = notices.stream()
+                .filter(n -> n.getTargetId() != null && (n.getNoticeType() == 1 || n.getNoticeType() == 2))
+                .map(SystemNoticeDO::getTargetId)
+                .collect(java.util.stream.Collectors.toSet());
+
+        // 3. 批量查询用户信息
+        java.util.Map<Long, UserDO> userMap = new java.util.HashMap<>();
+        if (!fromUserIds.isEmpty()) {
+            List<UserDO> users = userMapper.selectBatchIds(fromUserIds);
+            userMap = users.stream()
+                    .collect(java.util.stream.Collectors.toMap(UserDO::getId, u -> u, (a, b) -> a));
+        }
+
+        // 4. 批量查询笔记信息
+        java.util.Map<Long, NoteDO> noteMap = new java.util.HashMap<>();
+        if (!noteIds.isEmpty()) {
+            List<NoteDO> noteList = noteMapper.selectBatchIds(noteIds);
+            noteMap = noteList.stream()
+                    .collect(java.util.stream.Collectors.toMap(NoteDO::getId, n -> n, (a, b) -> a));
+        }
+
+        final java.util.Map<Long, UserDO> finalUserMap = userMap;
+        final java.util.Map<Long, NoteDO> finalNoteMap = noteMap;
+
+        List<NotificationVO> list = notices.stream()
+                .map(notice -> convertSystemNoticeToVOOptimized(notice, finalUserMap, finalNoteMap))
                 .collect(Collectors.toList());
 
         return PageResult.of(list, noticePage.getTotal(), pageNum, pageSize);
@@ -524,6 +614,44 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
         return response;
     }
 
+    /**
+     * 优化版消息转换方法 - 使用预加载的用户Map
+     * 
+     * @param message 消息实体
+     * @param userMap 预加载的用户Map
+     * @return 消息VO
+     */
+    private MessageVO convertToMessageVOOptimized(MessageDO message, java.util.Map<Long, UserDO> userMap) {
+        MessageVO response = new MessageVO();
+        response.setId(message.getId().toString());
+        response.setSenderId(message.getSenderId().toString());
+        response.setReceiverId(message.getReceiverId().toString());
+        response.setContent(message.getContent());
+        response.setType(message.getType());
+        response.setReadStatus(message.getReadStatus());
+        response.setCreatedAt(message.getCreatedAt().toString());
+        response.setTimeAgo(TimeUtil.formatRelativeTime(message.getCreatedAt()));
+
+        // 如果是笔记分享消息，添加noteData
+        if (message.getType() != null && message.getType() == 4 && message.getNoteData() != null) {
+            response.setNoteData(message.getNoteData());
+        }
+
+        // 如果是店铺分享消息，添加noteData
+        if (message.getType() != null && message.getType() == 5 && message.getNoteData() != null) {
+            response.setNoteData(message.getNoteData());
+        }
+
+        // 从预查询的Map获取发送者信息（O(1)复杂度）
+        UserDO sender = userMap.get(message.getSenderId());
+        if (sender != null) {
+            response.setSenderName(sender.getUsername());
+            response.setSenderAvatar(sender.getAvatar());
+        }
+
+        return response;
+    }
+
     private NotificationVO convertToNotificationVO(NotificationDO notification) {
         NotificationVO response = new NotificationVO();
         response.setId(notification.getId().toString());
@@ -569,7 +697,61 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
         }
 
         // 设置标题
-        switch (notice.getNoticeType()) {
+        setNoticeTitle(response, notice.getNoticeType());
+
+        return response;
+    }
+
+    /**
+     * 优化版系统通知转换方法 - 使用预加载的用户和笔记 Map
+     * 
+     * @param notice  通知实体
+     * @param userMap 预加载的用户Map
+     * @param noteMap 预加载的笔记Map
+     * @return 通知VO
+     */
+    private NotificationVO convertSystemNoticeToVOOptimized(SystemNoticeDO notice,
+            java.util.Map<Long, UserDO> userMap, java.util.Map<Long, NoteDO> noteMap) {
+        NotificationVO response = new NotificationVO();
+        response.setId(notice.getId().toString());
+        response.setType(notice.getNoticeType());
+        response.setContent(notice.getContent());
+        response.setRelatedId(notice.getTargetId() != null ? notice.getTargetId().toString() : null);
+        response.setReadStatus(notice.getReadStatus() != null && notice.getReadStatus() == 1);
+        response.setCreatedAt(notice.getCreatedAt() != null ? notice.getCreatedAt().toString() : "");
+        response.setTimeAgo(notice.getCreatedAt() != null ? TimeUtil.formatRelativeTime(notice.getCreatedAt()) : "");
+
+        // 从预查询的Map获取发送者信息（O(1)复杂度）
+        if (notice.getFromUserId() != null && notice.getFromUserId() > 0) {
+            UserDO fromUser = userMap.get(notice.getFromUserId());
+            if (fromUser != null) {
+                response.setFromUserId(fromUser.getId());
+                response.setFromUsername(fromUser.getUsername());
+                response.setFromAvatar(fromUser.getAvatar());
+            }
+        }
+
+        // 从预查询的Map获取笔记信息（O(1)复杂度）
+        if (notice.getTargetId() != null && (notice.getNoticeType() == 1 || notice.getNoticeType() == 2)) {
+            NoteDO note = noteMap.get(notice.getTargetId());
+            if (note != null) {
+                response.setNoteId(note.getId());
+                response.setNoteTitle(note.getTitle());
+                response.setNoteImage(note.getCoverImage());
+            }
+        }
+
+        // 设置标题
+        setNoticeTitle(response, notice.getNoticeType());
+
+        return response;
+    }
+
+    /**
+     * 设置通知标题（抽取公共逻辑）
+     */
+    private void setNoticeTitle(NotificationVO response, Integer noticeType) {
+        switch (noticeType) {
             case 1:
                 response.setTitle("点赞通知");
                 break;
@@ -591,8 +773,6 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, MessageDO> im
             default:
                 response.setTitle("系统通知");
         }
-
-        return response;
     }
 
     /**

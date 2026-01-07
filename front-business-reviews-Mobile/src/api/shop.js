@@ -37,6 +37,7 @@ export const getShopList = (params) => {
  * @param {Number} params.longitude - 经度（必填）
  * @param {Number} params.distance - 搜索半径（公里），默认5
  * @param {Number} params.categoryId - 分类ID
+ * @param {String} params.sortOrder - 排序方向：asc-从近到远，desc-从远到近
  * @param {Number} params.pageNum - 页码
  * @param {Number} params.pageSize - 每页数量
  */

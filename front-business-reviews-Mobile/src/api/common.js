@@ -101,6 +101,8 @@ export default {
   searchTopics,
   // 地图
   getNearbyShops,
+  getCityByIp,
+  getCityByLocation,
   // 搜索
   search,
   getSearchSuggest,

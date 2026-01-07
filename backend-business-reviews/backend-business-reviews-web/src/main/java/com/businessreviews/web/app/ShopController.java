@@ -58,6 +58,15 @@ public class ShopController {
 
     /**
      * 获取附近商家
+     *
+     * @param latitude   用户纬度
+     * @param longitude  用户经度
+     * @param distance   搜索半径(km)
+     * @param categoryId 分类ID
+     * @param sortOrder  排序方向 (asc-从近到远, desc-从远到近)
+     * @param pageNum    页码
+     * @param pageSize   每页数量
+     * @return 商家列表
      */
     @GetMapping("/nearby")
     public Result<PageResult<ShopItemVO>> getNearbyShops(
@@ -65,10 +74,11 @@ public class ShopController {
             @RequestParam Double longitude,
             @RequestParam(defaultValue = "5.0") Double distance,
             @RequestParam(required = false) Long categoryId,
+            @RequestParam(defaultValue = "asc") String sortOrder,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize) {
-        PageResult<ShopItemVO> result = shopService.getNearbyShops(latitude, longitude, distance, categoryId, pageNum,
-                pageSize);
+        PageResult<ShopItemVO> result = shopService.getNearbyShops(latitude, longitude, distance, categoryId, sortOrder,
+                pageNum, pageSize);
         return Result.success(result);
     }
 

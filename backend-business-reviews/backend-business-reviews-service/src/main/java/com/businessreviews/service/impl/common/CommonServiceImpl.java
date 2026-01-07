@@ -2,6 +2,7 @@ package com.businessreviews.service.impl.common;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
+import com.businessreviews.constants.RedisKeyConstants;
 import com.businessreviews.model.vo.CategoryVO;
 import com.businessreviews.model.vo.TopicVO;
 import com.businessreviews.model.dataobject.CategoryDO;
@@ -13,6 +14,8 @@ import com.businessreviews.mapper.SearchHistoryMapper;
 import com.businessreviews.mapper.TopicMapper;
 import com.businessreviews.service.common.CommonService;
 import com.businessreviews.util.RedisUtil;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -38,6 +41,16 @@ public class CommonServiceImpl implements CommonService {
     private final TopicMapper topicMapper;
     private final SearchHistoryMapper searchHistoryMapper;
     private final RedisUtil redisUtil;
+    private final ObjectMapper objectMapper;
+
+    /** 热门话题缓存TTL：30分钟 */
+    private static final long HOT_TOPICS_TTL = 1800L;
+
+    /** 热门搜索词缓存TTL：30分钟 */
+    private static final long HOT_SEARCHES_TTL = 1800L;
+
+    /** 启用分类列表缓存TTL：1小时 */
+    private static final long CATEGORIES_TTL = 3600L;
 
     /**
      * 获取所有分类列表
@@ -121,16 +134,39 @@ public class CommonServiceImpl implements CommonService {
      * @return 启用分类的VO列表
      */
     @Override
+    @SuppressWarnings("unchecked")
     public List<CategoryVO> getCategories() {
+        // 尝试从缓存获取
+        String cacheKey = RedisKeyConstants.CATEGORIES_ENABLED;
+        try {
+            List<CategoryVO> cachedList = (List<CategoryVO>) redisUtil.getObject(cacheKey, List.class);
+            if (cachedList != null && !cachedList.isEmpty()) {
+                log.debug("从缓存获取启用分类列表");
+                return convertMapList(cachedList);
+            }
+        } catch (Exception e) {
+            log.warn("启用分类缓存读取失败: {}", e.getMessage());
+        }
+
         // 查询启用的类目（status=1），按sort_order升序排序
         LambdaQueryWrapper<CategoryDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CategoryDO::getStatus, 1)
                 .orderByAsc(CategoryDO::getSortOrder);
         List<CategoryDO> categories = categoryMapper.selectList(wrapper);
 
-        return categories.stream()
+        List<CategoryVO> list = categories.stream()
                 .map(this::convertToCategoryVO)
                 .collect(Collectors.toList());
+
+        // 写入缓存
+        try {
+            redisUtil.setObject(cacheKey, list, CATEGORIES_TTL);
+            log.debug("启用分类列表写入缓存");
+        } catch (Exception e) {
+            log.warn("启用分类缓存写入失败: {}", e.getMessage());
+        }
+
+        return list;
     }
 
     /**
@@ -184,17 +220,44 @@ public class CommonServiceImpl implements CommonService {
      */
     @Override
     public List<TopicVO> getHotTopics(Integer limit) {
+        int actualLimit = limit != null ? limit : 10;
+        String cacheKey = RedisKeyConstants.HOT_TOPICS_CACHE + ":" + actualLimit;
+
+        // 尝试从缓存获取
+        try {
+            String json = redisUtil.get(cacheKey);
+            if (json != null) {
+                List<TopicVO> cached = objectMapper.readValue(json,
+                        new TypeReference<List<TopicVO>>() {
+                        });
+                log.debug("从缓存获取热门话题: limit={}", actualLimit);
+                return cached;
+            }
+        } catch (Exception e) {
+            log.warn("热门话题缓存读取失败: {}", e.getMessage());
+        }
+
         LambdaQueryWrapper<TopicDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(TopicDO::getStatus, 1)
                 .eq(TopicDO::getHot, 1)
                 .orderByDesc(TopicDO::getViewCount)
-                .last("LIMIT " + (limit != null ? limit : 10));
+                .last("LIMIT " + actualLimit);
 
         List<TopicDO> topics = topicMapper.selectList(wrapper);
 
-        return topics.stream()
+        List<TopicVO> list = topics.stream()
                 .map(this::convertToTopicVO)
                 .collect(Collectors.toList());
+
+        // 写入缓存
+        try {
+            redisUtil.set(cacheKey, objectMapper.writeValueAsString(list), HOT_TOPICS_TTL);
+            log.debug("热门话题写入缓存: limit={}", actualLimit);
+        } catch (Exception e) {
+            log.warn("热门话题缓存写入失败: {}", e.getMessage());
+        }
+
+        return list;
     }
 
     /**
@@ -237,8 +300,33 @@ public class CommonServiceImpl implements CommonService {
      */
     @Override
     public List<String> getHotSearches() {
+        String cacheKey = RedisKeyConstants.HOT_SEARCHES_CACHE;
+
+        // 尝试从缓存获取
+        try {
+            String json = redisUtil.get(cacheKey);
+            if (json != null) {
+                List<String> cached = objectMapper.readValue(json,
+                        new TypeReference<List<String>>() {
+                        });
+                log.debug("从缓存获取热门搜索词");
+                return cached;
+            }
+        } catch (Exception e) {
+            log.warn("热门搜索词缓存读取失败: {}", e.getMessage());
+        }
+
         // 查询热门搜索
         List<String> hotSearches = searchHistoryMapper.selectHotKeywords(20);
+
+        // 写入缓存
+        try {
+            redisUtil.set(cacheKey, objectMapper.writeValueAsString(hotSearches), HOT_SEARCHES_TTL);
+            log.debug("热门搜索词写入缓存");
+        } catch (Exception e) {
+            log.warn("热门搜索词缓存写入失败: {}", e.getMessage());
+        }
+
         return hotSearches;
     }
 

@@ -41,6 +41,8 @@ public class ShopItemVO implements Serializable {
     private String category;
     private Integer noteCount;
     private String distance;
+    /** 距离数值（公里），用于排序计算，不返回给前端 */
+    private transient Double distanceValue;
     private String phone;
     private Integer status;
     private String businessHours;

@@ -63,4 +63,18 @@ public final class RedisKeyConstants {
 
     /** 商家地理位置 (Redis GEO) */
     public static final String SHOP_GEO = "shop:geo";
+
+    // ========== 热点数据缓存 Key ==========
+
+    /** 用户基础信息缓存 (头像、昵称等高频访问字段) */
+    public static final String USER_BASIC_INFO = "user:basic:";
+
+    /** 启用分类列表缓存 */
+    public static final String CATEGORIES_ENABLED = "categories:enabled";
+
+    /** 热门话题缓存 */
+    public static final String HOT_TOPICS_CACHE = "topics:hot:cache";
+
+    /** 热门搜索词缓存 */
+    public static final String HOT_SEARCHES_CACHE = "search:hot:cache";
 }

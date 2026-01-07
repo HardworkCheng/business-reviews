@@ -51,16 +51,14 @@ export function useShopSearch() {
             distance: 10,
             pageNum: pageNum.value,
             pageSize: pageSize.value,
-            categoryId: selectedCategoryId.value
+            categoryId: selectedCategoryId.value,
+            sortOrder: sortOrder.value  // 传递排序方向到后端
         }
 
         console.log('获取附近商家参数:', params)
         const result = await getNearbyShops(params)
 
-        if (sortOrder.value === 'desc' && result && result.list) {
-            result.list = result.list.reverse()
-        }
-
+        // 后端已处理排序，无需前端反转
         processShopResult(result)
     }
 

@@ -41,6 +41,9 @@ public class CouponController {
 
     /**
      * 获取所有可用优惠券列表（公开接口）
+     * <p>
+     * 使用批量查询优化，避免 N+1 问题。
+     * </p>
      *
      * @param pageNum  页码
      * @param pageSize 每页数量
@@ -59,10 +62,39 @@ public class CouponController {
                 .orderByDesc(CouponDO::getCreatedAt);
 
         Page<CouponDO> couponPage = couponMapper.selectPage(page, wrapper);
+        List<CouponDO> coupons = couponPage.getRecords();
+
+        if (coupons.isEmpty()) {
+            return Result.success(PageResult.of(new ArrayList<>(), 0L, pageNum, pageSize));
+        }
+
+        // 批量查询优化
+        Set<Long> shopIds = coupons.stream()
+                .map(CouponDO::getShopId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<Long, ShopDO> shopMap = new HashMap<>();
+        if (!shopIds.isEmpty()) {
+            List<ShopDO> shops = shopMapper.selectBatchIds(shopIds);
+            shopMap = shops.stream().collect(Collectors.toMap(ShopDO::getId, s -> s, (a, b) -> a));
+        }
 
         Long userId = UserContext.getUserId();
-        List<Map<String, Object>> list = couponPage.getRecords().stream()
-                .map(c -> convertToCouponResponse(c, userId))
+        Set<Long> claimedCouponIds = new HashSet<>();
+        if (userId != null) {
+            List<Long> couponIds = coupons.stream().map(CouponDO::getId).collect(Collectors.toList());
+            LambdaQueryWrapper<UserCouponDO> ucWrapper = new LambdaQueryWrapper<>();
+            ucWrapper.eq(UserCouponDO::getUserId, userId).in(UserCouponDO::getCouponId, couponIds);
+            List<UserCouponDO> userCoupons = userCouponMapper.selectList(ucWrapper);
+            claimedCouponIds = userCoupons.stream().map(UserCouponDO::getCouponId).collect(Collectors.toSet());
+        }
+
+        final Map<Long, ShopDO> finalShopMap = shopMap;
+        final Set<Long> finalClaimedIds = claimedCouponIds;
+
+        List<Map<String, Object>> list = coupons.stream()
+                .map(c -> convertToCouponResponseOptimized(c, userId, finalShopMap, finalClaimedIds))
                 .collect(Collectors.toList());
 
         return Result.success(PageResult.of(list, couponPage.getTotal(), pageNum, pageSize));
@@ -72,6 +104,7 @@ public class CouponController {
      * 获取可领取的优惠券列表（领券中心）
      * <p>
      * 显示所有状态为启用、未过期、有剩余数量的优惠券。
+     * 使用批量查询优化，避免 N+1 问题。
      * </p>
      *
      * @param pageNum  页码
@@ -106,10 +139,47 @@ public class CouponController {
         wrapper.orderByDesc(CouponDO::getCreatedAt);
 
         Page<CouponDO> couponPage = couponMapper.selectPage(page, wrapper);
+        List<CouponDO> coupons = couponPage.getRecords();
 
+        if (coupons.isEmpty()) {
+            return Result.success(PageResult.of(new ArrayList<>(), 0L, pageNum, pageSize));
+        }
+
+        // ========== 批量查询优化 (In-Memory Map Assembly) ==========
+
+        // 1. 收集所有需要查询的 shopId
+        Set<Long> shopIds = coupons.stream()
+                .map(CouponDO::getShopId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // 2. 批量查询商家信息，构建 Map<shopId, ShopDO>
+        Map<Long, ShopDO> shopMap = new HashMap<>();
+        if (!shopIds.isEmpty()) {
+            List<ShopDO> shops = shopMapper.selectBatchIds(shopIds);
+            shopMap = shops.stream().collect(Collectors.toMap(ShopDO::getId, s -> s, (a, b) -> a));
+        }
+
+        // 3. 批量查询用户已领取的优惠券
         Long userId = UserContext.getUserId();
-        List<Map<String, Object>> list = couponPage.getRecords().stream()
-                .map(c -> convertToCouponResponse(c, userId))
+        Set<Long> claimedCouponIds = new HashSet<>();
+        if (userId != null) {
+            List<Long> couponIds = coupons.stream().map(CouponDO::getId).collect(Collectors.toList());
+            LambdaQueryWrapper<UserCouponDO> ucWrapper = new LambdaQueryWrapper<>();
+            ucWrapper.eq(UserCouponDO::getUserId, userId)
+                    .in(UserCouponDO::getCouponId, couponIds);
+            List<UserCouponDO> userCoupons = userCouponMapper.selectList(ucWrapper);
+            claimedCouponIds = userCoupons.stream()
+                    .map(UserCouponDO::getCouponId)
+                    .collect(Collectors.toSet());
+        }
+
+        // 4. 组装响应数据（无额外数据库查询）
+        final Map<Long, ShopDO> finalShopMap = shopMap;
+        final Set<Long> finalClaimedIds = claimedCouponIds;
+
+        List<Map<String, Object>> list = coupons.stream()
+                .map(c -> convertToCouponResponseOptimized(c, userId, finalShopMap, finalClaimedIds))
                 .collect(Collectors.toList());
 
         return Result.success(PageResult.of(list, couponPage.getTotal(), pageNum, pageSize));
@@ -323,6 +393,68 @@ public class CouponController {
         } else {
             return "无门槛";
         }
+    }
+
+    /**
+     * 转换优惠券响应（优化版，避免 N+1 查询）
+     * 
+     * @param coupon           优惠券
+     * @param userId           用户ID（可能为null）
+     * @param shopMap          预查询的商家Map
+     * @param claimedCouponIds 用户已领取的优惠券ID集合
+     */
+    private Map<String, Object> convertToCouponResponseOptimized(
+            CouponDO coupon,
+            Long userId,
+            Map<Long, ShopDO> shopMap,
+            Set<Long> claimedCouponIds) {
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", coupon.getId());
+        map.put("type", coupon.getType());
+        map.put("title", coupon.getTitle());
+        map.put("description", coupon.getDescription());
+        map.put("amount", coupon.getAmount());
+        map.put("discount", coupon.getDiscount());
+        map.put("minAmount", coupon.getMinAmount());
+        map.put("totalCount", coupon.getTotalCount());
+        map.put("remainCount", coupon.getRemainCount());
+        map.put("perUserLimit", coupon.getPerUserLimit());
+        map.put("startTime", coupon.getStartTime());
+        map.put("endTime", coupon.getEndTime());
+        map.put("stackable", coupon.getStackable());
+        map.put("shopId", coupon.getShopId());
+
+        // 格式化使用条件
+        map.put("condition", formatCouponCondition(coupon));
+
+        // 计算优惠券状态
+        String status = "available";
+        LocalDateTime now = LocalDateTime.now();
+
+        if (coupon.getRemainCount() <= 0) {
+            status = "sold_out";
+        } else if (coupon.getStartTime() != null && coupon.getStartTime().isAfter(now)) {
+            status = "not_started";
+        }
+
+        // 从预查询的 Map 获取商家信息（无数据库查询）
+        if (coupon.getShopId() != null && shopMap.containsKey(coupon.getShopId())) {
+            ShopDO shop = shopMap.get(coupon.getShopId());
+            map.put("shopName", shop.getName());
+            map.put("shopLogo", shop.getHeaderImage());
+        }
+
+        // 从预查询的 Set 检查用户是否已领取（无数据库查询）
+        boolean isReceived = claimedCouponIds.contains(coupon.getId());
+        map.put("isReceived", isReceived);
+        if (isReceived && !"sold_out".equals(status)) {
+            status = "claimed";
+        }
+
+        map.put("status", status);
+
+        return map;
     }
 
     /**

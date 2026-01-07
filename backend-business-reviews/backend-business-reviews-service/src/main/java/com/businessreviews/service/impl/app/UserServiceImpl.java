@@ -267,16 +267,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     }
 
     /**
-     * 获取我的收藏列表
+     * 获取我的收藏
      * <p>
-     * 查询用户收藏的笔记或店铺。
+     * 支持按类型筛选（笔记/店铺）。
+     * 使用批量查询优化，避免 N+1 问题。
      * </p>
      *
      * @param userId   用户ID
-     * @param type     收藏类型 (1:笔记, 2:店铺, null:全部)
+     * @param type     类型 (1=笔记, 2=店铺)
      * @param pageNum  页码
      * @param pageSize 每页数量
-     * @return 收藏VO分页列表
+     * @return 收藏记录VO分页列表
      */
     @Override
     public PageResult<FavoriteItemVO> getMyFavorites(Long userId, Integer type, Integer pageNum, Integer pageSize) {
@@ -288,8 +289,41 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
 
         Page<UserFavoriteDO> favPage = userFavoriteMapper.selectPage(page, wrapper);
 
-        List<FavoriteItemVO> list = new ArrayList<>();
-        for (UserFavoriteDO fav : favPage.getRecords()) {
+        if (favPage.getRecords().isEmpty()) {
+            return PageResult.of(new ArrayList<>(), 0L, pageNum, pageSize);
+        }
+
+        // ========== 批量查询优化 (In-Memory Map Assembly) ==========
+
+        // 1. 按类型分组收集 targetId
+        List<Long> noteIds = favPage.getRecords().stream()
+                .filter(f -> f.getType() == 1)
+                .map(UserFavoriteDO::getTargetId)
+                .collect(Collectors.toList());
+
+        List<Long> shopIds = favPage.getRecords().stream()
+                .filter(f -> f.getType() == 2)
+                .map(UserFavoriteDO::getTargetId)
+                .collect(Collectors.toList());
+
+        // 2. 批量查询笔记和商店
+        java.util.Map<Long, NoteDO> noteMap = new java.util.HashMap<>();
+        if (!noteIds.isEmpty()) {
+            List<NoteDO> notes = noteMapper.selectBatchIds(noteIds);
+            noteMap = notes.stream().collect(Collectors.toMap(NoteDO::getId, n -> n, (a, b) -> a));
+        }
+
+        java.util.Map<Long, ShopDO> shopMap = new java.util.HashMap<>();
+        if (!shopIds.isEmpty()) {
+            List<ShopDO> shops = shopMapper.selectBatchIds(shopIds);
+            shopMap = shops.stream().collect(Collectors.toMap(ShopDO::getId, s -> s, (a, b) -> a));
+        }
+
+        // 3. 组装响应数据（无额外数据库查询）
+        final java.util.Map<Long, NoteDO> finalNoteMap = noteMap;
+        final java.util.Map<Long, ShopDO> finalShopMap = shopMap;
+
+        List<FavoriteItemVO> list = favPage.getRecords().stream().map(fav -> {
             FavoriteItemVO item = new FavoriteItemVO();
             item.setId(fav.getId().toString());
             item.setType(fav.getType());
@@ -297,24 +331,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             item.setCreatedAt(fav.getCreatedAt().toString());
 
             if (fav.getType() == 1) {
-                // 笔记
-                NoteDO note = noteMapper.selectById(fav.getTargetId());
+                NoteDO note = finalNoteMap.get(fav.getTargetId());
                 if (note != null) {
                     item.setImage(note.getCoverImage());
                     item.setTitle(note.getTitle());
                     item.setLikes(note.getLikeCount());
                 }
             } else if (fav.getType() == 2) {
-                // 商家
-                ShopDO shop = shopMapper.selectById(fav.getTargetId());
+                ShopDO shop = finalShopMap.get(fav.getTargetId());
                 if (shop != null) {
                     item.setImage(shop.getHeaderImage());
                     item.setTitle(shop.getName());
-                    item.setLikes(0); // 商家没有点赞数
+                    item.setLikes(0);
                 }
             }
-            list.add(item);
-        }
+            return item;
+        }).collect(Collectors.toList());
 
         return PageResult.of(list, favPage.getTotal(), pageNum, pageSize);
     }
@@ -323,6 +355,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
      * 获取浏览历史
      * <p>
      * 查询用户的浏览记录（笔记或店铺）。
+     * 使用批量查询优化，避免 N+1 问题。
      * </p>
      *
      * @param userId   用户ID
@@ -339,8 +372,56 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
 
         Page<BrowseHistoryDO> historyPage = browseHistoryMapper.selectPage(page, wrapper);
 
-        List<HistoryItemVO> list = new ArrayList<>();
-        for (BrowseHistoryDO history : historyPage.getRecords()) {
+        if (historyPage.getRecords().isEmpty()) {
+            return PageResult.of(new ArrayList<>(), 0L, pageNum, pageSize);
+        }
+
+        // ========== 批量查询优化 (In-Memory Map Assembly) ==========
+
+        // 1. 按类型分组收集 targetId
+        List<Long> noteIds = historyPage.getRecords().stream()
+                .filter(h -> h.getType() == 1)
+                .map(BrowseHistoryDO::getTargetId)
+                .collect(Collectors.toList());
+
+        List<Long> shopIds = historyPage.getRecords().stream()
+                .filter(h -> h.getType() == 2)
+                .map(BrowseHistoryDO::getTargetId)
+                .collect(Collectors.toList());
+
+        // 2. 批量查询笔记
+        java.util.Map<Long, NoteDO> noteMap = new java.util.HashMap<>();
+        java.util.Set<Long> authorIds = new java.util.HashSet<>();
+        if (!noteIds.isEmpty()) {
+            List<NoteDO> notes = noteMapper.selectBatchIds(noteIds);
+            noteMap = notes.stream().collect(Collectors.toMap(NoteDO::getId, n -> n, (a, b) -> a));
+            // 收集作者ID
+            authorIds = notes.stream()
+                    .map(NoteDO::getUserId)
+                    .filter(java.util.Objects::nonNull)
+                    .collect(Collectors.toSet());
+        }
+
+        // 3. 批量查询作者信息
+        java.util.Map<Long, UserDO> authorMap = new java.util.HashMap<>();
+        if (!authorIds.isEmpty()) {
+            List<UserDO> authors = userMapper.selectBatchIds(authorIds);
+            authorMap = authors.stream().collect(Collectors.toMap(UserDO::getId, u -> u, (a, b) -> a));
+        }
+
+        // 4. 批量查询商店
+        java.util.Map<Long, ShopDO> shopMap = new java.util.HashMap<>();
+        if (!shopIds.isEmpty()) {
+            List<ShopDO> shops = shopMapper.selectBatchIds(shopIds);
+            shopMap = shops.stream().collect(Collectors.toMap(ShopDO::getId, s -> s, (a, b) -> a));
+        }
+
+        // 5. 组装响应数据（无额外数据库查询）
+        final java.util.Map<Long, NoteDO> finalNoteMap = noteMap;
+        final java.util.Map<Long, UserDO> finalAuthorMap = authorMap;
+        final java.util.Map<Long, ShopDO> finalShopMap = shopMap;
+
+        List<HistoryItemVO> list = historyPage.getRecords().stream().map(history -> {
             HistoryItemVO item = new HistoryItemVO();
             item.setId(history.getId().toString());
             item.setType(history.getType());
@@ -349,13 +430,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             item.setCreatedAt(history.getCreatedAt().toString());
 
             if (history.getType() == 1) {
-                NoteDO note = noteMapper.selectById(history.getTargetId());
+                NoteDO note = finalNoteMap.get(history.getTargetId());
                 if (note != null) {
                     item.setImage(note.getCoverImage());
                     item.setTitle(note.getTitle());
-                    // 获取作者信息
+                    // 从预查询的 Map 获取作者信息
                     if (note.getUserId() != null) {
-                        UserDO author = userMapper.selectById(note.getUserId());
+                        UserDO author = finalAuthorMap.get(note.getUserId());
                         if (author != null) {
                             item.setAuthor(author.getUsername());
                             item.setAuthorId(author.getId());
@@ -363,15 +444,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
                     }
                 }
             } else if (history.getType() == 2) {
-                ShopDO shop = shopMapper.selectById(history.getTargetId());
+                ShopDO shop = finalShopMap.get(history.getTargetId());
                 if (shop != null) {
                     item.setImage(shop.getHeaderImage());
                     item.setTitle(shop.getName());
-                    item.setAuthor(shop.getName()); // 商家名称作为作者
+                    item.setAuthor(shop.getName());
                 }
             }
-            list.add(item);
-        }
+            return item;
+        }).collect(Collectors.toList());
 
         return PageResult.of(list, historyPage.getTotal(), pageNum, pageSize);
     }
@@ -448,6 +529,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
 
     /**
      * 获取关注列表
+     * <p>
+     * 使用批量查询优化，避免 N+1 问题。
+     * </p>
      *
      * @param userId   用户ID
      * @param pageNum  页码
@@ -463,9 +547,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
 
         Page<UserFollowDO> followPage = userFollowMapper.selectPage(page, wrapper);
 
+        if (followPage.getRecords().isEmpty()) {
+            return PageResult.of(new ArrayList<>(), 0L, pageNum, pageSize);
+        }
+
+        // 批量查询用户信息
+        List<Long> userIds = followPage.getRecords().stream()
+                .map(UserFollowDO::getFollowUserId)
+                .collect(Collectors.toList());
+
+        List<UserDO> users = userMapper.selectBatchIds(userIds);
+        java.util.Map<Long, UserDO> userMap = users.stream()
+                .collect(Collectors.toMap(UserDO::getId, u -> u, (a, b) -> a));
+
         List<UserItemVO> list = followPage.getRecords().stream()
                 .map(f -> {
-                    UserDO user = userMapper.selectById(f.getFollowUserId());
+                    UserDO user = userMap.get(f.getFollowUserId());
                     UserItemVO item = convertToUserItem(user);
                     // 关注列表中的所有用户都是已关注的
                     if (item != null) {
@@ -473,6 +570,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
                     }
                     return item;
                 })
+                .filter(java.util.Objects::nonNull)
                 .collect(Collectors.toList());
 
         return PageResult.of(list, followPage.getTotal(), pageNum, pageSize);
@@ -482,6 +580,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
      * 获取粉丝列表
      * <p>
      * 同时会返回当前用户是否回关了这些粉丝。
+     * 使用批量查询优化，避免 N+1 问题。
      * </p>
      *
      * @param userId   用户ID
@@ -498,16 +597,41 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
 
         Page<UserFollowDO> followPage = userFollowMapper.selectPage(page, wrapper);
 
+        if (followPage.getRecords().isEmpty()) {
+            return PageResult.of(new ArrayList<>(), 0L, pageNum, pageSize);
+        }
+
+        // 1. 收集所有粉丝的用户ID
+        List<Long> followerUserIds = followPage.getRecords().stream()
+                .map(UserFollowDO::getUserId)
+                .collect(Collectors.toList());
+
+        // 2. 批量查询粉丝用户信息
+        List<UserDO> users = userMapper.selectBatchIds(followerUserIds);
+        java.util.Map<Long, UserDO> userMap = users.stream()
+                .collect(Collectors.toMap(UserDO::getId, u -> u, (a, b) -> a));
+
+        // 3. 批量查询当前用户是否回关了这些粉丝（关注状态）
+        LambdaQueryWrapper<UserFollowDO> followBackWrapper = new LambdaQueryWrapper<>();
+        followBackWrapper.eq(UserFollowDO::getUserId, userId)
+                .in(UserFollowDO::getFollowUserId, followerUserIds);
+        List<UserFollowDO> followBackList = userFollowMapper.selectList(followBackWrapper);
+        java.util.Set<Long> followingSet = followBackList.stream()
+                .map(UserFollowDO::getFollowUserId)
+                .collect(Collectors.toSet());
+
+        // 4. 组装响应数据
         List<UserItemVO> list = followPage.getRecords().stream()
                 .map(f -> {
-                    UserDO user = userMapper.selectById(f.getUserId());
+                    UserDO user = userMap.get(f.getUserId());
                     UserItemVO item = convertToUserItem(user);
-                    // 设置当前用户是否关注了该粉丝
-                    if (item != null) {
-                        item.setFollowing(isFollowing(userId, user.getId()));
+                    if (item != null && user != null) {
+                        // 从预查询的 Set 判断是否回关
+                        item.setFollowing(followingSet.contains(user.getId()));
                     }
                     return item;
                 })
+                .filter(java.util.Objects::nonNull)
                 .collect(Collectors.toList());
 
         return PageResult.of(list, followPage.getTotal(), pageNum, pageSize);

@@ -107,6 +107,55 @@ public class RedisUtil {
         return redisTemplate.getExpire(key, TimeUnit.SECONDS);
     }
 
+    // ========== 批量操作 ==========
+
+    /**
+     * 批量获取字符串值
+     * 
+     * @param keys Key列表
+     * @return 值列表（按Key顺序返回，不存在的Key对应值为null）
+     */
+    public java.util.List<String> multiGet(Collection<String> keys) {
+        return redisTemplate.opsForValue().multiGet(keys);
+    }
+
+    /**
+     * 批量设置字符串值（无过期时间）
+     * 
+     * @param map Key-Value映射
+     */
+    public void multiSet(java.util.Map<String, String> map) {
+        redisTemplate.opsForValue().multiSet(map);
+    }
+
+    /**
+     * 批量获取对象值
+     * 
+     * @param keys  Key列表
+     * @param clazz 对象类型
+     * @return 对象列表（按Key顺序返回，不存在或反序列化失败的Key对应值为null）
+     */
+    public <T> java.util.List<T> multiGetObjects(Collection<String> keys, Class<T> clazz) {
+        java.util.List<String> jsonList = redisTemplate.opsForValue().multiGet(keys);
+        if (jsonList == null) {
+            return new java.util.ArrayList<>();
+        }
+
+        java.util.List<T> result = new java.util.ArrayList<>();
+        for (String json : jsonList) {
+            if (json == null) {
+                result.add(null);
+            } else {
+                try {
+                    result.add(objectMapper.readValue(json, clazz));
+                } catch (JsonProcessingException e) {
+                    result.add(null); // 反序列化失败时返回null
+                }
+            }
+        }
+        return result;
+    }
+
     // ========== Set操作 ==========
 
     /**

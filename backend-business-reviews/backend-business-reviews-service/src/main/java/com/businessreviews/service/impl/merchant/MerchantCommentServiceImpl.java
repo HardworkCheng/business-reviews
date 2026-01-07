@@ -109,10 +109,10 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
 
         Page<ShopReviewDO> page = new Page<>(pageNum, pageSize);
         Page<ShopReviewDO> reviewPage = shopReviewMapper.selectPage(page, wrapper);
+        List<ShopReviewDO> reviews = reviewPage.getRecords();
 
-        List<CommentVO> list = reviewPage.getRecords().stream()
-                .map(this::convertToCommentVO)
-                .collect(Collectors.toList());
+        // ✅ 优化：批量预加载用户和门店信息，消除 N+1 查询问题
+        List<CommentVO> list = convertToCommentVOList(reviews);
 
         // 计算Tab计数
         Map<String, Long> tabCounts = calculateTabCounts(shopIds);
@@ -484,7 +484,65 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
         return result;
     }
 
-    private CommentVO convertToCommentVO(ShopReviewDO review) {
+    /**
+     * 批量转换评论列表为 VO
+     * <p>
+     * 使用 In-Memory Map Assembly 模式解决 N+1 查询问题
+     * </p>
+     *
+     * @param reviews 评论列表
+     * @return CommentVO 列表
+     */
+    private List<CommentVO> convertToCommentVOList(List<ShopReviewDO> reviews) {
+        if (reviews.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 收集所有用户ID和门店ID
+        Set<Long> userIds = reviews.stream()
+                .map(ShopReviewDO::getUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Set<Long> shopIds = reviews.stream()
+                .map(ShopReviewDO::getShopId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // 批量查询用户信息
+        Map<Long, UserDO> userMap = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            List<UserDO> users = userMapper.selectBatchIds(userIds);
+            userMap = users.stream()
+                    .collect(Collectors.toMap(UserDO::getId, u -> u, (a, b) -> a));
+        }
+
+        // 批量查询门店信息
+        Map<Long, ShopDO> shopMap = new HashMap<>();
+        if (!shopIds.isEmpty()) {
+            List<ShopDO> shops = shopMapper.selectBatchIds(shopIds);
+            shopMap = shops.stream()
+                    .collect(Collectors.toMap(ShopDO::getId, s -> s, (a, b) -> a));
+        }
+
+        // 内存组装 VO
+        final Map<Long, UserDO> finalUserMap = userMap;
+        final Map<Long, ShopDO> finalShopMap = shopMap;
+
+        return reviews.stream()
+                .map(review -> convertToCommentVO(review, finalUserMap, finalShopMap))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 转换单个评论为 VO（从预加载的 Map 中获取关联数据）
+     *
+     * @param review  评论实体
+     * @param userMap 用户信息 Map
+     * @param shopMap 门店信息 Map
+     * @return CommentVO
+     */
+    private CommentVO convertToCommentVO(ShopReviewDO review, Map<Long, UserDO> userMap, Map<Long, ShopDO> shopMap) {
         CommentVO response = new CommentVO();
         response.setId(review.getId());
         response.setContent(review.getContent());
@@ -492,9 +550,9 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
         response.setLiked(false);
         response.setTime(review.getCreatedAt());
 
-        // 获取用户信息
+        // ✅ 优化：从预加载的 Map 中获取用户信息，避免 N+1 查询
         if (review.getUserId() != null) {
-            UserDO user = userMapper.selectById(review.getUserId());
+            UserDO user = userMap.get(review.getUserId());
             if (user != null) {
                 response.setAuthorId(user.getId());
                 response.setAuthor(user.getUsername());
@@ -509,9 +567,9 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
             }
         }
 
-        // 获取门店信息（用于显示关联商家）
+        // ✅ 优化：从预加载的 Map 中获取门店信息，避免 N+1 查询
         if (review.getShopId() != null) {
-            ShopDO shop = shopMapper.selectById(review.getShopId());
+            ShopDO shop = shopMap.get(review.getShopId());
             if (shop != null) {
                 response.setNoteTitle(shop.getName()); // 使用门店名称
             }
@@ -599,14 +657,42 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
 
         List<ShopReviewDO> reviews = shopReviewMapper.selectList(wrapper);
 
-        // 转换为导出数据
+        // ✅ 优化：批量预加载用户和门店信息，消除导出时的 N+1 查询问题
+        Set<Long> userIds = reviews.stream()
+                .map(ShopReviewDO::getUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Set<Long> exportShopIds = reviews.stream()
+                .map(ShopReviewDO::getShopId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // 批量查询用户信息
+        Map<Long, UserDO> userMap = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            List<UserDO> users = userMapper.selectBatchIds(userIds);
+            userMap = users.stream()
+                    .collect(Collectors.toMap(UserDO::getId, u -> u, (a, b) -> a));
+        }
+
+        // 批量查询门店信息
+        Map<Long, ShopDO> shopMap = new HashMap<>();
+        if (!exportShopIds.isEmpty()) {
+            List<ShopDO> shops = shopMapper.selectBatchIds(exportShopIds);
+            shopMap = shops.stream()
+                    .collect(Collectors.toMap(ShopDO::getId, s -> s, (a, b) -> a));
+        }
+
+        // 转换为导出数据（使用 Map 避免逐条查询）
         List<Map<String, Object>> rows = new ArrayList<>();
         for (ShopReviewDO review : reviews) {
             Map<String, Object> row = new LinkedHashMap<>();
-            // 用户信息
+
+            // ✅ 优化：从 Map 中获取用户信息
             String userName = "匿名用户";
             if (review.getUserId() != null) {
-                UserDO user = userMapper.selectById(review.getUserId());
+                UserDO user = userMap.get(review.getUserId());
                 if (user != null)
                     userName = user.getUsername();
             }
@@ -622,8 +708,8 @@ public class MerchantCommentServiceImpl implements MerchantCommentService {
             row.put("评论内容", review.getContent());
             row.put("评论时间", review.getCreatedAt().toString().replace("T", " "));
 
-            // 门店
-            ShopDO shop = shopMapper.selectById(review.getShopId());
+            // ✅ 优化：从 Map 中获取门店信息
+            ShopDO shop = shopMap.get(review.getShopId());
             row.put("所属门店", shop != null ? shop.getName() : "未知门店");
 
             // 状态
