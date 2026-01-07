@@ -35,7 +35,7 @@
 					<view 
 						class="magic-ball-wrapper" 
 						v-if="canUseMagic || generating"
-						@click="handleMagicGenerate"
+						@click="onMagicGenerate"
 					>
 						<view class="magic-ball" :class="{ 'rotating': generating }">
 							<text class="magic-icon">✨</text>
@@ -111,334 +111,59 @@
 			</view>
 		</scroll-view>
 		
-		<!-- 话题输入弹窗 -->
-		<view v-if="showTopicModal" class="modal-overlay" @click="closeTopicModal">
-			<view class="topic-modal-new" @click.stop>
-				<view class="modal-header">
-					<text class="modal-title">添加话题</text>
-					<text class="modal-close" @click="closeTopicModal">×</text>
-				</view>
-				
-				<!-- 输入框 -->
-				<view class="topic-input-section">
-					<view class="topic-input-wrapper-new">
-						<text class="topic-hash-new">#</text>
-						<input 
-							class="topic-input-new" 
-							v-model="topicInput"
-							placeholder="输入自定义话题..."
-							maxlength="20"
-							@confirm="addCustomTopic"
-						/>
-						<view class="topic-add-btn-new" @click="addCustomTopic">
-							<text>添加</text>
-						</view>
-					</view>
-				</view>
-				
-				<!-- 话题列表 -->
-				<scroll-view class="topic-list-scroll" scroll-y>
-					<!-- 最近使用 -->
-					<view v-if="selectedTopics.length > 0" class="topic-group">
-						<view class="topic-group-header">
-							<text class="topic-group-icon">🕐</text>
-							<text class="topic-group-title">最近使用</text>
-						</view>
-						<view class="topic-tags-wrapper">
-							<view 
-								class="topic-tag-item" 
-								v-for="(topic, index) in selectedTopics" 
-								:key="'selected-' + index"
-							>
-								<text class="topic-tag-text">#{{ topic.name }}</text>
-								<text class="topic-tag-remove" @click.stop="removeTopic(index)">×</text>
-							</view>
-						</view>
-					</view>
-					
-					<!-- 热门推荐 -->
-					<view class="topic-group">
-						<view class="topic-group-header">
-							<text class="topic-group-icon">🔥</text>
-							<text class="topic-group-title">热门推荐</text>
-						</view>
-						<view class="topic-tags-wrapper">
-							<view 
-								class="topic-tag-item hot-topic" 
-								:class="{ selected: isTopicSelected(topic) }"
-								v-for="topic in hotTopics" 
-								:key="topic.id"
-								@click="toggleHotTopic(topic)"
-							>
-								<text class="topic-tag-icon" v-if="topic.isHot">🔥</text>
-								<text class="topic-tag-text">#{{ topic.name }}</text>
-							</view>
-						</view>
-					</view>
-					
-					<view style="height: 40rpx;"></view>
-				</scroll-view>
-			</view>
-		</view>
-		
-		<!-- 商户选择弹窗 -->
-		<view v-if="showShopModal" class="modal-overlay" @click="closeShopModal">
-			<view class="shop-modal" @click.stop>
-				<view class="modal-header">
-					<text class="modal-title">关联商户</text>
-					<text class="modal-close" @click="closeShopModal">×</text>
-				</view>
-				
-				<!-- 搜索栏 -->
-				<view class="shop-search-bar">
-					<view class="search-input-wrapper">
-						<text class="search-icon">🔍</text>
-						<input 
-							class="search-input" 
-							v-model="shopSearchKeyword"
-							placeholder="搜索商户名、地点..."
-							@input="handleShopSearch"
-						/>
-					</view>
-				</view>
-				
-				<!-- 商户列表 -->
-				<scroll-view class="shop-list" scroll-y>
-					<view v-if="filteredShopList.length > 0">
-						<view class="list-group-title">附近推荐</view>
-						
-						<view 
-							class="shop-item" 
-							:class="{ selected: selectedShop && selectedShop.id === shop.id }"
-							v-for="shop in filteredShopList" 
-							:key="shop.id"
-							@click="selectShopItem(shop)"
-						>
-							<image 
-								v-if="shop.headerImage"
-								:src="shop.headerImage" 
-								class="shop-img" 
-								mode="aspectFill"
-							></image>
-							<view v-else class="shop-img shop-img-placeholder">
-								<text class="placeholder-icon">🏪</text>
-							</view>
-							<view class="shop-info">
-								<text class="shop-name">{{ shop.name }}</text>
-								<view class="shop-meta">
-									<text class="shop-category">{{ shop.category || '商户' }}</text>
-									<text v-if="shop.avgPrice">· 人均¥{{ shop.avgPrice }}</text>
-								</view>
-							</view>
-							<text class="check-icon">✓</text>
-						</view>
-					</view>
-					
-					<view v-else class="empty-shop">
-						<text>暂无商户</text>
-					</view>
-				</scroll-view>
-			</view>
-		</view>
+		<TopicSelector v-model="selectedTopics" v-model:visible="showTopicModal" />
+		<ShopSelector v-model="selectedShop" v-model:visible="showShopModal" />
 	</view>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { publishNote, generateNoteByAI, generateNoteByAIStream } from '../../api/note'
-import { uploadImages } from '../../api/upload'
-import { getHotTopics, search } from '../../api/common'
-import { getRegisteredShops } from '../../api/shop'
+import { publishNote } from '../../api/note'
+import TopicSelector from '../../components/TopicSelector.vue'
+import ShopSelector from '../../components/ShopSelector.vue'
+import { useImageUpload } from '../../composables/useImageUpload'
+import { useAiNote } from '../../composables/useAiNote'
+import { useLocation } from '../../composables/useLocation'
 
 const title = ref('')
 const content = ref('')
-const imageList = ref([]) // 存储临时文件路径
-const uploadedImageUrls = ref([]) // 存储已上传的图片URL
 const selectedShop = ref(null)
 const selectedTopics = ref([])
-const location = ref('')
-const latitude = ref(null)
-const longitude = ref(null)
 const publishing = ref(false)
 const showTopicModal = ref(false)
 const showShopModal = ref(false)
-const topicInput = ref('')
-const hotTopics = ref([])
-const shopList = ref([])
-const shopSearchKeyword = ref('')
-const filteredShopList = ref([])
-const generating = ref(false) // AI生成中状态
-const aiLoadingText = ref('') // AI 加载状态文案
+
+// Use Composables
+const { imageList, chooseImage, removeImage, uploadImages, clearImages } = useImageUpload()
+const { location, latitude, longitude, chooseLocation, clearLocation } = useLocation()
+const { generating, handleMagicGenerate } = useAiNote()
 
 // 计算属性：是否可以使用魔法按钮（有图片或有标签时）
 const canUseMagic = computed(() => {
 	return imageList.value.length > 0 || selectedTopics.value.length > 0
 })
 
-// AI 加载状态文案列表
-const aiLoadingStages = [
-	'正在分析图片内容...',
-	'正在识别图片中的美食...',
-	'正在提取关键特征...',
-	'正在构思创意文案...',
-	'正在组织优美语言...',
-	'AI正在深度思考...',
-	'即将完成，请稍候...'
-]
-
-// 更新 AI 加载状态文案
-let loadingTimer = null
-const startLoadingAnimation = () => {
-	let stageIndex = 0
-	aiLoadingText.value = aiLoadingStages[0]
-	
-	loadingTimer = setInterval(() => {
-		stageIndex++
-		if (stageIndex < aiLoadingStages.length) {
-			aiLoadingText.value = aiLoadingStages[stageIndex]
-		}
-	}, 2500) // 每 2.5 秒切换一次
+const onMagicGenerate = () => {
+    handleMagicGenerate({
+        imageList: imageList.value,
+        uploadImagesFunc: uploadImages,
+        selectedShop: selectedShop.value,
+        selectedTopics: selectedTopics.value,
+        titleRef: title,
+        contentRef: content
+    })
 }
 
-const stopLoadingAnimation = () => {
-	if (loadingTimer) {
-		clearInterval(loadingTimer)
-		loadingTimer = null
+const showTopicInput = () => {
+	if (selectedTopics.value.length >= 5) {
+		uni.showToast({ title: '最多选择5个话题', icon: 'none' })
+		return
 	}
-	aiLoadingText.value = ''
+	showTopicModal.value = true
 }
 
-// AI魔法生成笔记（流式打字机效果）
-const handleMagicGenerate = async () => {
-	// 验证是否有图片
-	if (imageList.value.length === 0) {
-		uni.showToast({
-			title: '请先上传图片',
-			icon: 'none'
-		})
-		return
-	}
-	
-	// 防止重复点击
-	if (generating.value) {
-		return
-	}
-	
-	generating.value = true
-	startLoadingAnimation()
-	
-	// 清空现有内容，准备流式输入
-	title.value = ''
-	content.value = ''
-	
-	try {
-		// 1. 先上传图片获取公网URL（如果还没上传）
-		let imageUrls = []
-		if (uploadedImageUrls.value.length === 0) {
-			uni.showLoading({ title: '正在上传图片...', mask: true })
-			console.log('开始上传图片到OSS...')
-			const uploadResult = await uploadImages(imageList.value)
-			imageUrls = uploadResult.urls
-			uploadedImageUrls.value = imageUrls
-			console.log('图片上传成功:', imageUrls)
-			uni.hideLoading()
-		} else {
-			imageUrls = uploadedImageUrls.value
-			console.log('使用已缓存的图片URL:', imageUrls)
-		}
-		
-		// 显示生成中的状态
-		uni.showToast({
-			title: 'AI正在创作中...',
-			icon: 'none',
-			duration: 60000 // 保持显示
-		})
-		
-		// 2. 构建AI生成请求
-		const generateRequest = {
-			shopName: selectedShop.value ? selectedShop.value.name : '',
-			imageUrls: imageUrls,
-			tags: selectedTopics.value.map(t => t.name)
-		}
-		
-		console.log('调用AI流式生成笔记，请求:', generateRequest)
-		
-		// 3. 使用流式 API，实现打字机效果
-		let fullText = ''
-		let isParsingTitle = true // 默认先解析标题
-		let titleText = ''
-		let contentText = ''
-		
-		await generateNoteByAIStream(
-			generateRequest,
-			// onToken 回调：每个 token 到达时触发
-			(token) => {
-				fullText += token
-				
-				// 检查是否遇到分隔符 "---"
-				if (isParsingTitle && fullText.includes('---')) {
-					// 分隔标题和正文
-					const parts = fullText.split('---')
-					titleText = parts[0].trim()
-					contentText = parts.slice(1).join('---').trim()
-					isParsingTitle = false
-					
-					// 更新显示（打字机效果）
-					title.value = titleText
-					content.value = contentText
-				} else if (isParsingTitle) {
-					// 还在解析标题阶段
-					title.value = fullText.trim()
-				} else {
-					// 正在解析正文阶段
-					const parts = fullText.split('---')
-					contentText = parts.slice(1).join('---').trim()
-					content.value = contentText
-				}
-			},
-			// onComplete 回调：生成完成时触发
-			(finalText) => {
-				console.log('AI流式生成完成，总长度:', finalText.length)
-				
-				// 最终解析
-				if (finalText.includes('---')) {
-					const parts = finalText.split('---')
-					title.value = parts[0].trim().replace(/^(标题[:：]?\s*)/, '')
-					content.value = parts.slice(1).join('---').trim().replace(/^(正文[:：]?\s*)/, '')
-				} else if (finalText.includes('\n\n')) {
-					const parts = finalText.split('\n\n')
-					title.value = parts[0].trim()
-					content.value = parts.slice(1).join('\n\n').trim()
-				}
-				
-				uni.hideToast()
-				stopLoadingAnimation()
-				uni.showToast({
-					title: 'AI创作完成！',
-					icon: 'success',
-					duration: 1500
-				})
-			},
-			// onError 回调：发生错误时触发
-			(error) => {
-				console.error('AI流式生成失败:', error)
-				throw error
-			}
-		)
-		
-	} catch (e) {
-		stopLoadingAnimation()
-		uni.hideToast()
-		uni.hideLoading()
-		console.error('AI生成失败:', e)
-		uni.showToast({
-			title: e.message || 'AI生成失败，请重试',
-			icon: 'none',
-			duration: 2000
-		})
-	} finally {
-		generating.value = false
-	}
+const selectShop = () => {
+	showShopModal.value = true
 }
 
 const handleCancel = () => {
@@ -493,18 +218,9 @@ const handlePublish = async () => {
 	uni.showLoading({ title: '发布中...', mask: true })
 	
 	try {
-		// 1. 上传图片（只上传一次）
-		let imageUrls = []
-		if (uploadedImageUrls.value.length === 0) {
-			console.log('开始上传图片:', imageList.value.length)
-			const uploadResult = await uploadImages(imageList.value)
-			imageUrls = uploadResult.urls
-			uploadedImageUrls.value = imageUrls
-			console.log('图片上传成功:', imageUrls)
-		} else {
-			imageUrls = uploadedImageUrls.value
-			console.log('使用已缓存的图片URL:', imageUrls)
-		}
+		// 1. 上传图片（只上传一次，内部有缓存检查）
+		const uploadResult = await uploadImages()
+		const imageUrls = uploadResult.urls || uploadResult
 		
 		// 2. 构建发布数据（默认公开，status=1）
 		const noteData = {
@@ -554,265 +270,13 @@ const handlePublish = async () => {
 	}
 }
 
-const chooseImage = () => {
-	const remainCount = 9 - imageList.value.length
-	if (remainCount <= 0) {
-		uni.showToast({
-			title: '最多上传9张图片',
-			icon: 'none'
-		})
-		return
-	}
-	
-	uni.chooseImage({
-		count: remainCount,
-		sizeType: ['compressed'],
-		sourceType: ['album', 'camera'],
-		success: (res) => {
-			imageList.value.push(...res.tempFilePaths)
-		}
-	})
-}
-
-const removeImage = (index) => {
-	imageList.value.splice(index, 1)
-}
-
-const selectShop = async () => {
-	try {
-		uni.showLoading({ title: '加载商户...' })
-		const result = await getRegisteredShops('', 1, 50)
-		uni.hideLoading()
-		
-		if (result.list && result.list.length > 0) {
-			shopList.value = result.list
-			filteredShopList.value = result.list
-			showShopModal.value = true
-		} else {
-			uni.showToast({ title: '暂无可关联的商户', icon: 'none' })
-		}
-	} catch (e) {
-		uni.hideLoading()
-		console.error('加载商户失败:', e)
-		uni.showToast({ title: '加载商户失败', icon: 'none' })
-	}
-}
-
-const closeShopModal = () => {
-	showShopModal.value = false
-	shopSearchKeyword.value = ''
-	filteredShopList.value = shopList.value
-}
-
-const selectShopItem = (shop) => {
-	selectedShop.value = shop
-	uni.showToast({ 
-		title: '已选择商户', 
-		icon: 'success',
-		duration: 800
-	})
-	setTimeout(() => {
-		closeShopModal()
-	}, 300)
-}
-
-const handleShopSearch = () => {
-	const keyword = shopSearchKeyword.value.trim().toLowerCase()
-	if (!keyword) {
-		filteredShopList.value = shopList.value
-		return
-	}
-	
-	filteredShopList.value = shopList.value.filter(shop => {
-		return shop.name.toLowerCase().includes(keyword) ||
-		       (shop.category && shop.category.toLowerCase().includes(keyword)) ||
-		       (shop.address && shop.address.toLowerCase().includes(keyword))
-	})
-}
-
-const showTopicInput = async () => {
-	if (selectedTopics.value.length >= 5) {
-		uni.showToast({ title: '最多选择5个话题', icon: 'none' })
-		return
-	}
-	
-	showTopicModal.value = true
-	
-	// 加载热门话题
-	if (hotTopics.value.length === 0) {
-		try {
-			const topics = await getHotTopics(1, 20)
-			if (topics.list && topics.list.length > 0) {
-				// 过滤掉已选择的话题
-				hotTopics.value = topics.list.filter(
-					t => !selectedTopics.value.find(st => st.name === t.name)
-				)
-			}
-		} catch (e) {
-			console.error('加载热门话题失败:', e)
-		}
-	}
-}
-
-const closeTopicModal = () => {
-	showTopicModal.value = false
-	topicInput.value = ''
-}
-
-const addCustomTopic = () => {
-	const topicName = topicInput.value.trim()
-	
-	if (!topicName) {
-		uni.showToast({ title: '请输入话题名称', icon: 'none' })
-		return
-	}
-	
-	if (topicName.length > 20) {
-		uni.showToast({ title: '话题名称不能超过20个字', icon: 'none' })
-		return
-	}
-	
-	if (selectedTopics.value.length >= 5) {
-		uni.showToast({ title: '最多选择5个话题', icon: 'none' })
-		return
-	}
-	
-	// 检查是否已存在
-	if (selectedTopics.value.find(t => t.name === topicName)) {
-		uni.showToast({ title: '该话题已添加', icon: 'none' })
-		return
-	}
-	
-	// 添加自定义话题（id为null表示自定义）
-	selectedTopics.value.push({
-		id: null,
-		name: topicName
-	})
-	
-	topicInput.value = ''
-	uni.showToast({ 
-		title: `已添加 (${selectedTopics.value.length}/5)`, 
-		icon: 'success',
-		duration: 1000
-	})
-}
-
-const selectHotTopic = (topic) => {
-	if (selectedTopics.value.length >= 5) {
-		uni.showToast({ title: '最多选择5个话题', icon: 'none' })
-		return
-	}
-	
-	// 检查是否已存在
-	if (selectedTopics.value.find(t => t.name === topic.name)) {
-		uni.showToast({ title: '该话题已添加', icon: 'none' })
-		return
-	}
-	
-	selectedTopics.value.push(topic)
-	
-	// 从热门列表中移除
-	hotTopics.value = hotTopics.value.filter(t => t.id !== topic.id)
-	
-	uni.showToast({ 
-		title: `已添加 (${selectedTopics.value.length}/5)`, 
-		icon: 'success',
-		duration: 1000
-	})
-}
-
-const removeTopic = (index) => {
-	const removed = selectedTopics.value.splice(index, 1)[0]
-	
-	// 如果是热门话题，重新加入热门列表
-	if (removed.id) {
-		hotTopics.value.unshift(removed)
-	}
-	
-	uni.showToast({ 
-		title: '已移除', 
-		icon: 'success',
-		duration: 800
-	})
-}
-
-// 检查话题是否已选中
-const isTopicSelected = (topic) => {
-	return selectedTopics.value.some(t => t.name === topic.name)
-}
-
-// 切换热门话题选中状态
-const toggleHotTopic = (topic) => {
-	const index = selectedTopics.value.findIndex(t => t.name === topic.name)
-	
-	if (index >= 0) {
-		// 已选中，移除
-		selectedTopics.value.splice(index, 1)
-		uni.showToast({ 
-			title: '已移除', 
-			icon: 'success',
-			duration: 800
-		})
-	} else {
-		// 未选中，添加
-		if (selectedTopics.value.length >= 5) {
-			uni.showToast({ title: '最多选择5个话题', icon: 'none' })
-			return
-		}
-		
-		selectedTopics.value.push(topic)
-		uni.showToast({ 
-			title: `已添加 (${selectedTopics.value.length}/5)`, 
-			icon: 'success',
-			duration: 1000
-		})
-	}
-}
-
-const chooseLocation = () => {
-	// 跳转到自定义位置选择页面
-	uni.navigateTo({
-		url: '/pages/location-picker/location-picker'
-	})
-}
-
-// 监听页面显示和位置选择事件
-import { onShow, onUnload } from '@dcloudio/uni-app'
-
-onShow(() => {
-	// 监听位置选择事件
-	uni.$on('locationSelected', handleLocationSelected)
-})
-
-onUnload(() => {
-	// 移除事件监听
-	uni.$off('locationSelected', handleLocationSelected)
-})
-
-// 处理位置选择
-const handleLocationSelected = (data) => {
-	console.log('✅ 收到位置数据:', data)
-	location.value = data.name
-	latitude.value = data.latitude
-	longitude.value = data.longitude
-	
-	uni.showToast({
-		title: '位置已选择',
-		icon: 'success',
-		duration: 1500
-	})
-}
-
 const clearForm = () => {
 	title.value = ''
 	content.value = ''
-	imageList.value = []
-	uploadedImageUrls.value = [] // 清空已上传的图片URL
+    clearImages()
 	selectedShop.value = null
 	selectedTopics.value = []
-	location.value = ''
-	latitude.value = null
-	longitude.value = null
+    clearLocation()
 }
 </script>
 
@@ -1169,316 +633,5 @@ const clearForm = () => {
 .cell-arrow {
 	font-size: 28rpx;
 	color: #d1d8e0;
-}
-
-// 话题弹窗
-.modal-overlay {
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	background: rgba(0, 0, 0, 0.5);
-	display: flex;
-	align-items: flex-end;
-	z-index: 1000;
-	animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-	from { opacity: 0; }
-	to { opacity: 1; }
-}
-
-@keyframes slideUp {
-	from { transform: translateY(100%); }
-	to { transform: translateY(0); }
-}
-
-.modal-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding: 30rpx 40rpx;
-	border-bottom: 1rpx solid #f0f0f0;
-}
-
-.modal-title {
-	font-size: 34rpx;
-	font-weight: 600;
-	color: #333;
-}
-
-.modal-close {
-	font-size: 48rpx;
-	color: #999;
-	line-height: 1;
-	padding: 0 10rpx;
-}
-
-// 话题弹窗 - 新样式
-.topic-modal-new {
-	width: 100%;
-	max-height: 75vh;
-	background: white;
-	border-radius: 40rpx 40rpx 0 0;
-	animation: slideUp 0.3s ease;
-	display: flex;
-	flex-direction: column;
-}
-
-.topic-input-section {
-	padding: 20rpx 32rpx;
-	background: #fff;
-	border-bottom: 1rpx solid #f0f0f0;
-}
-
-.topic-input-wrapper-new {
-	background: #f7f9fc;
-	border-radius: 20rpx;
-	padding: 16rpx 24rpx;
-	display: flex;
-	align-items: center;
-	gap: 12rpx;
-}
-
-.topic-hash-new {
-	font-size: 32rpx;
-	color: #ff9f43;
-	font-weight: bold;
-}
-
-.topic-input-new {
-	flex: 1;
-	font-size: 28rpx;
-	color: #333;
-	background: transparent;
-}
-
-.topic-add-btn-new {
-	padding: 8rpx 24rpx;
-	background: linear-gradient(135deg, #ffaf40, #ff9f43);
-	border-radius: 20rpx;
-	
-	text {
-		font-size: 24rpx;
-		color: white;
-		font-weight: 500;
-	}
-	
-	&:active {
-		opacity: 0.8;
-	}
-}
-
-.topic-list-scroll {
-	flex: 1;
-	padding: 0 32rpx 40rpx 32rpx;
-	max-height: 60vh;
-}
-
-.topic-group {
-	margin-top: 30rpx;
-}
-
-.topic-group-header {
-	display: flex;
-	align-items: center;
-	gap: 12rpx;
-	margin-bottom: 20rpx;
-}
-
-.topic-group-icon {
-	font-size: 28rpx;
-}
-
-.topic-group-title {
-	font-size: 26rpx;
-	color: #b2bec3;
-	font-weight: 500;
-}
-
-.topic-tags-wrapper {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 16rpx;
-}
-
-.topic-tag-item {
-	display: flex;
-	align-items: center;
-	gap: 8rpx;
-	padding: 14rpx 24rpx;
-	background: #f7f9fc;
-	border: 2rpx solid #e8e8e8;
-	border-radius: 28rpx;
-	transition: all 0.3s ease;
-	
-	&:active {
-		transform: scale(0.95);
-	}
-	
-	&.hot-topic {
-		background: white;
-		
-		&.selected {
-			background: linear-gradient(135deg, #fff5e6 0%, #ffedd5 100%);
-			border-color: #ff9f43;
-		}
-	}
-}
-
-.topic-tag-icon {
-	font-size: 24rpx;
-}
-
-.topic-tag-text {
-	font-size: 26rpx;
-	color: #666;
-	
-	.topic-tag-item.selected & {
-		color: #ff9f43;
-		font-weight: 500;
-	}
-}
-
-.topic-tag-remove {
-	font-size: 28rpx;
-	color: #ff8a50;
-	font-weight: bold;
-	line-height: 1;
-	margin-left: 4rpx;
-}
-
-// 商户选择弹窗
-.shop-modal {
-	width: 100%;
-	max-height: 75vh;
-	background: white;
-	border-radius: 40rpx 40rpx 0 0;
-	animation: slideUp 0.3s ease;
-	display: flex;
-	flex-direction: column;
-}
-
-.shop-search-bar {
-	padding: 20rpx 32rpx;
-	background: #fff;
-	border-bottom: 1rpx solid #f0f0f0;
-}
-
-.search-input-wrapper {
-	background: #f7f9fc;
-	border-radius: 20rpx;
-	padding: 16rpx 24rpx;
-	display: flex;
-	align-items: center;
-	gap: 16rpx;
-}
-
-.search-icon {
-	font-size: 28rpx;
-}
-
-.search-input {
-	flex: 1;
-	font-size: 28rpx;
-	color: #333;
-	background: transparent;
-}
-
-.shop-list {
-	flex: 1;
-	padding: 0 32rpx 40rpx 32rpx;
-	max-height: 60vh;
-}
-
-.list-group-title {
-	font-size: 24rpx;
-	color: #b2bec3;
-	margin: 30rpx 0 16rpx 0;
-	font-weight: 500;
-}
-
-.shop-item {
-	display: flex;
-	align-items: center;
-	padding: 24rpx 0;
-	border-bottom: 1rpx solid #f1f2f6;
-	transition: opacity 0.2s;
-	
-	&:active {
-		opacity: 0.7;
-	}
-}
-
-.shop-img {
-	width: 88rpx;
-	height: 88rpx;
-	border-radius: 12rpx;
-	background-color: #f1f2f6;
-	flex-shrink: 0;
-}
-
-.shop-img-placeholder {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	background: linear-gradient(135deg, #e7f5ff 0%, #f0f0f0 100%);
-}
-
-.placeholder-icon {
-	font-size: 40rpx;
-}
-
-.shop-info {
-	flex: 1;
-	margin-left: 24rpx;
-	display: flex;
-	flex-direction: column;
-	gap: 8rpx;
-}
-
-.shop-name {
-	font-size: 30rpx;
-	font-weight: 600;
-	color: #2d3436;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.shop-meta {
-	display: flex;
-	align-items: center;
-	gap: 8rpx;
-	font-size: 24rpx;
-	color: #b2bec3;
-}
-
-.shop-category {
-	color: #ff9f43;
-	background: rgba(255, 159, 67, 0.1);
-	padding: 2rpx 8rpx;
-	border-radius: 8rpx;
-	font-size: 22rpx;
-}
-
-.check-icon {
-	color: #ff9f43;
-	font-size: 36rpx;
-	opacity: 0;
-	transition: 0.2s;
-}
-
-.shop-item.selected .check-icon {
-	opacity: 1;
-}
-
-.empty-shop {
-	text-align: center;
-	padding: 100rpx 0;
-	color: #999;
-	font-size: 28rpx;
 }
 </style>
